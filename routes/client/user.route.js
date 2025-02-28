@@ -26,7 +26,7 @@ route.post("/quickUserVerification", checkAccessWithSecretKey(), UserController.
 route.post("/signInOrSignUpUser", validateAuthToken, checkAccessWithSecretKey(), UserController.signInOrSignUpUser);
 
 //update profile of the user
-route.patch("/modifyUserProfile", validateAuthToken, checkAccessWithSecretKey(), upload.single("image"), UserController.modifyUserProfile);
+route.patch("/modifyUserProfile", validateUserToken, checkAccessWithSecretKey(), upload.single("image"), UserController.modifyUserProfile);
 
 //get user profile
 route.get("/retrieveUserProfile", validateUserToken, checkAccessWithSecretKey(), UserController.retrieveUserProfile);

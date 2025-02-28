@@ -58,11 +58,11 @@ exports.signInOrSignUpUser = async (req, res) => {
     switch (loginType) {
       case 1:
         if (!email) return res.status(200).json({ status: false, message: "email is required." });
-        userQuery = { email };
+        userQuery = { email, loginType: 1 };
         break;
       case 2:
         if (!email) return res.status(200).json({ status: false, message: "email is required." });
-        userQuery = { email };
+        userQuery = { email, loginType: 2 };
         break;
       case 3:
         if (!identity && !email) {
@@ -221,8 +221,6 @@ exports.retrieveUserProfile = async (req, res) => {
     const [user] = await Promise.all([User.findOne({ _id: userId }).lean()]);
 
     res.status(200).json({ status: true, message: "The user has retrieved their profile.", user: user });
-
-    await updateWealthLevel(userId);
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
