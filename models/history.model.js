@@ -10,6 +10,8 @@ const historySchema = new mongoose.Schema(
     otherUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }, // Receiver
 
     giftId: { type: mongoose.Schema.Types.ObjectId, ref: "Gift", default: null },
+    giftCount: { type: Number, default: 0 },
+
     planId: { type: mongoose.Schema.Types.ObjectId, ref: "CoinPlan", default: null }, // Plan's ID purchased by the user
 
     paymentGateway: { type: String, default: "" },

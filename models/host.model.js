@@ -1,32 +1,35 @@
-const { LOGIN_TYPE } = require("../types/constant");
+const { HOST_REQUEST_STATUS } = require("../types/constant");
 
 const mongoose = require("mongoose");
 
-const userSchema = new mongoose.Schema(
+const hostSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+
     name: { type: String, default: "Andraw Ainsley" },
-    selfIntro: { type: String, default: "" },
     gender: { type: String, default: "Female" },
     bio: { type: String, default: "" },
     age: { type: Number, default: 18 },
-    image: { type: String, default: "storage/male.png" },
+    dob: { type: String, default: "" },
     email: { type: String, default: "" },
     countryFlagImage: { type: String, default: "" },
     country: { type: String, default: "" },
+
+    impression: { type: Array, default: [] },
+    language: { type: Array, default: [] },
+    image: { type: String, default: "storage/male.png" },
+    photoGallery: { type: Array, default: [] },
+
     ipAddress: { type: String, default: "" },
-    loginType: { type: Number, enum: LOGIN_TYPE }, //1.apple 2.google 3.quick(identity)
     identity: { type: String, default: "" },
     fcmToken: { type: String, default: null },
     uniqueId: { type: String, unique: true, default: "" },
 
-    firebaseUid: { type: String, unique: true, default: "" }, //firebase uid
-    provider: { type: String, default: "" },
-
     coin: { type: Number, default: 0 },
-    consumedCoins: { type: Number, default: 0 },
-    purchasedCoin: { type: Number, default: 0 }, //totalTopUp (Total coins the user has topped up)
-    receivedCoin: { type: Number, default: 0 }, //receied coin when gift received through live
     receivedGift: { type: Number, default: 0 },
+
+    status: { type: Number, enum: HOST_REQUEST_STATUS, default: 1 },
+    reason: { type: String, default: "" },
 
     totalWithdrawalCoin: { type: Number, default: 0 },
     totalWithdrawalAmount: { type: Number, default: 0 },
@@ -39,10 +42,11 @@ const userSchema = new mongoose.Schema(
 
     callId: { type: String, default: "" },
 
-    isHost: { type: Boolean, default: false },
-    hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null },
+    isLive: { type: Boolean, default: false },
+    liveHistoryId: { type: mongoose.Schema.Types.ObjectId, ref: "LiveHistory", default: null },
 
-    lastlogin: { type: String, default: "" },
+    isHost: { type: Boolean, default: false },
+
     date: { type: String, default: "" },
   },
   {
@@ -51,9 +55,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.index({ identity: 1, loginType: 1 });
-userSchema.index({ isBlock: 1 });
-userSchema.index({ isFake: 1 });
-userSchema.index({ createdAt: -1 });
+hostSchema.index({ isBlock: 1 });
+hostSchema.index({ isFake: 1 });
+hostSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model("Host", hostSchema);

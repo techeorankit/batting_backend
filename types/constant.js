@@ -4,6 +4,12 @@ exports.LOGIN_TYPE = {
   QUICK: 3,
 };
 
+exports.HOST_REQUEST_STATUS = {
+  PENDING: 1,
+  ACCEPTED: 2,
+  DECLINED: 3,
+};
+
 exports.GIFTTYPE_TYPE = {
   IMAGE: 1,
   GIF: 2,
@@ -25,15 +31,4 @@ exports.WITHDRAWAL_STATUS = {
   PENDING: 1,
   ACCEPTED: 2,
   DECLINED: 3,
-};
-
-exports.TYPE_OF_REPORT = {
-  VIDEO: 1,
-  POST: 2,
-  USERTOUSER: 3,
-};
-
-exports.STATUS_OF_REPORT = {
-  PENDING: 1,
-  SOLVED: 2,
 };
