@@ -1,4 +1,4 @@
-const generateUserUniqueId = require("../util/generateUserUniqueId");
+const generateUniqueId = require("../util/generateUniqueId");
 
 // User function
 const userFunction = async (user, data_) => {
@@ -21,7 +21,7 @@ const userFunction = async (user, data_) => {
   user.fcmToken = data?.fcmToken || user.fcmToken;
 
   if (!user.uniqueId) {
-    [user.uniqueId] = await Promise.all([generateUserUniqueId()]);
+    [user.uniqueId] = await Promise.all([generateUniqueId()]);
   }
 
   await user.save();

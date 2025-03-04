@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const hostSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    agencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", default: null },
 
     name: { type: String, default: "Andraw Ainsley" },
     gender: { type: String, default: "Female" },
@@ -17,13 +18,19 @@ const hostSchema = new mongoose.Schema(
 
     impression: { type: Array, default: [] },
     language: { type: Array, default: [] },
-    image: { type: String, default: "storage/male.png" },
+    image: { type: String, default: "" },
     photoGallery: { type: Array, default: [] },
 
     ipAddress: { type: String, default: "" },
     identity: { type: String, default: "" },
     fcmToken: { type: String, default: null },
     uniqueId: { type: String, unique: true, default: "" },
+
+    randomCallRate: { type: Number, default: 0 },
+    randomCallFemaleRate: { type: Number, default: 0 },
+    randomCallMaleRate: { type: Number, default: 0 },
+    privateCallRate: { type: Number, default: 0 },
+    chatMessageRate: { type: Number, default: 0 },
 
     coin: { type: Number, default: 0 },
     receivedGift: { type: Number, default: 0 },
@@ -44,8 +51,6 @@ const hostSchema = new mongoose.Schema(
 
     isLive: { type: Boolean, default: false },
     liveHistoryId: { type: mongoose.Schema.Types.ObjectId, ref: "LiveHistory", default: null },
-
-    isHost: { type: Boolean, default: false },
 
     date: { type: String, default: "" },
   },

@@ -1,6 +1,7 @@
 const User = require("../models/user.model");
+const Host = require("../models/host.model");
 
-const generateUserUniqueId = async () => {
+const generateUniqueId = async () => {
   const characters = "0123456789876543210";
   let uniqueId = "";
   const length = 8;
@@ -13,7 +14,9 @@ const generateUserUniqueId = async () => {
       uniqueId += characters[randomIndex];
     }
 
-    const existingDoc = await User.findOne({ uniqueId });
+    const [user, host] = await Promise.all([User.findOne({ uniqueId }), Host.findOne({ uniqueId })]);
+
+    const existingDoc = user || host;
 
     if (!existingDoc) {
       idExists = false;
@@ -23,4 +26,4 @@ const generateUserUniqueId = async () => {
   return uniqueId;
 };
 
-module.exports = generateUserUniqueId;
+module.exports = generateUniqueId;

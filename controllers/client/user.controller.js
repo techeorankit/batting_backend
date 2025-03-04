@@ -3,6 +3,9 @@ const User = require("../../models/user.model");
 //fs
 const fs = require("fs");
 
+//mongoose
+const mongoose = require("mongoose");
+
 //import model
 const History = require("../../models/history.model");
 
@@ -173,11 +176,11 @@ exports.modifyUserProfile = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
     }
 
-    const userId = req.user.userId; // Extracted from Firebase token
+    res.status(200).json({ status: true, message: "The user's profile has been modified." });
+
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
 
     const [user] = await Promise.all([User.findOne({ _id: userId })]);
-
-    res.status(200).json({ status: true, message: "The user's profile has been modified." });
 
     if (req?.file) {
       const image = user?.image?.split("storage");
@@ -216,7 +219,7 @@ exports.retrieveUserProfile = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
     }
 
-    const userId = req.user.userId; // Extracted from Firebase token
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
 
     const [user] = await Promise.all([User.findOne({ _id: userId }).lean()]);
 
