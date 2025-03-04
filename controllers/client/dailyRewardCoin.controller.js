@@ -15,17 +15,19 @@ const mongoose = require("mongoose");
 const admin = require("../../util/privateKey");
 
 //get daily reward coin
-exports.getDailyRewardCoinByUser = async (req, res) => {
+exports.retrieveDailyCoins = async (req, res) => {
   try {
-    if (!req.query.userId) {
-      return res.status(200).json({ status: false, message: "Oops ! Invalid details!" });
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.query.userId);
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    const [user, userCheckIn, dailyRewards] = await Promise.all([User.findOne({ _id: userId }), CheckIn.findOne({ userId: userId }), DailyRewardCoin.find({}).sort({ day: 1 })]);
-
-    console.log("------ userCheckIn ------", userCheckIn);
+    const [user, userCheckIn, dailyRewards] = await Promise.all([
+      User.findOne({ _id: userId }).select("coin").lean(),
+      CheckIn.findOne({ userId }).select("rewardsCollected lastCheckInDate consecutiveDays").lean(),
+      DailyRewardCoin.find().sort({ day: 1 }).select("day dailyRewardCoin").lean(),
+    ]);
 
     const checkInStatus = dailyRewards.map((rewardDay) => {
       const userReward = userCheckIn ? userCheckIn.rewardsCollected.find((checkIn) => checkIn.day === rewardDay.day) : null;
@@ -61,38 +63,28 @@ exports.getDailyRewardCoinByUser = async (req, res) => {
 };
 
 //earn coin from daily check In
-exports.handleDailyCheckInReward = async (req, res) => {
+exports.processDailyCheckIn = async (req, res) => {
   try {
-    if (!req.query.userId || !req.query.dailyRewardCoin) {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+    }
+
+    if (!req.query.dailyRewardCoin) {
       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.query.userId);
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
     const dailyRewardCoin = parseInt(req.query.dailyRewardCoin);
 
     const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD' format
     const dayOfWeek = ((new Date(today).getDay() + 6) % 7) + 1; // Monday = 1, Sunday = 7
 
-    console.log("Today's Date 'YYYY-MM-DD' format:        ", today);
-    console.log("Day of Week:                             ", dayOfWeek);
-    console.log("Daily Reward Coin:                       ", dailyRewardCoin);
-
     const [uniqueId, user, userCheckIn, rewardForToday] = await Promise.all([
       generateHistoryUniqueId(),
-      User.findOne({ _id: userId }),
-      CheckIn.findOne({ userId: userId }),
-      DailyRewardCoin.findOne({ dailyRewardCoin: dailyRewardCoin, day: dayOfWeek }),
+      User.findOne({ _id: userId }).select("isBlock coin rewardCoin fcmToken").lean(),
+      CheckIn.findOne({ userId }).select("rewardsCollected lastCheckInDate consecutiveDays").lean(),
+      DailyRewardCoin.findOne({ dailyRewardCoin, day: dayOfWeek }).select("dailyRewardCoin").lean(),
     ]);
-
-    console.log("userCheckIn  ", userCheckIn);
-
-    if (!user) {
-      return res.status(200).json({ status: false, message: "User not found!" });
-    }
-
-    if (user.isBlock) {
-      return res.status(200).json({ status: false, message: "You are blocked by the admin." });
-    }
 
     if (!rewardForToday) {
       return res.status(200).json({ status: false, message: "No reward configured for today." });
@@ -101,9 +93,6 @@ exports.handleDailyCheckInReward = async (req, res) => {
     if (userCheckIn) {
       //Find today's check-in for the current week (same day of the week)
       const lastCheckInDate = userCheckIn?.lastCheckInDate ? new Date(userCheckIn.lastCheckInDate).toISOString().slice(0, 10) : null;
-
-      console.log("Check if user has already checked in today (lastCheckInDate)", lastCheckInDate);
-      console.log("Check if user has already checked in today                  ", today);
 
       //Check if user has already checked in today
       if (lastCheckInDate === today) {
@@ -134,7 +123,6 @@ exports.handleDailyCheckInReward = async (req, res) => {
     });
 
     const lastCheckInDate = userCheckIn?.lastCheckInDate ? new Date(userCheckIn.lastCheckInDate).toISOString().slice(0, 10) : null;
-    console.log("lastCheckInDate =============================", lastCheckInDate);
 
     if (lastCheckInDate && (new Date(today) - new Date(lastCheckInDate)) / (1000 * 60 * 60 * 24) === 1) {
       updatedUserCheckIn.consecutiveDays += 1;
@@ -156,13 +144,13 @@ exports.handleDailyCheckInReward = async (req, res) => {
         },
         { new: true }
       ),
-      History({
-        userId: user._id,
+      History.create({
         uniqueId: uniqueId,
+        userId: user._id,
         coin: dailyRewardCoin,
-        type: 1,
-        date: new Date().toISOString(),
-      }).save(),
+        type: 7,
+        date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+      }),
     ]);
 
     if (user.fcmToken && user.fcmToken !== null) {

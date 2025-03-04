@@ -26,17 +26,17 @@ const hostSchema = new mongoose.Schema(
     fcmToken: { type: String, default: null },
     uniqueId: { type: String, unique: true, default: "" },
 
+    status: { type: Number, enum: HOST_REQUEST_STATUS, default: 1 },
+    reason: { type: String, default: "" },
+
     randomCallRate: { type: Number, default: 0 },
     randomCallFemaleRate: { type: Number, default: 0 },
     randomCallMaleRate: { type: Number, default: 0 },
     privateCallRate: { type: Number, default: 0 },
-    chatMessageRate: { type: Number, default: 0 },
+    chatRate: { type: Number, default: 0 },
 
     coin: { type: Number, default: 0 },
     receivedGift: { type: Number, default: 0 },
-
-    status: { type: Number, enum: HOST_REQUEST_STATUS, default: 1 },
-    reason: { type: String, default: "" },
 
     totalWithdrawalCoin: { type: Number, default: 0 },
     totalWithdrawalAmount: { type: Number, default: 0 },

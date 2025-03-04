@@ -129,9 +129,9 @@ exports.signInOrSignUpUser = async (req, res) => {
 
       await Promise.all([
         History.create({
-          otherUserId: newUser._id,
-          coin: bonusCoins,
           uniqueId: uniqueId,
+          userId: newUser._id,
+          coin: bonusCoins,
           type: 1,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
