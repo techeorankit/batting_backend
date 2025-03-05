@@ -38,7 +38,7 @@ exports.initiateHostRequest = async (req, res) => {
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
     }
-
+    
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
     const { fcmToken, name, bio, dob, gender, countryFlagImage, country, language, impression, agencyCode } = req.body;
@@ -51,7 +51,6 @@ exports.initiateHostRequest = async (req, res) => {
       !gender ||
       !countryFlagImage ||
       !country ||
-      !language ||
       !impression ||
       !req.files //
     ) {
@@ -80,8 +79,6 @@ exports.initiateHostRequest = async (req, res) => {
       message: "Host request successfully sent.",
     });
 
-    const photoGallery = req.files.photoGallery?.map((file) => file.path) || [];
-
     const newHost = new Host({
       fcmToken,
       userId,
@@ -92,12 +89,14 @@ exports.initiateHostRequest = async (req, res) => {
       gender,
       countryFlagImage,
       country,
-      language,
+      language: language || "",
       impression,
       image: req.files.image ? req.files.image[0].path : "",
-      photoGallery,
+      identityProof: req.files.identityProof ? req.files.identityProof[0].path : "",
+      photoGallery: req.files.photoGallery?.map((file) => file.path) || [],
       uniqueId,
       status: 1,
+      date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     });
 
     await newHost.save();

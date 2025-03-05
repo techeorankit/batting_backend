@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, default: "Andraw Ainsley" },
+    name: { type: String, default: "" },
     selfIntro: { type: String, default: "" },
     gender: { type: String, default: "Female" },
     bio: { type: String, default: "" },
@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
     image: { type: String, default: "storage/male.png" },
     email: { type: String, default: "" },
     countryFlagImage: { type: String, default: "" },
-    country: { type: String, default: "" },
+    country: { type: String, trim: true, lowercase: true, default: "" },
     ipAddress: { type: String, default: "" },
     loginType: { type: Number, enum: LOGIN_TYPE }, //1.apple 2.google 3.quick(identity)
     identity: { type: String, default: "" },

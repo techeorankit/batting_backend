@@ -7,18 +7,19 @@ const hostSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     agencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", default: null },
 
-    name: { type: String, default: "Andraw Ainsley" },
+    name: { type: String, default: "" },
     gender: { type: String, default: "Female" },
     bio: { type: String, default: "" },
     age: { type: Number, default: 18 },
     dob: { type: String, default: "" },
     email: { type: String, default: "" },
     countryFlagImage: { type: String, default: "" },
-    country: { type: String, default: "" },
+    country: { type: String, trim: true, lowercase: true, default: "" },
 
     impression: { type: Array, default: [] },
     language: { type: Array, default: [] },
     image: { type: String, default: "" },
+    identityProof: { type: String, default: "" },
     photoGallery: { type: Array, default: [] },
 
     ipAddress: { type: String, default: "" },

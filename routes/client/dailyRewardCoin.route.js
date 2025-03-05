@@ -15,6 +15,6 @@ const validateUserToken = require("../../middleware/validateUserToken.middleware
 route.get("/retrieveDailyCoins", validateUserToken, checkAccessWithSecretKey(), DailyRewardCoinController.retrieveDailyCoins);
 
 //earn coin from daily check In
-route.get("/processDailyCheckIn", validateUserToken, checkAccessWithSecretKey(), DailyRewardCoinController.processDailyCheckIn);
+route.post("/processDailyCheckIn", validateUserToken, checkAccessWithSecretKey(), DailyRewardCoinController.processDailyCheckIn);
 
 module.exports = route;

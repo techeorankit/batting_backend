@@ -11,6 +11,7 @@ const host = require("./host.route");
 const followerFollowing = require("./followerFollowing.route");
 const block = require("./block.route");
 const dailyRewardCoin = require("./dailyRewardCoin.route");
+const gift = require("./gift.route");
 
 //exports client's route.js
 route.use("/user", user);
@@ -18,5 +19,6 @@ route.use("/host", host);
 route.use("/followerFollowing", followerFollowing);
 route.use("/block", block);
 route.use("/dailyRewardCoin", dailyRewardCoin);
+route.use("/gift", gift);
 
 module.exports = route;
