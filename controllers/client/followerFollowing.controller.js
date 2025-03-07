@@ -61,7 +61,9 @@ exports.handleFollowUnfollow = async (req, res) => {
           data: { type: "FOLLOW" },
         };
 
-        admin
+        const adminPromise = await admin;
+
+        adminPromise
           .messaging()
           .send(payload)
           .then((response) => console.log("Notification sent:", response))

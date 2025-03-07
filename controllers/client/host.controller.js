@@ -32,7 +32,7 @@ exports.getPersonalityImpressions = async (req, res) => {
   }
 };
 
-//host request by user
+//host request ( user )
 exports.initiateHostRequest = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
@@ -125,7 +125,7 @@ exports.initiateHostRequest = async (req, res) => {
   }
 };
 
-//get host's request status
+//get host's request status ( user )
 exports.verifyHostRequestStatus = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {

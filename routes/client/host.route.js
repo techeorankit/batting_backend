@@ -19,7 +19,7 @@ const validateUserToken = require("../../middleware/validateUserToken.middleware
 //get impression list
 route.get("/getPersonalityImpressions", checkAccessWithSecretKey(), HostController.getPersonalityImpressions);
 
-//host request by user to admin
+//host request ( user )
 route.post(
   "/initiateHostRequest",
   validateUserToken,
@@ -32,7 +32,7 @@ route.post(
   HostController.initiateHostRequest
 );
 
-//get host's request status
+//get host's request status ( user )
 route.get("/verifyHostRequestStatus", validateUserToken, checkAccessWithSecretKey(), HostController.verifyHostRequestStatus);
 
 module.exports = route;
