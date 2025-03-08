@@ -3,6 +3,7 @@ const Block = require("../../models/block.model");
 //import model
 const User = require("../../models/user.model");
 const Host = require("../../models/host.model");
+const FollowerFollowing = require("../../models/followerFollowing.model");
 
 //mongoose
 const mongoose = require("mongoose");
