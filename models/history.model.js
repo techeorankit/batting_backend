@@ -20,7 +20,6 @@ const historySchema = new mongoose.Schema(
 
     type: { type: Number, enum: HISTORY_TYPE },
     coin: { type: Number, default: 0 },
-    amount: { type: Number, default: 0 },
     date: { type: String, default: "" },
   },
   {

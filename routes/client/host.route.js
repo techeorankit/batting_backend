@@ -35,4 +35,7 @@ route.post(
 //get host's request status ( user )
 route.get("/verifyHostRequestStatus", validateUserToken, checkAccessWithSecretKey(), HostController.verifyHostRequestStatus);
 
+//get country wise host thumblist ( user )
+route.get("/retrieveHosts", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveHosts);
+
 module.exports = route;

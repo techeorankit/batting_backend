@@ -12,6 +12,7 @@ const followerFollowing = require("./followerFollowing.route");
 const block = require("./block.route");
 const dailyRewardCoin = require("./dailyRewardCoin.route");
 const gift = require("./gift.route");
+const coinPlan = require("./coinPlan.route");
 const setting = require("./setting.route");
 
 //exports client's route.js
@@ -21,6 +22,7 @@ route.use("/followerFollowing", followerFollowing);
 route.use("/block", block);
 route.use("/dailyRewardCoin", dailyRewardCoin);
 route.use("/gift", gift);
+route.use("/coinPlan", coinPlan);
 route.use("/setting", setting);
 
 module.exports = route;

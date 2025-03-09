@@ -8,7 +8,7 @@ const FollowerFollowing = require("../../models/followerFollowing.model");
 //mongoose
 const mongoose = require("mongoose");
 
-//Handle user blocking a host
+//handle user blocking a host
 exports.blockHost = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
@@ -49,7 +49,7 @@ exports.blockHost = async (req, res) => {
   }
 };
 
-//Handle host blocking a user
+//handle host blocking a user
 exports.blockUser = async (req, res) => {
   try {
     if (!req.query.hostId) {
@@ -90,7 +90,7 @@ exports.blockUser = async (req, res) => {
   }
 };
 
-//Get Blocked Hosts for a User
+//get blocked hosts for a user
 exports.getBlockedHostsForUser = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
@@ -120,7 +120,7 @@ exports.getBlockedHostsForUser = async (req, res) => {
   }
 };
 
-//Get Blocked Users for a Host
+//get blocked users for a host
 exports.getBlockedUsersForHost = async (req, res) => {
   try {
     if (!req.query.hostId) {

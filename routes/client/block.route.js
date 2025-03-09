@@ -11,16 +11,16 @@ const BlockController = require("../../controllers/client/block.controller");
 //validate user's access token
 const validateUserToken = require("../../middleware/validateUserToken.middleware");
 
-//Handle user blocking a host
+//handle user blocking a host
 route.post("/blockHost", validateUserToken, checkAccessWithSecretKey(), BlockController.blockHost);
 
-//Handle host blocking a user
+//handle host blocking a user
 route.post("/blockUser", checkAccessWithSecretKey(), BlockController.blockUser);
 
-//Get Blocked Hosts for a User
+//get blocked hosts for a user
 route.get("/getBlockedHostsForUser", validateUserToken, checkAccessWithSecretKey(), BlockController.getBlockedHostsForUser);
 
-//Get Blocked Users for a Host
+//get blocked users for a host
 route.get("/getBlockedUsersForHost", checkAccessWithSecretKey(), BlockController.getBlockedUsersForHost);
 
 module.exports = route;

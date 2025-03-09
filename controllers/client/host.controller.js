@@ -38,7 +38,7 @@ exports.initiateHostRequest = async (req, res) => {
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
     }
-    
+
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
     const { fcmToken, name, bio, dob, gender, countryFlagImage, country, language, impression, agencyCode } = req.body;
@@ -147,5 +147,85 @@ exports.verifyHostRequestStatus = async (req, res) => {
   } catch (error) {
     console.error("Error fetching request status:", error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
+//get country wise host thumblist ( user )
+exports.retrieveHosts = async (req, res) => {
+  try {
+    if (!settingJSON) {
+      return res.status(200).json({ status: false, message: "Configuration settings not found." });
+    }
+
+    if (!req.query.country) {
+      return res.status(200).json({ status: false, message: "Please provide a country name." });
+    }
+
+    const country = req.query.country.trim().toLowerCase();
+    const isGlobal = country === "global";
+
+    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false } : { country: country, isFake: true, isBlock: false };
+
+    const matchQuery = isGlobal ? { isFake: false, isBlock: false } : { country: country, isFake: false, isBlock: false };
+
+    const [fakeHost, host] = await Promise.all([
+      Host.find(fakeMatchQuery).select("_id name countryFlagImage country image privateCallRate isFake").lean(),
+      Host.aggregate([
+        { $match: matchQuery },
+        {
+          $addFields: {
+            status: {
+              $switch: {
+                branches: [
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }],
+                    },
+                    then: "Online",
+                  },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Live",
+                  },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Busy",
+                  },
+                ],
+                default: "Offline",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            countryFlagImage: 1,
+            country: 1,
+            image: 1,
+            privateCallRate: 1,
+            isFake: 1,
+            status: 1,
+          },
+        },
+      ]),
+    ]);
+
+    return res.status(200).json({
+      status: true,
+      message: "Hosts list retrieved successfully.",
+      hosts: settingJSON.isFake ? [...fakeHost, ...host] : host,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "An error occurred while fetching the hosts list.",
+      error: error.message || "Internal Server Error",
+    });
   }
 };

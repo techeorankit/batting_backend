@@ -25,11 +25,13 @@ const userSchema = new mongoose.Schema(
     coin: { type: Number, default: 0 },
     consumedCoins: { type: Number, default: 0 },
     purchasedCoin: { type: Number, default: 0 }, //totalTopUp (Total coins the user has topped up)
-    receivedCoin: { type: Number, default: 0 }, //receied coin when gift received through live
+    receivedCoin: { type: Number, default: 0 },
     receivedGift: { type: Number, default: 0 },
 
     totalWithdrawalCoin: { type: Number, default: 0 },
     totalWithdrawalAmount: { type: Number, default: 0 },
+
+    isVip: { type: Boolean, default: false },
 
     isBlock: { type: Boolean, default: false },
     isFake: { type: Boolean, default: false },
