@@ -6,7 +6,7 @@ const History = require("../../models/history.model");
 const CheckIn = require("../../models/checkIn.model");
 
 //generateHistoryUniqueId
-const { generateHistoryUniqueId } = require("../../util/generateHistoryUniqueId");
+const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
 //mongoose
 const mongoose = require("mongoose");
