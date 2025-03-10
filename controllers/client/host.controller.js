@@ -36,7 +36,7 @@ exports.getPersonalityImpressions = async (req, res) => {
 exports.initiateHostRequest = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
@@ -129,7 +129,7 @@ exports.initiateHostRequest = async (req, res) => {
 exports.verifyHostRequestStatus = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
@@ -227,5 +227,25 @@ exports.retrieveHosts = async (req, res) => {
       message: "An error occurred while fetching the hosts list.",
       error: error.message || "Internal Server Error",
     });
+  }
+};
+
+//get host profile ( host )
+exports.fetchHostInfo = async (req, res) => {
+  try {
+    if (!req.query.hostId) {
+      return res.status(200).json({ status: false, message: "Invalid details." });
+    }
+
+    const hostId = new mongoose.Types.ObjectId(req.user.hostId);
+
+    const [host] = await Promise.all([
+      Host.findOne({ _id: hostId }).select("name email bio countryFlagImage country impression language image photoGallery identityProof privateCallRate chatRate coin").lean(),
+    ]);
+
+    res.status(200).json({ status: true, message: "The host has retrieved their profile.", host });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
   }
 };

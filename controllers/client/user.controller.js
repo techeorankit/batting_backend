@@ -173,7 +173,7 @@ exports.signInOrSignUpUser = async (req, res) => {
 exports.modifyUserProfile = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     res.status(200).json({ status: true, message: "The user's profile has been modified." });
@@ -216,7 +216,7 @@ exports.modifyUserProfile = async (req, res) => {
 exports.retrieveUserProfile = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);

@@ -25,7 +25,7 @@ exports.blockHost = async (req, res) => {
     const [user, host, existingBlock] = await Promise.all([
       User.findById(userId).select("_id").lean(),
       Host.findById(hostId).select("_id").lean(),
-      Block.findOne({ userId, hostId }).select("_id").lean(),
+      Block.findOne({ userId, hostId, blockedBy: "user" }).select("_id").lean(),
     ]);
 
     if (!user) return res.status(404).json({ status: false, message: "User not found." });
@@ -39,7 +39,7 @@ exports.blockHost = async (req, res) => {
       res.status(200).json({ status: true, message: "Host blocked successfully.", isBlocked: true });
 
       await Promise.all([
-        new Block({ userId, hostId }).save(),
+        new Block({ userId, hostId, blockedBy: "user" }).save(),
         FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }), // Unfollow if blocked
       ]);
     }
@@ -66,7 +66,7 @@ exports.blockUser = async (req, res) => {
     const [host, user, existingBlock] = await Promise.all([
       Host.findById(hostId).select("_id").lean(),
       User.findById(userId).select("_id").lean(),
-      Block.findOne({ userId, hostId }).select("_id").lean(),
+      Block.findOne({ userId, hostId, blockedBy: "host" }).select("_id").lean(),
     ]);
 
     if (!host) return res.status(404).json({ status: false, message: "Host not found." });
@@ -80,7 +80,7 @@ exports.blockUser = async (req, res) => {
       res.status(200).json({ status: true, message: "User blocked successfully.", isBlocked: true });
 
       await Promise.all([
-        new Block({ userId, hostId }).save(),
+        new Block({ userId, hostId, blockedBy: "host" }).save(),
         FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }), // Unfollow if blocked
       ]);
     }

@@ -18,7 +18,7 @@ const admin = require("../../util/privateKey");
 exports.retrieveDailyCoins = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
@@ -66,7 +66,7 @@ exports.retrieveDailyCoins = async (req, res) => {
 exports.processDailyCheckIn = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     if (!req.query.dailyRewardCoin) {

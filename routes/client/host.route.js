@@ -38,4 +38,7 @@ route.get("/verifyHostRequestStatus", validateUserToken, checkAccessWithSecretKe
 //get country wise host thumblist ( user )
 route.get("/retrieveHosts", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveHosts);
 
+//get host profile ( host )
+route.get("/fetchHostInfo", validateUserToken, checkAccessWithSecretKey(), HostController.fetchHostInfo);
+
 module.exports = route;

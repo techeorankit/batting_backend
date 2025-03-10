@@ -15,11 +15,11 @@ const admin = require("../../util/privateKey");
 exports.handleFollowUnfollow = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     if (!req.query.followingId) {
-      return res.status(400).json({ success: false, message: "Invalid request. followingId is required." });
+      return res.status(400).json({ status: false, message: "Invalid request. followingId is required." });
     }
 
     const followerId = new mongoose.Types.ObjectId(req.user.userId);
@@ -32,24 +32,24 @@ exports.handleFollowUnfollow = async (req, res) => {
       Block.findOne({ userId: followerId, hostId: followingId }).select("_id").lean(), // Check if user has blocked the host
     ]);
 
-    if (!fromUser) return res.status(404).json({ success: false, message: "User not found." });
-    if (!toUser) return res.status(404).json({ success: false, message: "Host not found." });
-    if (toUser.isBlock) return res.status(403).json({ success: false, message: "Host is blocked." });
+    if (!fromUser) return res.status(404).json({ status: false, message: "User not found." });
+    if (!toUser) return res.status(404).json({ status: false, message: "Host not found." });
+    if (toUser.isBlock) return res.status(403).json({ status: false, message: "Host is blocked." });
 
     if (fromUser._id.equals(toUser._id)) {
-      return res.status(400).json({ success: false, message: "You can't follow your own account." });
+      return res.status(400).json({ status: false, message: "You can't follow your own account." });
     }
 
     if (isBlocked) {
-      return res.status(403).json({ success: false, message: "You have blocked this host. Unblock to follow." });
+      return res.status(403).json({ status: false, message: "You have blocked this host. Unblock to follow." });
     }
 
     if (existingFollow) {
       await FollowerFollowing.deleteOne({ followerId, followingId });
-      return res.status(200).json({ success: true, message: "Unfollowed successfully.", isFollow: false });
+      return res.status(200).json({ status: true, message: "Unfollowed successfully.", isFollow: false });
     } else {
       await new FollowerFollowing({ followerId, followingId }).save();
-      res.status(200).json({ success: true, message: "Followed successfully.", isFollow: true });
+      res.status(200).json({ status: true, message: "Followed successfully.", isFollow: true });
 
       if (toUser.fcmToken) {
         const payload = {
@@ -72,7 +72,7 @@ exports.handleFollowUnfollow = async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
 
@@ -80,7 +80,7 @@ exports.handleFollowUnfollow = async (req, res) => {
 exports.getFollowingList = async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
@@ -90,16 +90,16 @@ exports.getFollowingList = async (req, res) => {
       FollowerFollowing.find({ followerId: userId }).populate("followingId", "_id name image").sort({ createdAt: -1 }).lean(),
     ]);
 
-    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+    if (!user) return res.status(404).json({ status: false, message: "User not found." });
 
     res.status(200).json({
-      success: true,
+      status: true,
       message: `Retrieved following users successfully.`,
       followingList,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
 
@@ -107,7 +107,7 @@ exports.getFollowingList = async (req, res) => {
 exports.getFollowerList = async (req, res) => {
   try {
     if (!req.query.hostId) {
-      return res.status(400).json({ success: false, message: "hostId is required." });
+      return res.status(400).json({ status: false, message: "hostId is required." });
     }
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
@@ -117,16 +117,16 @@ exports.getFollowerList = async (req, res) => {
       FollowerFollowing.find({ followingId: hostId }).populate("followerId", "_id name image").sort({ createdAt: -1 }).lean(),
     ]);
 
-    if (!host) return res.status(404).json({ success: false, message: "Host not found." });
-    if (host.isBlock) return res.status(403).json({ success: false, message: "Host is blocked." });
+    if (!host) return res.status(404).json({ status: false, message: "Host not found." });
+    if (host.isBlock) return res.status(403).json({ status: false, message: "Host is blocked." });
 
     res.status(200).json({
-      success: true,
+      status: true,
       message: `Retrieved followers successfully.`,
       followerList,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
