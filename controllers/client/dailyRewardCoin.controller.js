@@ -82,7 +82,7 @@ exports.processDailyCheckIn = async (req, res) => {
     const [uniqueId, user, userCheckIn, rewardForToday] = await Promise.all([
       generateHistoryUniqueId(),
       User.findOne({ _id: userId }).select("isBlock coin rewardCoin fcmToken").lean(),
-      CheckIn.findOne({ userId }).select("rewardsCollected lastCheckInDate consecutiveDays").lean(),
+      CheckIn.findOne({ userId }).select("rewardsCollected lastCheckInDate consecutiveDays"),
       DailyRewardCoin.findOne({ dailyRewardCoin, day: dayOfWeek }).select("dailyRewardCoin").lean(),
     ]);
 

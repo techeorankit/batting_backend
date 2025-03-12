@@ -33,7 +33,7 @@ exports.recordCoinPlanPurchase = async (req, res) => {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
-    const { coinPlanId, paymentGateway } = req.body;
+    const { coinPlanId, paymentGateway } = req.query;
 
     if (!coinPlanId || !paymentGateway) {
       return res.json({ status: false, message: "Oops! Invalid details." });
