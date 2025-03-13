@@ -150,7 +150,7 @@ exports.verifyHostRequestStatus = async (req, res) => {
   }
 };
 
-//get country wise host thumblist ( user )
+//get host thumblist ( user )
 exports.retrieveHosts = async (req, res) => {
   try {
     if (!settingJSON) {
@@ -165,13 +165,58 @@ exports.retrieveHosts = async (req, res) => {
     const isGlobal = country === "global";
 
     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false } : { country: country, isFake: true, isBlock: false };
-
     const matchQuery = isGlobal ? { isFake: false, isBlock: false } : { country: country, isFake: false, isBlock: false };
 
-    const [fakeHost, host] = await Promise.all([
+    const followedHostQuery = { isFake: false, isBlock: false };
+
+    const [fakeHost, host, followedHost] = await Promise.all([
       Host.find(fakeMatchQuery).select("_id name countryFlagImage country image privateCallRate isFake").lean(),
       Host.aggregate([
         { $match: matchQuery },
+        {
+          $addFields: {
+            status: {
+              $switch: {
+                branches: [
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }],
+                    },
+                    then: "Online",
+                  },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Live",
+                  },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Busy",
+                  },
+                ],
+                default: "Offline",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            countryFlagImage: 1,
+            country: 1,
+            image: 1,
+            privateCallRate: 1,
+            isFake: 1,
+            status: 1,
+          },
+        },
+      ]),
+      Host.aggregate([
+        { $match: followedHostQuery },
         {
           $addFields: {
             status: {
@@ -219,6 +264,7 @@ exports.retrieveHosts = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Hosts list retrieved successfully.",
+      followedHost,
       hosts: settingJSON.isFake ? [...fakeHost, ...host] : host,
     });
   } catch (error) {
