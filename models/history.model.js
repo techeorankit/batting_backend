@@ -12,8 +12,6 @@ const historySchema = new mongoose.Schema(
     giftId: { type: mongoose.Schema.Types.ObjectId, ref: "Gift", default: null },
     giftCount: { type: Number, default: 0 },
 
-    planId: { type: mongoose.Schema.Types.ObjectId, ref: "CoinPlan", default: null }, // Plan's ID purchased by the user
-
     paymentGateway: { type: String, default: "" },
     payoutStatus: { type: Number, default: 0, enum: WITHDRAWAL_STATUS },
     reason: { type: String, default: "" },

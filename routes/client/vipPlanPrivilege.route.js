@@ -6,15 +6,12 @@ const route = express.Router();
 const checkAccessWithSecretKey = require("../../checkAccess");
 
 //controller
-const VipPlanController = require("../../controllers/client/vipPlan.controller");
+const VipPlanPrivilegeController = require("../../controllers/client/vipPlanPrivilege.controller");
 
 //validate user's access token
 const validateUserToken = require("../../middleware/validateUserToken.middleware");
 
-//get vipPlan
-route.get("/fetchVipPlans", checkAccessWithSecretKey(), VipPlanController.fetchVipPlans);
-
-//purchase vipPlan ( vipPlan history )
-route.post("/purchaseVipPlan", checkAccessWithSecretKey(), VipPlanController.purchaseVipPlan);
+//get VIP Plan Privilege
+route.get("/retrieveVipPrivilege", checkAccessWithSecretKey(), VipPlanPrivilegeController.retrieveVipPrivilege);
 
 module.exports = route;

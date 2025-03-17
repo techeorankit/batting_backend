@@ -1,5 +1,15 @@
 const VipPlan = require("../../models/vipPlan.model");
 
+//import model
+const User = require("../../models/user.model");
+const History = require("../../models/history.model");
+
+//mongoose
+const mongoose = require("mongoose");
+
+//generateHistoryUniqueId
+const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
+
 //get vipPlan
 exports.fetchVipPlans = async (req, res) => {
   try {
@@ -13,5 +23,85 @@ exports.fetchVipPlans = async (req, res) => {
   } catch (error) {
     console.error("Error fetching VIP plans:", error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
+//purchase vipPlan ( vipPlan history )
+exports.purchaseVipPlan = async (req, res) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    }
+
+    const { vipPlanId, paymentGateway } = req.query;
+
+    if (!vipPlanId || !paymentGateway) {
+      return res.status(200).json({ status: false, message: "Missing required parameters: vipPlanId and paymentGateway." });
+    }
+
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
+
+    const [uniqueId, user, vipPlan] = await Promise.all([
+      generateHistoryUniqueId(),
+      User.findById(userId).select("_id isVip vipPlanStartDate vipPlanEndDate vipPlan").lean(),
+      VipPlan.findById(vipPlanId).select("_id validity validityType amount coin").lean(),
+    ]);
+
+    if (!user) {
+      return res.json({ status: false, message: "User does not found." });
+    }
+
+    if (!vipPlan) {
+      return res.status(200).json({ status: false, message: "VIP plan not found." });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "VIP plan purchased successfully.",
+    });
+
+    const vipPlanStartDate = moment().toISOString();
+    let planEndDate = moment(vipPlanStartDate);
+
+    switch (vipPlan.validityType.toLowerCase()) {
+      case "day":
+        planEndDate.add(vipPlan.validity, "days");
+        break;
+      case "month":
+        planEndDate.add(vipPlan.validity, "months");
+        break;
+      case "year":
+        planEndDate.add(vipPlan.validity, "years");
+        break;
+      default:
+        return res.status(400).json({ status: false, message: "Invalid validity type in VIP plan." });
+    }
+
+    await Promise.all([
+      User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            isVip: true,
+            vipPlanStartDate,
+            vipPlanEndDate: planEndDate.toISOString(),
+            "vipPlan.validity": vipPlan.validity,
+            "vipPlan.validityType": vipPlan.validityType,
+            "vipPlan.amount": vipPlan.amount,
+          },
+        }
+      ),
+      History.create({
+        uniqueId: uniqueId,
+        type: 9,
+        userId: user._id,
+        coin: vipPlan.coin,
+        paymentGateway: paymentGateway.trim(),
+        date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+      }),
+    ]);
+  } catch (error) {
+    console.log(error);
+    return res.json({ status: false, error: error.message || "Internal Server Error" });
   }
 };

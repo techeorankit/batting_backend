@@ -14,6 +14,10 @@ const dailyRewardCoin = require("./dailyRewardCoin.route");
 const gift = require("./gift.route");
 const coinPlan = require("./coinPlan.route");
 const vipPlan = require("./vipPlan.route");
+const vipPlanPrivilege = require("./vipPlanPrivilege.route");
+const paymentMethod = require("./paymentMethod.route");
+const chatTopic = require("./chatTopic.route");
+const chat = require("./chat.route");
 const setting = require("./setting.route");
 
 //exports client's route.js
@@ -25,6 +29,10 @@ route.use("/dailyRewardCoin", dailyRewardCoin);
 route.use("/gift", gift);
 route.use("/coinPlan", coinPlan);
 route.use("/vipPlan", vipPlan);
+route.use("/vipPlanPrivilege", vipPlanPrivilege);
+route.use("/paymentMethod", paymentMethod);
+route.use("/chatTopic", chatTopic);
+route.use("/chat", chat);
 route.use("/setting", setting);
 
 module.exports = route;

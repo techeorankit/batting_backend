@@ -39,22 +39,18 @@ exports.recordCoinPlanPurchase = async (req, res) => {
       return res.json({ status: false, message: "Oops! Invalid details." });
     }
 
-    const uniqueId = generateHistoryUniqueId();
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const userObjectId = new mongoose.Types.ObjectId(req.user.userId);
     const coinPlanObjectId = new mongoose.Types.ObjectId(coinPlanId);
     const trimmedPaymentGateway = paymentGateway.trim();
 
-    const [user, coinPlan] = await Promise.all([
-      User.findById(userObjectId).select("_id isBlock isVip coin").lean(),
-      CoinPlan.findById(coinPlanObjectId).select("_id coins bonusCoins price").lean(), //
+    const [uniqueId, user, coinPlan] = await Promise.all([
+      generateHistoryUniqueId(),
+      User.findById(userObjectId).select("_id isVip").lean(),
+      CoinPlan.findById(coinPlanObjectId).select("_id coins bonusCoins price").lean(),
     ]);
 
     if (!user) {
       return res.status(200).json({ status: false, message: "user does not found." });
-    }
-
-    if (user.isBlock) {
-      return res.status(200).json({ status: false, message: "you are blocked by admin!" });
     }
 
     if (!coinPlan) {
@@ -70,11 +66,10 @@ exports.recordCoinPlanPurchase = async (req, res) => {
     });
 
     await Promise.all([
-      User.updateOne({ _id: userObjectId }, { $inc: { coin: totalCoins } }),
+      User.updateOne({ _id: userObjectId }, { $inc: { coin: totalCoins } }, { $inc: { rechargedCoins: totalCoins } }),
       History.create({
         type: 8,
         userId: user._id,
-        planId: coinPlan._id,
         coin: totalCoins,
         paymentGateway: trimmedPaymentGateway,
         uniqueId: uniqueId,

@@ -1,3 +1,31 @@
 module.exports = {
+  "currency": {
+    "name": "",
+    "symbol": "",
+    "countryCode": "",
+    "currencyCode": "",
+    "isDefault": false
+  },
+  "privacyPolicyLink": "PRIVACY POLICY LINK",
+  "termsOfUsePolicyLink": "TERMS OF USE POLICY LINK",
+  "googlePlayEnabled": false,
+  "stripeEnabled": false,
+  "stripePublishableKey": "STRIPE PUBLISHABLE KEY",
+  "stripeSecretKey": "STRIPE SECRET KEY",
+  "razorpayEnabled": false,
+  "razorpayId": "RAZOR PAY ID",
+  "razorpaySecretKey": "RAZOR SECRET KEY",
+  "flutterwaveEnabled": false,
+  "flutterwaveId": "FLUTTER WAVE ID",
+  "loginBonus": 5000,
+  "isDemoData": false,
+  "minCoinsToConvert": 10000,
+  "minCoinsForUserPayout": 0,
+  "minCoinsForHostPayout": 0,
+  "minCoinsForAgencyPayout": 0,
+  "maxFreeChatMessages": 0,
+  "_id": "67d7e9f0ccd4e02f7ee3dba3",
   "privateKey": {},
+  "createdAt": "2025-03-17T09:22:56.775Z",
+  "updatedAt": "2025-03-17T09:22:56.775Z"
 };

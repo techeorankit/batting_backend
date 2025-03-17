@@ -3,7 +3,7 @@ const express = require("express");
 const route = express.Router();
 
 //admin index.js
-// const admin = require("./admin/route");
+const admin = require("./admin/route");
 
 //agency index.js
 // const agency = require("./agency/route");
@@ -11,7 +11,7 @@ const route = express.Router();
 //client index.js
 const client = require("./client/route");
 
-// route.use("/admin", admin);
+route.use("/admin", admin);
 // route.use("/agency", agency);
 route.use("/client", client);
 

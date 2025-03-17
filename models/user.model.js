@@ -23,15 +23,23 @@ const userSchema = new mongoose.Schema(
     provider: { type: String, default: "" },
 
     coin: { type: Number, default: 0 },
-    consumedCoins: { type: Number, default: 0 },
-    purchasedCoin: { type: Number, default: 0 }, //totalTopUp (Total coins the user has topped up)
-    receivedCoin: { type: Number, default: 0 },
-    receivedGift: { type: Number, default: 0 },
+    spentCoins: { type: Number, default: 0 },
+    rechargedCoins: { type: Number, default: 0 }, //totalTopUp (Total coins the user has topped up)
+    earnedCoins: { type: Number, default: 0 },
+    totalGifts: { type: Number, default: 0 },
 
-    totalWithdrawalCoin: { type: Number, default: 0 },
-    totalWithdrawalAmount: { type: Number, default: 0 },
+    redeemedCoins: { type: Number, default: 0 },
+    redeemedAmount: { type: Number, default: 0 },
 
     isVip: { type: Boolean, default: false },
+    vipPlanStartDate: { type: String, default: null },
+    vipPlanEndDate: { type: String, default: null },
+    vipPlan: {
+      validity: { type: Number, default: 0 },
+      validityType: { type: String, default: "" },
+      coin: { type: Number, default: 0 },
+      price: { type: Number, default: 0 },
+    },
 
     isBlock: { type: Boolean, default: false },
     isFake: { type: Boolean, default: false },
