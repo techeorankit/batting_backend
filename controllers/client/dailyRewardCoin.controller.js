@@ -147,7 +147,7 @@ exports.processDailyCheckIn = async (req, res) => {
       History.create({
         uniqueId: uniqueId,
         userId: user._id,
-        coin: dailyRewardCoin,
+        userCoin: dailyRewardCoin,
         type: 7,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),

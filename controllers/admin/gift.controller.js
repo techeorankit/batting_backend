@@ -1,5 +1,5 @@
 const Gift = require("../../models/gift.model");
-const History = require("../../models/history.model");
+const GiftCategory = require("../../models/giftCategory.model");
 
 //fs
 const fs = require("fs");
@@ -10,42 +10,68 @@ const { deleteFiles } = require("../../util/deletefile");
 //create gift
 exports.addGift = async (req, res, next) => {
   try {
-    if (!req.body.type) {
+    const { type, giftCategoryId, coin } = req.body;
+
+    if (!type || !giftCategoryId) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({ status: false, message: "Oops ! Invalid details." });
+      return res.status(400).json({ status: false, message: "Oops! Invalid details." });
     }
 
-    const gift = new Gift();
-    gift.type = req?.body?.type;
-    gift.image = req.files?.image ? req.files.image[0].path : gift.image;
-    gift.svgaImage = req?.body?.type == 3 && req.files?.svgaImage ? req.files.svgaImage[0].path : gift.svgaImage;
-    gift.coin = req?.body?.coin;
+    const [giftCategory] = await Promise.all([GiftCategory.findById(giftCategoryId).select("_id")]);
+
+    if (!giftCategory) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "GiftCategory does not exist." });
+    }
+
+    const giftData = {
+      type,
+      giftCategoryId,
+      coin: coin || 0,
+      image: req.files?.image ? req.files.image[0].path : "",
+      svgaImage: type == 3 && req.files?.svgaImage ? req.files.svgaImage[0].path : "",
+    };
+
+    const gift = new Gift(giftData);
     await gift.save();
 
     return res.status(200).json({ status: true, message: "Gift has been created by the admin.", data: gift });
   } catch (error) {
     if (req.files) deleteFiles(req.files);
-    console.log(error);
-    return res.status(200).json({ status: false, message: error.message || "Internal Server Error" });
+    console.error(error);
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
 
 //update gift
 exports.modifyGift = async (req, res, next) => {
   try {
-    if (!req.query.giftId) {
+    const { giftId } = req.query;
+    const { giftCategoryId } = req.body;
+
+    if (!giftId) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({ status: false, message: "giftId must be required." });
+      return res.status(400).json({ status: false, message: "giftId must be required." });
     }
 
-    const gift = await Gift.findById(req.query.giftId);
+    const [gift, giftCategory] = await Promise.all([
+      Gift.findById(giftId).select("_id giftCategoryId type coin image svgaImage"),
+      giftCategoryId ? GiftCategory.findById(giftCategoryId).select("_id") : null,
+    ]);
+
     if (!gift) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({ status: false, message: "gift does not found." });
     }
 
+    if (giftCategoryId && !giftCategory) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "GiftCategory does not found." });
+    }
+
     gift.type = req.body.type ? req.body.type : gift.type;
     gift.coin = req.body.coin ? req.body.coin : gift.coin;
+    gift.giftCategoryId = req.body.giftCategoryId ? req.body.giftCategoryId : gift.giftCategoryId;
 
     if (req.files.image) {
       if (gift.image) {
@@ -86,7 +112,39 @@ exports.modifyGift = async (req, res, next) => {
 //get gifts
 exports.retrieveGifts = async (req, res, next) => {
   try {
-    const gift = await Gift.find().select("image svgaImage coin createdAt").sort({ createdAt: -1 }).lean();
+    const gift = await Gift.aggregate([
+      {
+        $lookup: {
+          from: "giftcategories",
+          localField: "giftCategoryId",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      {
+        $unwind: {
+          path: "$category",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $group: {
+          _id: "$giftCategoryId",
+          categoryName: { $first: "$category.name" },
+          gifts: {
+            $push: {
+              _id: "$_id",
+              type: "$type",
+              image: "$image",
+              svgaImage: "$svgaImage",
+              coin: "$coin",
+              createdAt: "$createdAt",
+            },
+          },
+        },
+      },
+      { $sort: { "gifts.createdAt": -1 } },
+    ]);
 
     return res.status(200).json({
       status: true,
@@ -102,38 +160,21 @@ exports.retrieveGifts = async (req, res, next) => {
 //delete gift
 exports.discardGift = async (req, res, next) => {
   try {
-    if (!req.query.giftId) {
+    const { giftId } = req.query;
+
+    if (!giftId) {
       return res.status(200).json({ status: false, message: "giftId must be required." });
     }
 
-    const gift = await Gift.findById(req.query.giftId).select("_id").lean();
+    const gift = await Gift.findById(giftId).select("_id").lean();
     if (!gift) {
-      return res.status(200).json({ status: false, message: "gift does not found." });
+      return res.status(200).json({ status: false, message: "Gift does not exist." });
     }
 
-    res.status(200).json({ status: true, message: "Gift has been deleted by the admin." });
+    res.status(200).json({ status: true, message: "Gift has been marked as deleted by the admin." });
 
-    if (gift.image) {
-      const image = gift?.image?.split("storage");
-      if (image) {
-        if (fs.existsSync("storage" + image[1])) {
-          fs.unlinkSync("storage" + image[1]);
-        }
-      }
-    }
-
-    if (gift.svgaImage) {
-      const svgaImage = gift?.svgaImage?.split("storage");
-      if (svgaImage) {
-        if (fs.existsSync("storage" + svgaImage[1])) {
-          fs.unlinkSync("storage" + svgaImage[1]);
-        }
-      }
-    }
-
-    await History.deleteMany({ giftId: gift._id });
-    await Gift.deleteOne({ _id: gift._id });
+    await Gift.findByIdAndUpdate(giftId, { isDelete: true });
   } catch (error) {
-    return res.status(200).json({ status: false, message: error.message || "Internal Server Error" });
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };

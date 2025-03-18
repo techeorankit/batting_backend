@@ -37,7 +37,7 @@ const hostSchema = new mongoose.Schema(
     chatRate: { type: Number, default: 0 },
 
     coin: { type: Number, default: 0 },
-    receivedGift: { type: Number, default: 0 },
+    totalGifts: { type: Number, default: 0 },
 
     totalWithdrawalCoin: { type: Number, default: 0 },
     totalWithdrawalAmount: { type: Number, default: 0 },

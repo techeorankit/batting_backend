@@ -25,8 +25,6 @@ const userSchema = new mongoose.Schema(
     coin: { type: Number, default: 0 },
     spentCoins: { type: Number, default: 0 },
     rechargedCoins: { type: Number, default: 0 }, //totalTopUp (Total coins the user has topped up)
-    earnedCoins: { type: Number, default: 0 },
-    totalGifts: { type: Number, default: 0 },
 
     redeemedCoins: { type: Number, default: 0 },
     redeemedAmount: { type: Number, default: 0 },

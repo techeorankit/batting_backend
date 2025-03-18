@@ -11,7 +11,7 @@ const GiftController = require("../../controllers/client/gift.controller");
 //validate user's access token
 const validateUserToken = require("../../middleware/validateUserToken.middleware");
 
-//get gifts
+//get gifts grouped by category
 route.get("/fetchGiftList", checkAccessWithSecretKey(), GiftController.fetchGiftList);
 
 module.exports = route;

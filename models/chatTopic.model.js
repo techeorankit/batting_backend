@@ -5,6 +5,7 @@ const chatTopicSchema = new mongoose.Schema(
     senderId: { type: mongoose.Schema.Types.ObjectId, default: null },
     receiverId: { type: mongoose.Schema.Types.ObjectId, default: null },
     chatId: { type: mongoose.Schema.Types.ObjectId, ref: "Chat", default: null },
+    freeMessageCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,

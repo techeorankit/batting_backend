@@ -18,8 +18,9 @@ const settingSchema = new mongoose.Schema(
     flutterwaveEnabled: { type: Boolean, default: false },
     flutterwaveId: { type: String, default: "FLUTTER WAVE ID" },
 
-    loginBonus: { type: Number, default: 5000 },
+    loginBonus: { type: Number, default: 0 },
     isDemoData: { type: Boolean, default: false },
+    adminCommissionRate: { type: Number, default: 0 }, //in %
 
     currency: {
       name: { type: String, default: "" },

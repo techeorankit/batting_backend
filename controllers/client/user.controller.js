@@ -131,7 +131,7 @@ exports.signInOrSignUpUser = async (req, res) => {
         History.create({
           uniqueId: uniqueId,
           userId: newUser._id,
-          coin: bonusCoins,
+          userCoin: bonusCoins,
           type: 1,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),

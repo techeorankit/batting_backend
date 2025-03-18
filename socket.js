@@ -1,5 +1,6 @@
 ///import model
 const User = require("./models/user.model");
+const Host = require("./models/host.model");
 const ChatTopic = require("./models/chatTopic.model");
 const Chat = require("./models/chat.model");
 const History = require("./models/history.model");
@@ -49,47 +50,100 @@ io.on("connection", async (socket) => {
     let senderPromise, receiverPromise;
 
     if (parseData?.senderRole === "user") {
-      senderPromise = User.findById(parseData?.senderId).lean().select("_id name");
+      senderPromise = User.findById(parseData?.senderId).lean().select("_id name coin");
     } else if (parseData?.senderRole === "host") {
-      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name");
+      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name coin");
     }
 
     if (parseData?.receiverRole === "host") {
-      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock");
+      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin chatRate");
     } else if (parseData?.receiverRole === "user") {
-      receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock");
+      receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
     }
 
-    const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId");
+    const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId freeMessageCount");
 
-    const [sender, receiver, chatTopic] = await Promise.all([senderPromise, receiverPromise, chatTopicPromise]);
+    const [uniqueId, sender, receiver, chatTopic] = await Promise.all([generateHistoryUniqueId(), senderPromise, receiverPromise, chatTopicPromise]);
 
     if (!chatTopic) {
-      console.log("Chat topic not found");
+      console.log("❌ Chat topic not found");
       return;
     }
 
     if (parseData?.messageType == 1) {
+      if (parseData.senderRole === "user" && parseData.receiverRole === "host") {
+        const maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
+        const isWithinFreeLimit = chatTopic.freeMessageCount < maxFreeChatMessages;
+        const chatRate = receiver.chatRate || 10;
+
+        if (!isWithinFreeLimit && sender?.coin < chatRate) {
+          console.log("❌ Insufficient coins, message not sent.");
+          io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("insufficientCoins", "Insufficient coins to send message.");
+          return;
+        }
+      }
+
       const chat = new Chat({
-        messageType: 1,
+        messageType: parseData?.messageType,
         senderId: parseData?.senderId,
         message: parseData?.message,
-        image: "",
+        image: parseData?.image || "",
         chatTopicId: chatTopic._id,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       });
 
-      chatTopic.chatId = chat._id;
-
-      await Promise.all([chat.save(), ChatTopic.updateOne({ _id: chatTopic._id }, { $set: { chatId: chat._id } })]);
+      await Promise.all([
+        chat.save(),
+        ChatTopic.updateOne(
+          { _id: chatTopic._id },
+          {
+            $set: { chatId: chat._id },
+            $inc: { freeMessageCount: 1 },
+          }
+        ),
+      ]);
 
       const eventData = {
         data,
         messageId: chat._id.toString(),
       };
 
-      io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("message_sent", eventData);
-      io.in("globalRoom:" + chatTopic?.receiverId?.toString()).emit("message_sent", eventData);
+      io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("chatMessageSent", eventData);
+      io.in("globalRoom:" + chatTopic?.receiverId?.toString()).emit("chatMessageSent", eventData);
+
+      if (parseData.senderRole === "user" && parseData.receiverRole === "host") {
+        const maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
+        const adminCommissionRate = settingJSON.adminCommissionRate || 10;
+        const isWithinFreeLimit = chatTopic.freeMessageCount < maxFreeChatMessages;
+        const chatRate = receiver.chatRate || 10;
+
+        let deductedCoins = 0;
+        let adminShare = 0;
+        let hostEarnings = 0;
+
+        if (!isWithinFreeLimit && sender.coin >= chatRate) {
+          deductedCoins = chatRate;
+          adminShare = (chatRate * adminCommissionRate) / 100;
+          hostEarnings = chatRate - adminShare;
+
+          await Promise.all([
+            User.updateOne({ _id: sender._id, coin: { $gte: deductedCoins } }, { $inc: { coin: -deductedCoins, spentCoins: deductedCoins } }),
+            Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
+            History.create({
+              uniqueId: uniqueId,
+              type: 10,
+              userId: sender._id,
+              hostId: receiver._id,
+              userCoin: chatRate,
+              hostCoin: hostEarnings,
+              adminCoin: adminShare,
+              date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+            }),
+          ]);
+
+          console.log(`💰 Coins Deducted: ${deductedCoins} | Admin: ${adminShare} | Host Earnings: ${hostEarnings}`);
+        }
+      }
 
       if (receiver && !receiver.isBlock && receiver.fcmToken) {
         const payload = {
@@ -111,7 +165,7 @@ io.on("connection", async (socket) => {
         }
       }
     } else {
-      console.log("Other messageType");
+      console.log("ℹ️ Other message type received");
 
       const eventData = {
         data,
@@ -120,6 +174,122 @@ io.on("connection", async (socket) => {
 
       io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("message_update", eventData);
       io.in("globalRoom:" + chatTopic?.receiverId?.toString()).emit("message_update", eventData);
+    }
+  });
+
+  socket.on("chatGiftSent", async (data) => {
+    const parseData = JSON.parse(data);
+    console.log("🎁 Data in chatGiftSent:", parseData);
+
+    let senderPromise, receiverPromise;
+
+    if (parseData?.senderRole === "user") {
+      senderPromise = User.findById(parseData?.senderId).lean().select("_id name coin");
+    } else if (parseData?.senderRole === "host") {
+      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name coin");
+    }
+
+    if (parseData?.receiverRole === "host") {
+      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
+    } else if (parseData?.receiverRole === "user") {
+      receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
+    }
+
+    const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId");
+    const giftPromise = Gift.findById(parseData?.giftId).lean().select("_id coin image");
+
+    const [uniqueId, sender, receiver, chatTopic, gift] = await Promise.all([generateHistoryUniqueId(), senderPromise, receiverPromise, chatTopicPromise, giftPromise]);
+
+    if (!chatTopic) {
+      console.log("❌ Chat topic not found");
+      return;
+    }
+
+    if (!gift) {
+      console.log("❌ Gift not found");
+      return;
+    }
+
+    const giftPrice = gift?.coin || 0;
+    const giftCount = parseData?.giftCount || 1;
+    const totalGiftCost = giftPrice * giftCount;
+    const adminCommissionRate = settingJSON.adminCommissionRate || 10;
+
+    if (sender?.coin < totalGiftCost) {
+      console.log("❌ Insufficient coins, gift not sent.");
+      io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("insufficientCoins", "Insufficient coins to send gift.");
+      return;
+    }
+
+    const chat = new Chat({
+      messageType: 4,
+      message: `🎁 ${sender.name} sent a gift`,
+      image: gift.image || "",
+      senderId: sender._id,
+      chatTopicId: chatTopic._id,
+      giftCount: giftCount,
+      date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+    });
+
+    await Promise.all([
+      chat.save(),
+      ChatTopic.updateOne(
+        { _id: chatTopic._id },
+        {
+          $set: { chatId: chat._id },
+        }
+      ),
+    ]);
+
+    const eventData = {
+      data,
+      messageId: chat._id.toString(),
+    };
+
+    io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("chatGiftSent", eventData);
+    io.in("globalRoom:" + chatTopic?.receiverId?.toString()).emit("chatGiftSent", eventData);
+
+    let adminShare = (totalGiftCost * adminCommissionRate) / 100;
+    let hostEarnings = totalGiftCost - adminShare;
+
+    await Promise.all([
+      User.updateOne({ _id: sender._id, coin: { $gte: totalGiftCost } }, { $inc: { coin: -totalGiftCost, spentCoins: totalGiftCost } }),
+      Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings, totalGifts: 1 } }),
+      History.create({
+        uniqueId: uniqueId,
+        type: 11,
+        userId: sender._id,
+        hostId: receiver._id,
+        giftId: gift._id,
+        giftCount: giftCount,
+        userCoin: totalGiftCost,
+        hostCoin: hostEarnings,
+        adminCoin: adminShare,
+        date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+      }),
+    ]);
+
+    console.log(`💰 Gift Sent | Cost: ${totalGiftCost} | Admin Share: ${adminShare} | Host Earnings: ${hostEarnings}`);
+
+    if (receiver && !receiver.isBlock && receiver.fcmToken) {
+      const payload = {
+        token: receiver.fcmToken,
+        notification: {
+          title: `${sender.name} sent you a gift 🎁`,
+          body: `💝 You received ${giftCount} gifts worth ${totalGiftCost} coins!`,
+        },
+        data: {
+          type: "GIFT",
+          giftCount: giftCount.toString(),
+        },
+      };
+
+      try {
+        const response = await admin.messaging().send(payload);
+        console.log("✅ Successfully sent FCM notification for gift:", response);
+      } catch (error) {
+        console.log("❌ Error sending FCM message:", error);
+      }
     }
   });
 
@@ -692,6 +862,8 @@ io.on("connection", async (socket) => {
     }
   });
 
+  //random video call
+
   //live-streaming
   socket.on("joinLiveRoom", async (data) => {
     const parsedData = JSON.parse(data);
@@ -905,7 +1077,7 @@ io.on("connection", async (socket) => {
           otherUserId: receiverUser._id,
           giftId: giftData.giftId,
           giftReceivedCount: giftCount,
-          coin: totalCoin,
+          userCoin: totalCoin,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
         LiveStreamerHistory.findByIdAndUpdate(giftData.liveHistoryId, { $inc: { totalGift: 1 } }, { new: true }),

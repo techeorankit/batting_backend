@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const historySchema = new mongoose.Schema(
   {
     uniqueId: { type: String, unique: true, trim: true, default: "" },
+    type: { type: Number, enum: HISTORY_TYPE },
 
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }, // Sender
     hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null }, // Receiver
@@ -16,8 +17,10 @@ const historySchema = new mongoose.Schema(
     payoutStatus: { type: Number, default: 0, enum: WITHDRAWAL_STATUS },
     reason: { type: String, default: "" },
 
-    type: { type: Number, enum: HISTORY_TYPE },
-    coin: { type: Number, default: 0 },
+    userCoin: { type: Number, default: 0 },
+    hostCoin: { type: Number, default: 0 },
+    adminCoin: { type: Number, default: 0 },
+
     date: { type: String, default: "" },
   },
   {

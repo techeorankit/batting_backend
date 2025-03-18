@@ -35,15 +35,11 @@ exports.pushChatMessage = async (req, res) => {
     const receiverId = new mongoose.Types.ObjectId(req.body.receiverId);
     const chatTopicId = new mongoose.Types.ObjectId(req.body.chatTopicId);
 
-    const [uniqueId, sender, receiver, chatTopic, chatCount] = await Promise.all([
+    const [uniqueId, sender, receiver, chatTopic] = await Promise.all([
       generateHistoryUniqueId(),
       User.findById(senderId).lean().select("name coin"),
       Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name fcmToken chatRate"),
-      ChatTopic.findOne({ _id: chatTopicId }).select("_id chatId"),
-      Chat.countDocuments({
-        messageType: { $in: [1, 2, 3] },
-        chatTopicId: chatTopicId,
-      }),
+      ChatTopic.findOne({ _id: chatTopicId }).select("_id chatId freeMessageCount"),
     ]);
 
     if (!sender) {
@@ -62,8 +58,13 @@ exports.pushChatMessage = async (req, res) => {
     }
 
     const maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
-    const isWithinFreeLimit = chatCount < maxFreeChatMessages;
+    const adminCommissionRate = settingJSON.adminCommissionRate || 10; // 10% commission
+    const isWithinFreeLimit = chatTopic.freeMessageCount < maxFreeChatMessages;
     const chatRate = receiver.chatRate || 10;
+
+    let deductedCoins = 0;
+    let adminShare = 0;
+    let hostEarnings = 0;
 
     if (!isWithinFreeLimit && sender.coin < chatRate) {
       if (req.files) deleteFiles(req.files);
@@ -89,9 +90,16 @@ exports.pushChatMessage = async (req, res) => {
     chat.chatTopicId = chatTopic._id;
     chat.date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
 
-    chatTopic.chatId = chat._id;
-
-    await Promise.all([chat.save(), chatTopic.save()]);
+    await Promise.all([
+      chat.save(),
+      ChatTopic.updateOne(
+        { _id: chatTopic._id },
+        {
+          $set: { chatId: chat._id },
+          $inc: { freeMessageCount: 1 },
+        }
+      ),
+    ]);
 
     res.status(200).json({
       status: true,
@@ -100,14 +108,21 @@ exports.pushChatMessage = async (req, res) => {
     });
 
     if (!isWithinFreeLimit) {
+      deductedCoins = chatRate;
+      adminShare = (chatRate * adminCommissionRate) / 100;
+      hostEarnings = chatRate - adminShare;
+
       await Promise.all([
-        User.findOneAndUpdate({ _id: senderId, coin: { $gt: chatRate } }, { $inc: { coin: -chatRate } }, { new: true }),
+        User.updateOne({ _id: sender._id, coin: { $gte: deductedCoins } }, { $inc: { coin: -deductedCoins, spentCoins: deductedCoins } }),
+        Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
         History.create({
           uniqueId: uniqueId,
           type: 10,
           userId: senderId,
           hostId: receiverId,
-          coin: chatRate,
+          userCoin: chatRate,
+          hostCoin: hostEarnings,
+          adminCoin: adminShare,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
       ]);

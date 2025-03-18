@@ -95,7 +95,7 @@ exports.purchaseVipPlan = async (req, res) => {
         uniqueId: uniqueId,
         type: 9,
         userId: user._id,
-        coin: vipPlan.coin,
+        userCoin: vipPlan.coin,
         paymentGateway: paymentGateway.trim(),
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),

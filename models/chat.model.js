@@ -9,6 +9,8 @@ const chatSchema = mongoose.Schema(
     messageType: { type: Number, enum: MESSAGE_TYPE }, //1.message 2.image 3.audio 4.gift 5.audio_call 6.video_call
     message: { type: String, default: "" },
     image: { type: String, default: "" },
+    giftCount: { type: Number, default: 0 },
+
     isRead: { type: Boolean, default: false },
 
     callId: { type: mongoose.Schema.Types.ObjectId, default: null },

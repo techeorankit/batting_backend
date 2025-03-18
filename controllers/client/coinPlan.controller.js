@@ -70,7 +70,7 @@ exports.recordCoinPlanPurchase = async (req, res) => {
       History.create({
         type: 8,
         userId: user._id,
-        coin: totalCoins,
+        userCoin: totalCoins,
         paymentGateway: trimmedPaymentGateway,
         uniqueId: uniqueId,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
