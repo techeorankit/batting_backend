@@ -3,7 +3,7 @@ const GiftCategory = require("../../models/giftCategory.model");
 //create giftCategory
 exports.createGiftCategory = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name } = req.query;
     if (!name) {
       return res.status(200).json({ status: false, message: "Category name is required." });
     }

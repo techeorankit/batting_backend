@@ -25,7 +25,7 @@ exports.pushChatMessage = async (req, res) => {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
-    if (!req.body.chatTopicId || !req.body.receiverId || !req.body.messageType) {
+    if (!req.body.chatTopicId || !req.body.receiverId || !req.body.messageType || !req.files) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({ status: false, message: "Oops ! Invalid details." });
     }
@@ -39,7 +39,7 @@ exports.pushChatMessage = async (req, res) => {
       generateHistoryUniqueId(),
       User.findById(senderId).lean().select("name coin"),
       Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name fcmToken chatRate"),
-      ChatTopic.findOne({ _id: chatTopicId }).select("_id chatId freeMessageCount"),
+      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId freeMessageCount"),
     ]);
 
     if (!sender) {
@@ -77,11 +77,11 @@ exports.pushChatMessage = async (req, res) => {
     if (messageType == 2) {
       chat.messageType = 2;
       chat.message = "📸 Image";
-      chat.image = req.files ? req?.files?.image[0].path : "";
+      chat.image = req?.files?.image ? req?.files?.image[0].path : "";
     } else if (messageType == 3) {
       chat.messageType = 3;
       chat.message = "🎤 Audio";
-      chat.audio = req.files ? req?.files?.audio[0].path : "";
+      chat.audio = req?.files?.audio ? req?.files?.audio[0].path : "";
     } else {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({ status: false, message: "messageType must be passed valid." });
@@ -183,9 +183,7 @@ exports.fetchChatHistory = async (req, res) => {
           { senderId, receiverId },
           { senderId: receiverId, receiverId: senderId },
         ],
-      })
-        .lean()
-        .select("_id"),
+      }).select("_id"),
     ]);
 
     if (!receiver) {
@@ -237,7 +235,7 @@ exports.submitChatMessage = async (req, res) => {
     const [sender, receiver, chatTopic] = await Promise.all([
       Host.findOne({ _id: senderId, isBlock: false }).lean().select("name"),
       User.findById({ _id: receiverId, isBlock: false }).lean().select("name fcmToken"),
-      ChatTopic.findOne({ _id: chatTopicId }).select("_id chatId"),
+      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId"),
     ]);
 
     if (!sender) {
@@ -274,9 +272,15 @@ exports.submitChatMessage = async (req, res) => {
     chat.chatTopicId = chatTopic._id;
     chat.date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
 
-    chatTopic.chatId = chat._id;
-
-    await Promise.all([chat.save(), chatTopic.save()]);
+    await Promise.all([
+      chat.save(),
+      ChatTopic.updateOne(
+        { _id: chatTopic._id },
+        {
+          $set: { chatId: chat._id },
+        }
+      ),
+    ]);
 
     res.status(200).json({
       status: true,

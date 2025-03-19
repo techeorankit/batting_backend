@@ -3,6 +3,7 @@ const Host = require("../../models/host.model");
 //import model
 const Agency = require("../../models/agency.model");
 const Impression = require("../../models/impression.model");
+const History = require("../../models/history.model");
 
 //deleteFiles
 const { deleteFiles } = require("../../util/deletefile");
@@ -265,7 +266,7 @@ exports.retrieveHosts = async (req, res) => {
       status: true,
       message: "Hosts list retrieved successfully.",
       followedHost,
-      hosts: settingJSON.isFake ? [...fakeHost, ...host] : host,
+      hosts: settingJSON.isDemoData ? [...fakeHost, ...host] : host,
     });
   } catch (error) {
     return res.status(500).json({
@@ -285,11 +286,44 @@ exports.fetchHostInfo = async (req, res) => {
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [host] = await Promise.all([
-      Host.findOne({ _id: hostId }).select("name email bio countryFlagImage country impression language image photoGallery privateCallRate randomCallRate chatRate coin").lean(),
+    const [host, receivedGifts] = await Promise.all([
+      Host.findOne({ _id: hostId, isBlock: false }).select("name email bio countryFlagImage country impression language image photoGallery privateCallRate randomCallRate chatRate coin").lean(),
+      History.aggregate([
+        { $match: { hostId: hostId, giftId: { $ne: null } } },
+        {
+          $group: {
+            _id: "$giftId",
+            totalReceived: { $sum: "$giftCount" }, // Sum total gift count for each gift
+            lastReceivedAt: { $max: "$createdAt" }, // Get the latest received time
+          },
+        },
+        {
+          $lookup: {
+            from: "gifts",
+            localField: "_id",
+            foreignField: "_id",
+            as: "giftDetails",
+          },
+        },
+        { $unwind: "$giftDetails" },
+        {
+          $project: {
+            giftId: "$_id",
+            giftType: "$giftDetails.type",
+            giftImage: "$giftDetails.image",
+            giftCoin: "$giftDetails.coin",
+            totalReceived: 1,
+            lastReceivedAt: 1,
+          },
+        },
+      ]),
     ]);
 
-    return res.status(200).json({ status: true, message: "The host profile retrieved.", host });
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
+
+    return res.status(200).json({ status: true, message: "The host profile retrieved.", host, receivedGifts });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
