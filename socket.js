@@ -9,6 +9,21 @@ const Gift = require("./models/gift.model");
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("./util/generateHistoryUniqueId");
 
+//generateUniqueCallId
+const generateUniqueCallId = async () => {
+  let unique = false;
+  let callId;
+
+  while (!unique) {
+    const randomSixChar = Math.random().toString(36).substring(2, 8).toUpperCase();
+    callId = `CALL-${randomSixChar}`;
+    const existingCall = await CallHistory.findOne({ callId }).lean();
+    if (!existingCall) unique = true;
+  }
+
+  return callId;
+};
+
 //private key
 const admin = require("./util/privateKey");
 
@@ -25,7 +40,7 @@ io.on("connection", async (socket) => {
   const id = globalRoom.split(":")[1];
 
   if (globalRoom) {
-    console.log("Socket connected with userId:", id);
+    console.log("Socket connected with:", id);
 
     //check if the socket is already in the room
     if (!socket.rooms.has(globalRoom)) {
@@ -172,8 +187,8 @@ io.on("connection", async (socket) => {
         messageId: parseData?.messageId?.toString() || "",
       };
 
-      io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("message_update", eventData);
-      io.in("globalRoom:" + chatTopic?.receiverId?.toString()).emit("message_update", eventData);
+      io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("chatMessageSent", eventData);
+      io.in("globalRoom:" + chatTopic?.receiverId?.toString()).emit("chatMessageSent", eventData);
     }
   });
 
