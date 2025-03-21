@@ -19,7 +19,7 @@ exports.fetchChatList = async (req, res) => {
       ChatTopic.aggregate([
         {
           $match: {
-            chat: { $ne: null },
+            chatId: { $ne: null },
             $or: [{ senderId: userObjectId }, { receiverId: userObjectId }],
           },
         },
@@ -51,7 +51,7 @@ exports.fetchChatList = async (req, res) => {
         {
           $lookup: {
             from: "chats",
-            localField: "chat",
+            localField: "chatId",
             foreignField: "_id",
             as: "chat",
           },
@@ -176,7 +176,7 @@ exports.retrieveChatList = async (req, res) => {
       ChatTopic.aggregate([
         {
           $match: {
-            chat: { $ne: null },
+            chatId: { $ne: null },
             $or: [{ senderId: hostObjectId }, { receiverId: hostObjectId }],
           },
         },
@@ -208,7 +208,7 @@ exports.retrieveChatList = async (req, res) => {
         {
           $lookup: {
             from: "chats",
-            localField: "chat",
+            localField: "chatId",
             foreignField: "_id",
             as: "chat",
           },

@@ -339,9 +339,7 @@ exports.retrieveChatHistory = async (req, res) => {
           { senderId, receiverId },
           { senderId: receiverId, receiverId: senderId },
         ],
-      })
-        .lean()
-        .select("_id"),
+      }).select("_id"),
     ]);
 
     if (!receiver) {

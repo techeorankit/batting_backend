@@ -14,6 +14,6 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 route.get("/fetchChatList", validateUserToken, checkAccessWithSecretKey(), chatTopicController.fetchChatList);
 
 //get chat thumb list ( host )
-route.get("/retrieveChatList", validateUserToken, checkAccessWithSecretKey(), chatTopicController.retrieveChatList);
+route.get("/retrieveChatList", checkAccessWithSecretKey(), chatTopicController.retrieveChatList);
 
 module.exports = route;
