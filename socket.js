@@ -5,18 +5,22 @@ const ChatTopic = require("./models/chatTopic.model");
 const Chat = require("./models/chat.model");
 const History = require("./models/history.model");
 const Gift = require("./models/gift.model");
+const Privatecall = require("./models/privatecall.model");
+const CallHistory = require("./models/callHistory.model");
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("./util/generateHistoryUniqueId");
 
 //generateUniqueCallId
+const { v4: uuidv4 } = require("uuid");
+
 const generateUniqueCallId = async () => {
   let unique = false;
   let callId;
 
   while (!unique) {
-    const randomSixChar = Math.random().toString(36).substring(2, 8).toUpperCase();
-    callId = `CALL-${randomSixChar}`;
+    const uuidSegment = uuidv4().split("-")[0].toUpperCase(); // e.g., "F3A8D2"
+    callId = `CALL-${uuidSegment}`;
     const existingCall = await CallHistory.findOne({ callId }).lean();
     if (!existingCall) unique = true;
   }
@@ -32,6 +36,9 @@ const mongoose = require("mongoose");
 
 //moment
 const moment = require("moment");
+
+//agora-access-token
+const { RtcTokenBuilder, RtcRole } = require("agora-access-token");
 
 io.on("connection", async (socket) => {
   console.log("Socket Connection done Client ID: ", socket.id);
@@ -327,11 +334,11 @@ io.on("connection", async (socket) => {
   });
 
   //private video call
-  socket.on("initiateCall", async (data) => {
-    console.log("initiateCall request received:", data);
+  socket.on("callRinging", async (data) => {
+    console.log("callRinging request received:", data);
 
     const parsedData = JSON.parse(data);
-    const { callerId, receiverId, agoraUID, channel } = parsedData;
+    const { callerId, receiverId, agoraUID, channel, callType } = parsedData;
 
     const role = RtcRole.PUBLISHER;
     const uid = agoraUID ? agoraUID : 0;
@@ -343,24 +350,24 @@ io.on("connection", async (socket) => {
       RtcTokenBuilder.buildTokenWithUid("6eb91188adba4d819d61f4af0ffcec8b", "1fe5878a76fe439d94fabe415c64e20c", channel, uid, role, privilegeExpiredTs),
       generateUniqueCallId(),
       User.findById(callerId).select("_id name image isBlock isBusy callId isOnline").lean(),
-      User.findById(receiverId).select("_id name image isBlock isBusy callId isOnline").lean(),
+      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline").lean(),
     ]);
 
     if (!caller) {
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", { message: "Caller user does not found." });
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", { message: "Caller does not found." });
       return;
     }
 
     if (caller.isBlock) {
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", {
-        message: "Caller user is blocked.",
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+        message: "Caller is blocked.",
         isBlock: true,
       });
       return;
     }
 
     if (caller.isBusy && caller.callId) {
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", {
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
         message: "Caller is busy with someone else.",
         isBusy: true,
       });
@@ -368,20 +375,20 @@ io.on("connection", async (socket) => {
     }
 
     if (!receiver) {
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", { message: "Receiver user does not found." });
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", { message: "Receiver does not found." });
       return;
     }
 
     if (receiver.isBlock) {
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", {
-        message: "Receiver user is blocked.",
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+        message: "Receiver is blocked.",
         isBlock: true,
       });
       return;
     }
 
     if (!receiver.isOnline) {
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", {
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
         message: "Receiver is not online.",
         isOnline: false,
       });
@@ -389,7 +396,7 @@ io.on("connection", async (socket) => {
     }
 
     if (receiver.isBusy && receiver.callId) {
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", {
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
         message: "Receiver is busy with another call.",
         isBusy: true,
       });
@@ -419,7 +426,7 @@ io.on("connection", async (socket) => {
             },
           }
         ),
-        User.updateOne(
+        Host.updateOne(
           {
             _id: receiver._id,
             isFake: false,
@@ -439,8 +446,7 @@ io.on("connection", async (socket) => {
 
       if (callerVerify.modifiedCount > 0 && receiverVerify.modifiedCount > 0) {
         const dataOfVideoCall = {
-          isBusy: false,
-          callType: "private",
+          callType: callType,
           callerId: caller._id,
           receiverId: receiver._id,
           callerImage: caller.image,
@@ -448,15 +454,18 @@ io.on("connection", async (socket) => {
           receiverName: receiver.name,
           receiverImage: receiver.image,
           callId: callHistory._id,
+          callType: callType.trim().toLowerCase(),
+          callMode: "private",
           token,
           channel,
         };
 
-        io.in("globalRoom:" + receiver._id.toString()).emit("incomingCall", dataOfVideoCall); // Notify receiver
-        io.in("globalRoom:" + caller._id.toString()).emit("callStarted", dataOfVideoCall); // Notify caller
+        io.in("globalRoom:" + receiver._id.toString()).emit("callIncoming", dataOfVideoCall); // Notify receiver
+        io.in("globalRoom:" + caller._id.toString()).emit("callConnected", dataOfVideoCall); // Notify caller
 
         console.log(`Call successfully initiated: ${caller.name} → ${receiver.name}`);
 
+        callHistory.callType = callType?.trim()?.toLowerCase();
         callHistory.isPrivate = true;
         callHistory.callerId = caller._id;
         callHistory.receiverId = receiver._id;
@@ -473,7 +482,7 @@ io.on("connection", async (socket) => {
       } else {
         console.log("Failed to verify caller or receiver availability");
 
-        io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", {
+        io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
           message: "Call setup failed. One or both users became unavailable.",
           isBusy: true,
         });
@@ -493,7 +502,7 @@ io.on("connection", async (socket) => {
     } else {
       console.log("Condition not met - receiver not available");
 
-      io.in("globalRoom:" + caller._id.toString()).emit("initiateCall", {
+      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
         message: "Receiver is unavailable for a call at this moment.",
         isBusy: true,
       });
@@ -501,12 +510,12 @@ io.on("connection", async (socket) => {
     }
   });
 
-  socket.on("handleCallResponse", async (data) => {
-    console.log("🟢 [handleCallResponse] Event received:", data);
+  socket.on("callResponseHandled", async (data) => {
+    console.log("🟢 [callResponseHandled] Event received:", data);
 
     try {
       const parsedData = JSON.parse(data);
-      const { callerId, receiverId, callId, isAccept } = parsedData;
+      const { callerId, receiverId, callId, isAccept, callType, callMode } = parsedData;
 
       const callerRoom = `globalRoom:${callerId}`;
       const receiverRoom = `globalRoom:${receiverId}`;
@@ -515,95 +524,32 @@ io.on("connection", async (socket) => {
 
       const [caller, receiver, callHistory] = await Promise.all([
         User.findById(callerId).select("_id name isBusy callId").lean(),
-        User.findById(receiverId).select("_id name isBusy callId").lean(),
+        Host.findById(receiverId).select("_id name isBusy callId").lean(),
         CallHistory.findById(callId).select("_id callerId receiverId callStartTime"),
       ]);
 
       if (!caller || !receiver || !callHistory) {
-        console.error("❌ [handleCallResponse] Invalid caller, receiver, or call history.");
+        console.error("❌ [callResponseHandled] Invalid caller, receiver, or call history.");
         return io.to(callerRoom).emit("callProcessFailed", { message: "Invalid call data." });
       }
 
       console.log(`✅ Caller: ${caller.name} | Receiver: ${receiver.name} | Call ID: ${callId}`);
 
-      if (!isAccept && caller.callId?.toString() === callId.toString()) {
-        console.log(`📵 [handleCallResponse] Call rejected by receiver ${receiver.name}`);
+      if (callMode.trim().toLowerCase() === "private") {
+        if (!isAccept && caller.callId?.toString() === callId.toString()) {
+          console.log(`📵 [callResponseHandled] Call rejected by receiver ${receiver.name}`);
 
-        io.to(callerRoom).emit("callRejectedByReceiver", data);
+          io.to(callerRoom).emit("callRejected", data);
 
-        const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
-          User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
-          User.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
-          Privatecall.deleteOne({ caller: caller._id, receiver: receiver._id }),
-        ]);
+          const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
+            User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
+            Host.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
+            Privatecall.deleteOne({ caller: caller._id, receiver: receiver._id }),
+          ]);
 
-        console.log(`🔹 Caller Status Updated:`, callerUpdate);
-        console.log(`🔹 Receiver Status Updated:`, receiverUpdate);
-        console.log(`🔹 Private Call Deleted:`, privateCallDeleted);
-
-        let chatTopic;
-        chatTopic = await ChatTopic.findOne({
-          $or: [
-            {
-              $and: [{ senderId: caller._id }, { receiverId: receiver._id }],
-            },
-            {
-              $and: [{ senderId: receiver._id }, { receiverId: caller._id }],
-            },
-          ],
-        });
-
-        const chat = new Chat();
-
-        if (!chatTopic) {
-          chatTopic = new ChatTopic();
-
-          chatTopic.chatId = chat._id;
-          chatTopic.senderId = caller._id;
-          chatTopic.receiverId = receiver._id;
-        }
-
-        chat.chatTopicId = chatTopic._id;
-        chat.senderId = callerId;
-        chat.messageType = 3;
-        chat.message = "📽 Video Call";
-        chat.callType = 2; // 2.declined
-        chat.callId = callId;
-        chat.isRead = true;
-        chat.date = new Date().toLocaleString();
-
-        chatTopic.chatId = chat._id;
-
-        callHistory.callConnect = false;
-        callHistory.callEndTime = moment().format("HH:mm:ss");
-        callHistory.duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
-
-        await Promise.all([chat.save(), chatTopic.save(), callHistory?.save()]);
-        console.log("✅ Call rejection chat & history saved.");
-        return;
-      }
-
-      if (isAccept && caller.callId?.toString() === callId.toString()) {
-        console.log(`📞 [handleCallResponse] Call accepted by receiver ${receiver.name}`);
-
-        const privateCallDelete = await Privatecall.deleteOne({
-          caller: new mongoose.Types.ObjectId(caller._id),
-          receiver: new mongoose.Types.ObjectId(receiver._id),
-        });
-
-        console.log("🗑 Private call entry deleted:", privateCallDelete);
-
-        if (privateCallDelete?.deletedCount > 0) {
-          console.log("🟢 Call accepted, emitting event...");
-
-          const [callerSockets, receiverSockets] = await Promise.all([io.in(callerRoom).fetchSockets(), io.in(receiverRoom).fetchSockets()]);
-
-          callerSockets?.[0]?.join(callId);
-          receiverSockets?.[0]?.join(callId);
-
-          io.to(callId.toString()).emit("callAcceptedByReceiver", data);
-
-          console.log(`📡 [callAcceptedByReceiver] Event sent to both parties: Caller(${caller.name}) & Receiver(${receiver.name})`);
+          console.log(`🔹 Caller Status Updated:`, callerUpdate);
+          console.log(`🔹 Receiver Status Updated:`, receiverUpdate);
+          console.log(`🔹 Private Call Deleted:`, privateCallDeleted);
 
           let chatTopic;
           chatTopic = await ChatTopic.findOne({
@@ -629,75 +575,150 @@ io.on("connection", async (socket) => {
 
           chat.chatTopicId = chatTopic._id;
           chat.senderId = callerId;
-          chat.messageType = 3;
-          chat.message = "📽 Video Call";
-          chat.callType = 1; //1.received
+          chat.messageType = callType.trim().toLowerCase() === "audio" ? 5 : 6;
+          chat.message = callType.trim().toLowerCase() === "audio" ? "📞 Audio Call" : "📽 Video Call";
+          chat.callType = 2; // 2.declined
           chat.callId = callId;
+          chat.isRead = true;
           chat.date = new Date().toLocaleString();
 
           chatTopic.chatId = chat._id;
 
-          await Promise.all([
-            chat?.save(),
-            chatTopic?.save(),
-            User.updateOne({ _id: caller._id }, { $set: { isBusy: true, callId: callId } }),
-            User.updateOne({ _id: receiver._id }, { $set: { isBusy: true, callId: callId } }),
-            CallHistory.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().format("HH:mm:ss") } }),
-          ]);
+          callHistory.callConnect = false;
+          callHistory.callEndTime = moment().format("HH:mm:ss");
+          callHistory.duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
 
-          console.log("✅ Caller and Receiver status updated & call history saved.");
-        } else {
-          console.log(`🚨 Call disconnected`);
+          await Promise.all([chat.save(), chatTopic.save(), callHistory?.save()]);
+          console.log("✅ Call rejection chat & history saved.");
+          return;
+        }
 
-          io.to(receiverRoom).emit("callDisconnected", data);
+        if (isAccept && caller.callId?.toString() === callId.toString()) {
+          console.log(`📞 [callResponseHandled] Call accepted by receiver ${receiver.name}`);
 
-          await Promise.all([
-            User.updateOne({ _id: caller._id, isBusy: true }, { $set: { isBusy: false, callId: null } }),
-            User.updateOne({ _id: receiver._id, isBusy: true }, { $set: { isBusy: false, callId: null } }),
-          ]);
+          const privateCallDelete = await Privatecall.deleteOne({
+            caller: new mongoose.Types.ObjectId(caller._id),
+            receiver: new mongoose.Types.ObjectId(receiver._id),
+          });
 
-          console.log("🔹 Caller & Receiver status reset.");
+          console.log("🗑 Private call entry deleted:", privateCallDelete);
+
+          if (privateCallDelete?.deletedCount > 0) {
+            console.log("🟢 Call accepted, emitting event...");
+
+            const [callerSockets, receiverSockets] = await Promise.all([io.in(callerRoom).fetchSockets(), io.in(receiverRoom).fetchSockets()]);
+
+            const callerSocket = callerSockets?.[0];
+            const receiverSocket = receiverSockets?.[0];
+
+            if (callerSocket && !callerSocket.rooms.has(callId)) {
+              callerSocket.join(callId);
+            }
+
+            if (receiverSocket && !receiverSocket.rooms.has(callId)) {
+              receiverSocket.join(callId);
+            }
+
+            io.to(callId.toString()).emit("callAnswerReceived", data);
+
+            console.log(`📡 [callAnswerReceived] Event sent to both parties: Caller(${caller.name}) & Receiver(${receiver.name})`);
+
+            let chatTopic;
+            chatTopic = await ChatTopic.findOne({
+              $or: [
+                {
+                  $and: [{ senderId: caller._id }, { receiverId: receiver._id }],
+                },
+                {
+                  $and: [{ senderId: receiver._id }, { receiverId: caller._id }],
+                },
+              ],
+            });
+
+            const chat = new Chat();
+
+            if (!chatTopic) {
+              chatTopic = new ChatTopic();
+
+              chatTopic.chatId = chat._id;
+              chatTopic.senderId = caller._id;
+              chatTopic.receiverId = receiver._id;
+            }
+
+            chat.chatTopicId = chatTopic._id;
+            chat.senderId = callerId;
+            chat.messageType = callType.trim().toLowerCase() === "audio" ? 5 : 6;
+            chat.message = callType.trim().toLowerCase() === "audio" ? "📞 Audio Call" : "📽 Video Call";
+            chat.callType = 1; //1.received
+            chat.callId = callId;
+            chat.date = new Date().toLocaleString();
+
+            chatTopic.chatId = chat._id;
+
+            await Promise.all([
+              chat?.save(),
+              chatTopic?.save(),
+              User.updateOne({ _id: caller._id }, { $set: { isBusy: true, callId: callId } }),
+              Host.updateOne({ _id: receiver._id }, { $set: { isBusy: true, callId: callId } }),
+              CallHistory.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().format("HH:mm:ss") } }),
+            ]);
+
+            console.log("✅ Caller and Receiver status updated & call history saved.");
+          } else {
+            console.log(`🚨 Call disconnected`);
+
+            io.to(receiverRoom).emit("callAutoEnded", data);
+
+            await Promise.all([
+              User.updateOne({ _id: caller._id, isBusy: true }, { $set: { isBusy: false, callId: null } }),
+              Host.updateOne({ _id: receiver._id, isBusy: true }, { $set: { isBusy: false, callId: null } }),
+            ]);
+
+            console.log("🔹 Caller & Receiver status reset.");
+          }
         }
       }
     } catch (error) {
-      console.error("❌ [handleCallResponse] Error:", error);
+      console.error("❌ [callResponseHandled] Error:", error);
       io.to(`globalRoom:${socket.id}`).emit("callProcessFailed", { message: "Server error. Please try again." });
     }
   });
 
-  socket.on("cancelOngoingCall", async (data) => {
-    console.log("🟢 [cancelOngoingCall] Event received:", data);
+  socket.on("callCancelled", async (data) => {
+    console.log("🟢 [callCancelled] Event received:", data);
 
     const parseData = JSON.parse(data);
-    const { callerId, receiverId, callId } = parseData;
+    const { callerId, receiverId, callId, callType, callMode } = parseData;
 
     console.log(`🔄 Fetching call details for callId: ${callId}`);
 
     const [caller, receiver, callHistory] = await Promise.all([
       User.findById(callerId).select("_id name fcmToken isBlock").lean(),
-      User.findById(receiverId).select("_id name fcmToken isBlock").lean(),
+      Host.findById(receiverId).select("_id name fcmToken isBlock").lean(),
       CallHistory.findById(callId).select("_id callerId receiverId callStartTime"),
     ]);
 
     if (!caller || !receiver || !callHistory) {
-      console.error("❌ [cancelOngoingCall] Invalid caller, receiver, or call history.");
+      console.error("❌ [callCancelled] Invalid caller, receiver, or call history.");
       return io.to(`globalRoom:${callerId}`).emit("callCancelFailed", { message: "Invalid call data." });
     }
 
-    io.to("globalRoom:" + callerId).emit("callEnded", data);
-    io.to("globalRoom:" + receiverId).emit("callEnded", data);
+    io.to("globalRoom:" + callerId).emit("callFinished", data);
+    io.to("globalRoom:" + receiverId).emit("callFinished", data);
 
     console.log(`✅ Caller: ${caller.name} | Receiver: ${receiver.name} | Call ID: ${callId}`);
 
-    const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
-      User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
-      User.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
-      Privatecall.deleteOne({ caller: caller._id, receiver: receiver._id }),
-    ]);
+    if (callMode.trim().toLowerCase() === "private") {
+      const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
+        User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
+        Host.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
+        Privatecall.deleteOne({ caller: caller._id, receiver: receiver._id }),
+      ]);
 
-    console.log(`🔹 Caller Status Updated:`, callerUpdate);
-    console.log(`🔹 Receiver Status Updated:`, receiverUpdate);
-    console.log(`🔹 Private Call Deleted:`, privateCallDeleted);
+      console.log(`🔹 Caller Status Updated:`, callerUpdate);
+      console.log(`🔹 Receiver Status Updated:`, receiverUpdate);
+      console.log(`🔹 Private Call Deleted:`, privateCallDeleted);
+    }
 
     callHistory.callEndTime = moment().format("HH:mm:ss");
     const duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
@@ -731,8 +752,8 @@ io.on("connection", async (socket) => {
     chat.chatTopicId = chatTopic._id;
     chat.callId = callHistory?._id;
     chat.senderId = callHistory?.callerId;
-    chat.messageType = 3;
-    chat.message = "📽 Video Call";
+    chat.messageType = callType.trim().toLowerCase() === "audio" ? 5 : 6;
+    chat.message = callType.trim().toLowerCase() === "audio" ? "📞 Audio Call" : "📽 Video Call";
     chat.callType = 3; //3.missedCall
     chat.date = new Date().toLocaleString();
     chat.isRead = true;
@@ -742,8 +763,6 @@ io.on("connection", async (socket) => {
     await Promise.all([chat?.save(), chatTopic?.save(), callHistory?.save()]);
 
     if (!receiver.isBlock && receiver.fcmToken !== null) {
-      const adminPromise = await admin;
-
       const payload = {
         token: receiver.fcmToken,
         notification: {
@@ -752,6 +771,7 @@ io.on("connection", async (socket) => {
         },
       };
 
+      const adminPromise = await admin;
       adminPromise
         .messaging()
         .send(payload)
@@ -764,15 +784,15 @@ io.on("connection", async (socket) => {
     }
   });
 
-  socket.on("callEnded", async (data) => {
-    console.log("[CALL_ENDED_LOG]", "data in callEnded:", data);
+  socket.on("callDisconnected", async (data) => {
+    console.log("[endCallSession]", "data in callDisconnected:", data);
 
     const parseData = JSON.parse(data);
-    const { callerId, receiverId, callId } = parseData;
+    const { callerId, receiverId, callId, callType, callMode } = parseData;
 
     const [caller, receiver, callHistory] = await Promise.all([
       User.findById(callerId).select("_id name").lean(),
-      User.findById(receiverId).select("_id name").lean(),
+      Host.findById(receiverId).select("_id name").lean(),
       CallHistory.findById(callId).select("_id callStartTime"),
     ]);
 
@@ -781,20 +801,22 @@ io.on("connection", async (socket) => {
       return io.to(`globalRoom:${callerId}`).emit("callTerminationFailed", { message: "Invalid call data." });
     }
 
-    io.to(callId.toString()).emit("callEnded", data);
+    io.to(callId.toString()).emit("callDisconnected", data);
     io.socketsLeave(callId.toString());
 
     console.log(`✅ Caller: ${caller.name} | Receiver: ${receiver.name} | Call ID: ${callId}`);
 
-    const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
-      User.updateOne({ _id: callerId }, { $set: { isBusy: false, callId: null } }),
-      User.updateOne({ _id: receiverId }, { $set: { isBusy: false, callId: null } }),
-      Privatecall.deleteOne({ caller: callerId, receiver: receiverId }),
-    ]);
+    if (callMode.trim().toLowerCase() === "private") {
+      const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
+        User.updateOne({ _id: callerId }, { $set: { isBusy: false, callId: null } }),
+        Host.updateOne({ _id: receiverId }, { $set: { isBusy: false, callId: null } }),
+        Privatecall.deleteOne({ caller: callerId, receiver: receiverId }),
+      ]);
 
-    console.log(`🔹 Caller Status Updated:`, callerUpdate);
-    console.log(`🔹 Receiver Status Updated:`, receiverUpdate);
-    console.log(`🔹 Private Call Deleted:`, privateCallDeleted);
+      console.log(`🔹 Caller Status Updated:`, callerUpdate);
+      console.log(`🔹 Receiver Status Updated:`, receiverUpdate);
+      console.log(`🔹 Private Call Deleted:`, privateCallDeleted);
+    }
 
     callHistory.callEndTime = moment().format("HH:mm:ss");
     const duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
@@ -808,7 +830,8 @@ io.on("connection", async (socket) => {
         {
           $set: {
             callDuration: duration,
-            messageType: 3,
+            messageType: callType.trim().toLowerCase() === "audio" ? 5 : 6,
+            message: callType.trim().toLowerCase() === "audio" ? "📞 Audio Call" : "📽 Video Call",
             callType: 1, // 1 = Received Call
             isRead: true,
           },
@@ -819,62 +842,112 @@ io.on("connection", async (socket) => {
     ]);
   });
 
-  socket.on("callCoinDeduction", async (data) => {
-    console.log("[callCoinDeduction] Event Received:", data);
+  socket.on("callCoinCharged", async (data) => {
+    console.log("[callCoinCharged] Event Received:", data);
 
     try {
       const parsedData = JSON.parse(data);
-      console.log("[callCoinDeduction] Parsed Data:", parsedData);
+      console.log("[callCoinCharged] Parsed Data:", parsedData);
 
-      const { callerId, receiverId, callId } = parsedData;
+      const { callerId, receiverId, callId, callType, callMode } = parsedData;
 
       const [uniqueId, caller, receiver, callHistory] = await Promise.all([
         generateHistoryUniqueId(),
         User.findById(callerId).select("_id coin").lean(),
-        User.findById(receiverId).select("_id coin").lean(),
-        CallHistory.findById(callId).select("_id coin isPrivate").lean(),
+        Host.findById(receiverId).select("_id coin privateCallRate audioCallRate").lean(),
+        CallHistory.findById(callId).select("_id callType isPrivate").lean(),
       ]);
 
       if (!caller || !receiver || !callHistory) {
-        console.log("[callCoinDeduction] Caller, Receiver, or CallHistory not found!");
+        console.log("[callCoinCharged] Caller, Receiver, or CallHistory not found!");
         return;
       }
 
-      if (callHistory.isPrivate) {
-        const privateCallCharge = Math.abs(settingJSON.privateCallRate) || 100;
+      if (callMode === "private" && callHistory.callType === "video" && callHistory.isPrivate) {
+        const privateCallCharge = Math.abs(receiver.privateCallRate) || 100;
+        const adminCommissionRate = settingJSON?.adminCommissionRate || 10;
+
+        const adminShare = Math.floor((privateCallCharge * adminCommissionRate) / 100);
+        const hostEarnings = privateCallCharge - adminShare;
 
         if (caller.coin >= privateCallCharge) {
-          console.log(`[callCoinDeduction] Deducting ${privateCallCharge} coins from Caller: ${caller._id}, Adding to Receiver: ${receiver._id}`);
+          console.log(`[callCoinCharged] Deducting ${privateCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
 
           await Promise.all([
-            User.updateOne({ _id: caller._id, coin: { $gt: 0 } }, { $inc: { coin: -privateCallCharge } }),
-            User.updateOne({ _id: receiver._id, coin: { $gt: 0 } }, { $inc: { coin: privateCallCharge } }),
+            User.updateOne({ _id: caller._id, coin: { $gte: privateCallCharge } }, { $inc: { coin: -privateCallCharge } }),
+            Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             CallHistory.updateOne({ _id: callHistory._id }, { $inc: { coin: privateCallCharge } }),
             History.updateOne(
               { callId: callHistory._id },
               {
                 $setOnInsert: {
                   userId: caller._id,
-                  otherUserId: receiver._id,
+                  hostId: receiver._id,
                   callId: callHistory._id,
                   uniqueId: uniqueId,
-                  type: 5,
+                  type: 13,
                   date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
                 },
-                $inc: { coin: privateCallCharge }, // Increment coin only if entry exists
+                $set: {
+                  userCoin: privateCallCharge,
+                  hostCoin: hostEarnings,
+                  adminCoin: adminShare,
+                },
               },
               { upsert: true }
             ),
           ]);
 
-          console.log("[callCoinDeduction] Coin deduction and history update successful.");
+          console.log("[callCoinCharged] Coin deduction and history update successful.");
         } else {
-          console.log(`[callCoinDeduction] Insufficient Coins for Caller: ${caller._id}`);
+          console.log(`[callCoinCharged] Insufficient Coins for Caller: ${caller._id}`);
+          io.in("globalRoom:" + caller._id.toString()).emit("insufficientCoins", "You don't have sufficient coins.");
+        }
+      }
+
+      if (callMode === "private" && callHistory.callType === "audio") {
+        const audioCallCharge = Math.abs(receiver.audioCallRate) || 100;
+        const adminCommissionRate = settingJSON?.adminCommissionRate || 10;
+
+        const adminShare = Math.floor((audioCallCharge * adminCommissionRate) / 100);
+        const hostEarnings = audioCallCharge - adminShare;
+
+        if (caller.coin >= audioCallCharge) {
+          console.log(`[callCoinCharged] Deducting ${audioCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
+
+          await Promise.all([
+            User.updateOne({ _id: caller._id, coin: { $gte: audioCallCharge } }, { $inc: { coin: -audioCallCharge } }),
+            Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
+            CallHistory.updateOne({ _id: callHistory._id }, { $inc: { coin: audioCallCharge } }),
+            History.updateOne(
+              { callId: callHistory._id },
+              {
+                $setOnInsert: {
+                  userId: caller._id,
+                  hostId: receiver._id,
+                  callId: callHistory._id,
+                  uniqueId: uniqueId,
+                  type: 12,
+                  date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+                },
+                $set: {
+                  userCoin: audioCallCharge,
+                  hostCoin: hostEarnings,
+                  adminCoin: adminShare,
+                },
+              },
+              { upsert: true }
+            ),
+          ]);
+
+          console.log("[callCoinCharged] Coin deduction and history update successful.");
+        } else {
+          console.log(`[callCoinCharged] Insufficient Coins for Caller: ${caller._id}`);
           io.in("globalRoom:" + caller._id.toString()).emit("insufficientCoins", "You don't have sufficient coins.");
         }
       }
     } catch (error) {
-      console.error("[callCoinDeduction] Error:", error);
+      console.error("[callCoinCharged] Error:", error);
     }
   });
 
@@ -907,13 +980,6 @@ io.on("connection", async (socket) => {
     } else {
       console.log("Sockets not able to emit");
     }
-  });
-
-  socket.on("resumeLiveBroadcast", async (data) => {
-    const dataOfRejoin = JSON.parse(data);
-    console.log("resumeLiveBroadcast connected:   ", dataOfRejoin);
-
-    socket.join(dataOfRejoin.liveHistoryId);
   });
 
   socket.on("countLiveJoin", async (data) => {

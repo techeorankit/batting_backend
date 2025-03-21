@@ -34,6 +34,7 @@ const hostSchema = new mongoose.Schema(
     randomCallFemaleRate: { type: Number, default: 0 },
     randomCallMaleRate: { type: Number, default: 0 },
     privateCallRate: { type: Number, default: 0 },
+    audioCallRate: { type: Number, default: 0 },
     chatRate: { type: Number, default: 0 },
 
     coin: { type: Number, default: 0 },
