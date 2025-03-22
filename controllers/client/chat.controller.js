@@ -117,7 +117,7 @@ exports.pushChatMessage = async (req, res) => {
         Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
         History.create({
           uniqueId: uniqueId,
-          type: 10,
+          type: 9,
           userId: senderId,
           hostId: receiverId,
           userCoin: chatRate,

@@ -32,8 +32,8 @@ exports.handleFollowUnfollow = async (req, res) => {
       Block.findOne({ userId: followerId, hostId: followingId }).select("_id").lean(), // Check if user has blocked the host
     ]);
 
-    if (!fromUser) return res.status(404).json({ status: false, message: "User not found." });
-    if (!toUser) return res.status(404).json({ status: false, message: "Host not found." });
+    if (!fromUser) return res.status(200).json({ status: false, message: "User not found." });
+    if (!toUser) return res.status(200).json({ status: false, message: "Host not found." });
     if (toUser.isBlock) return res.status(403).json({ status: false, message: "Host is blocked." });
 
     if (fromUser._id.equals(toUser._id)) {
@@ -90,7 +90,7 @@ exports.getFollowingList = async (req, res) => {
       FollowerFollowing.find({ followerId: userId }).populate("followingId", "_id name image").sort({ createdAt: -1 }).lean(),
     ]);
 
-    if (!user) return res.status(404).json({ status: false, message: "User not found." });
+    if (!user) return res.status(200).json({ status: false, message: "User not found." });
 
     res.status(200).json({
       status: true,
@@ -117,7 +117,7 @@ exports.getFollowerList = async (req, res) => {
       FollowerFollowing.find({ followingId: hostId }).populate("followerId", "_id name image").sort({ createdAt: -1 }).lean(),
     ]);
 
-    if (!host) return res.status(404).json({ status: false, message: "Host not found." });
+    if (!host) return res.status(200).json({ status: false, message: "Host not found." });
     if (host.isBlock) return res.status(403).json({ status: false, message: "Host is blocked." });
 
     res.status(200).json({

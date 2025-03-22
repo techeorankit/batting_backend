@@ -6,12 +6,12 @@ const route = express.Router();
 const checkAccessWithSecretKey = require("../../checkAccess");
 
 //controller
-const GiftController = require("../../controllers/client/gift.controller");
+const HistoryController = require("../../controllers/client/history.controller");
 
 //validate user's access token
 const validateUserToken = require("../../middleware/validateUserToken.middleware");
 
-//get gifts grouped by category
-route.get("/fetchGiftList", checkAccessWithSecretKey(), validateUserToken, GiftController.fetchGiftList);
+//get coin history ( user )
+route.get("/getCoinTransactionRecords", checkAccessWithSecretKey(), validateUserToken, HistoryController.getCoinTransactionRecords);
 
 module.exports = route;

@@ -148,7 +148,7 @@ exports.processDailyCheckIn = async (req, res) => {
         uniqueId: uniqueId,
         userId: user._id,
         userCoin: dailyRewardCoin,
-        type: 7,
+        type: 6,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),
     ]);

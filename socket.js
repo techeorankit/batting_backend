@@ -6,27 +6,9 @@ const Chat = require("./models/chat.model");
 const History = require("./models/history.model");
 const Gift = require("./models/gift.model");
 const Privatecall = require("./models/privatecall.model");
-const CallHistory = require("./models/callHistory.model");
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("./util/generateHistoryUniqueId");
-
-//generateUniqueCallId
-const { v4: uuidv4 } = require("uuid");
-
-const generateUniqueCallId = async () => {
-  let unique = false;
-  let callId;
-
-  while (!unique) {
-    const uuidSegment = uuidv4().split("-")[0].toUpperCase(); // e.g., "F3A8D2"
-    callId = `CALL-${uuidSegment}`;
-    const existingCall = await CallHistory.findOne({ callId }).lean();
-    if (!existingCall) unique = true;
-  }
-
-  return callId;
-};
 
 //private key
 const admin = require("./util/privateKey");
@@ -153,7 +135,7 @@ io.on("connection", async (socket) => {
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.create({
               uniqueId: uniqueId,
-              type: 10,
+              type: 9,
               userId: sender._id,
               hostId: receiver._id,
               userCoin: chatRate,
@@ -171,8 +153,8 @@ io.on("connection", async (socket) => {
         const payload = {
           token: receiver.fcmToken,
           notification: {
-            title: `${sender.name} sent you a message 💌`,
-            body: `🗨️ ${chat.message}`,
+            title: `${sender?.name} sent you a message 💌`,
+            body: `🗨️ ${chat?.message}`,
           },
           data: {
             type: "CHAT",
@@ -280,7 +262,7 @@ io.on("connection", async (socket) => {
       Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings, totalGifts: 1 } }),
       History.create({
         uniqueId: uniqueId,
-        type: 11,
+        type: 10,
         userId: sender._id,
         hostId: receiver._id,
         giftId: gift._id,
@@ -348,7 +330,7 @@ io.on("connection", async (socket) => {
 
     const [token, callUniqueId, caller, receiver] = await Promise.all([
       RtcTokenBuilder.buildTokenWithUid("6eb91188adba4d819d61f4af0ffcec8b", "1fe5878a76fe439d94fabe415c64e20c", channel, uid, role, privilegeExpiredTs),
-      generateUniqueCallId(),
+      generateHistoryUniqueId(),
       User.findById(callerId).select("_id name image isBlock isBusy callId isOnline").lean(),
       Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline").lean(),
     ]);
@@ -406,7 +388,7 @@ io.on("connection", async (socket) => {
     if (!receiver.isBusy && receiver.callId === null) {
       console.log("Receiver and Caller are free. Proceeding with call setup.");
 
-      const callHistory = new CallHistory();
+      const callHistory = new History();
       callHistory.callId = callUniqueId;
 
       const [callerVerify, receiverVerify] = await Promise.all([
@@ -467,8 +449,8 @@ io.on("connection", async (socket) => {
 
         callHistory.callType = callType?.trim()?.toLowerCase();
         callHistory.isPrivate = true;
-        callHistory.callerId = caller._id;
-        callHistory.receiverId = receiver._id;
+        callHistory.userId = caller._id;
+        callHistory.hostId = receiver._id;
         callHistory.callStartTime = moment(new Date()).format("HH:mm:ss");
         callHistory.date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
 
@@ -525,7 +507,7 @@ io.on("connection", async (socket) => {
       const [caller, receiver, callHistory] = await Promise.all([
         User.findById(callerId).select("_id name isBusy callId").lean(),
         Host.findById(receiverId).select("_id name isBusy callId").lean(),
-        CallHistory.findById(callId).select("_id callerId receiverId callStartTime"),
+        History.findById(callId).select("_id callConnect callEndTime duration"),
       ]);
 
       if (!caller || !receiver || !callHistory) {
@@ -660,7 +642,7 @@ io.on("connection", async (socket) => {
               chatTopic?.save(),
               User.updateOne({ _id: caller._id }, { $set: { isBusy: true, callId: callId } }),
               Host.updateOne({ _id: receiver._id }, { $set: { isBusy: true, callId: callId } }),
-              CallHistory.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().format("HH:mm:ss") } }),
+              History.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().format("HH:mm:ss") } }),
             ]);
 
             console.log("✅ Caller and Receiver status updated & call history saved.");
@@ -695,7 +677,7 @@ io.on("connection", async (socket) => {
     const [caller, receiver, callHistory] = await Promise.all([
       User.findById(callerId).select("_id name fcmToken isBlock").lean(),
       Host.findById(receiverId).select("_id name fcmToken isBlock").lean(),
-      CallHistory.findById(callId).select("_id callerId receiverId callStartTime"),
+      History.findById(callId).select("_id userId callConnect duration callEndTime"),
     ]);
 
     if (!caller || !receiver || !callHistory) {
@@ -751,7 +733,7 @@ io.on("connection", async (socket) => {
 
     chat.chatTopicId = chatTopic._id;
     chat.callId = callHistory?._id;
-    chat.senderId = callHistory?.callerId;
+    chat.senderId = callHistory?.userId;
     chat.messageType = callType.trim().toLowerCase() === "audio" ? 5 : 6;
     chat.message = callType.trim().toLowerCase() === "audio" ? "📞 Audio Call" : "📽 Video Call";
     chat.callType = 3; //3.missedCall
@@ -793,7 +775,7 @@ io.on("connection", async (socket) => {
     const [caller, receiver, callHistory] = await Promise.all([
       User.findById(callerId).select("_id name").lean(),
       Host.findById(receiverId).select("_id name").lean(),
-      CallHistory.findById(callId).select("_id callStartTime"),
+      History.findById(callId).select("_id callStartTime callEndTime callConnect duration"),
     ]);
 
     if (!caller || !receiver || !callHistory) {
@@ -855,7 +837,7 @@ io.on("connection", async (socket) => {
         generateHistoryUniqueId(),
         User.findById(callerId).select("_id coin").lean(),
         Host.findById(receiverId).select("_id coin privateCallRate audioCallRate").lean(),
-        CallHistory.findById(callId).select("_id callType isPrivate").lean(),
+        History.findById(callId).select("_id callType isPrivate").lean(),
       ]);
 
       if (!caller || !receiver || !callHistory) {
@@ -1154,7 +1136,7 @@ io.on("connection", async (socket) => {
       await Promise.all([
         History.create({
           uniqueId: uniqueId,
-          type: 6,
+          type: 2,
           userId: senderUser._id,
           otherUserId: receiverUser._id,
           giftId: giftData.giftId,
@@ -1258,7 +1240,7 @@ io.on("connection", async (socket) => {
             const [privateCallDelete, userUpdate, callHistory] = await Promise.all([
               Privatecall.deleteOne({ $or: [{ caller: id }, { receiver: id }] }),
               User.findOneAndUpdate({ _id: userId }, { $set: { isOnline: false, isBusy: false, isLive: false, callId: null, liveHistoryId: null } }, { new: true }),
-              // CallHistory.findById(callId).select("_id callStartTime"),
+              // History.findById(callId).select("_id callStartTime"),
             ]);
 
             // if (callHistory) {

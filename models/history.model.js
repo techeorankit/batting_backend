@@ -7,11 +7,19 @@ const historySchema = new mongoose.Schema(
     uniqueId: { type: String, unique: true, trim: true, default: "" },
     type: { type: Number, enum: HISTORY_TYPE },
 
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }, // Sender
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }, // Sender OR Caller
     hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null }, // Receiver
 
     giftId: { type: mongoose.Schema.Types.ObjectId, ref: "Gift", default: null },
     giftCount: { type: Number, default: 0 },
+
+    callType: { type: String, default: "" }, //1.audio 2.video
+    isRandom: { type: Boolean, default: false },
+    isPrivate: { type: Boolean, default: false },
+    callConnect: { type: Boolean, default: false },
+    callStartTime: { type: String, default: "" },
+    callEndTime: { type: String, default: "" },
+    duration: { type: String, default: "00:00:00" },
 
     paymentGateway: { type: String, default: "" },
     payoutStatus: { type: Number, default: 0, enum: WITHDRAWAL_STATUS },

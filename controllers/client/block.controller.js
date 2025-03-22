@@ -28,8 +28,8 @@ exports.blockHost = async (req, res) => {
       Block.findOne({ userId, hostId, blockedBy: "user" }).select("_id").lean(),
     ]);
 
-    if (!user) return res.status(404).json({ status: false, message: "User not found." });
-    if (!host) return res.status(404).json({ status: false, message: "Host not found." });
+    if (!user) return res.status(200).json({ status: false, message: "User not found." });
+    if (!host) return res.status(200).json({ status: false, message: "Host not found." });
 
     if (existingBlock) {
       res.status(200).json({ status: true, message: "Host unblocked successfully.", isBlocked: false });
@@ -69,8 +69,8 @@ exports.blockUser = async (req, res) => {
       Block.findOne({ userId, hostId, blockedBy: "host" }).select("_id").lean(),
     ]);
 
-    if (!host) return res.status(404).json({ status: false, message: "Host not found." });
-    if (!user) return res.status(404).json({ status: false, message: "User not found." });
+    if (!host) return res.status(200).json({ status: false, message: "Host not found." });
+    if (!user) return res.status(200).json({ status: false, message: "User not found." });
 
     if (existingBlock) {
       res.status(200).json({ status: true, message: "User unblocked successfully.", isBlocked: false });

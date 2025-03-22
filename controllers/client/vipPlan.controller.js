@@ -93,7 +93,7 @@ exports.purchaseVipPlan = async (req, res) => {
       ),
       History.create({
         uniqueId: uniqueId,
-        type: 9,
+        type: 8,
         userId: user._id,
         userCoin: vipPlan.coin,
         paymentGateway: paymentGateway.trim(),

@@ -8,7 +8,7 @@ if (!privateKey) {
 }
 
 //import model
-// const Admin = require("../models/admin.model");
+const Admin = require("../models/admin.model");
 
 const validateAdminFirebaseToken = async (req, res, next) => {
   console.log("🔹 [AUTH] Validating Admin Firebase token...");
