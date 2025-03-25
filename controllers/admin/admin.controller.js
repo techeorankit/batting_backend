@@ -25,7 +25,7 @@ exports.validateAdminLogin = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
     }
 
-    const admin = await Admin.findOne({ email: email.trim() }).select("_id").lean();
+    const admin = await Admin.findOne({ email: email.trim() }).select("_id password").lean();
 
     if (!admin) {
       return res.status(200).json({ status: false, message: "Oops! Admin not found with that email." });
@@ -95,13 +95,13 @@ exports.retrieveAdminProfile = async (req, res) => {
   try {
     const adminId = req.admin._id;
 
-    const [admin] = await Promise.all([Admin.findById(adminId).select("_id name email password role").lean()]);
+    const [admin] = await Promise.all([Admin.findById(adminId).select("_id name email password image flag").lean()]);
 
     if (!admin) {
       return res.status(200).json({ status: false, message: "Admin not found." });
     }
 
-    admin.password = CryptrInstance.decrypt(admin.password);
+    admin.password = cryptr.decrypt(admin.password);
 
     return res.status(200).json({
       status: true,

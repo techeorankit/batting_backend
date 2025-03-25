@@ -13,22 +13,25 @@ const multer = require("multer");
 const storage = require("../../util/multer");
 const upload = multer({ storage });
 
+//validateAdmin
+const validateAdminToken = require("../../middleware/verifyAdminAuthToken.middleware");
+
 //admin login
-route.post("/validateAdminLogin", checkAccessWithSecretKey(), upload.single("image"), AdminController.validateAdminLogin);
+route.post("/validateAdminLogin", validateAdminToken, checkAccessWithSecretKey(), AdminController.validateAdminLogin);
 
 //update admin profile
-route.patch("/modifyAdminProfile", checkAccessWithSecretKey(), upload.single("image"), AdminController.modifyAdminProfile);
+route.patch("/modifyAdminProfile", checkAccessWithSecretKey(), validateAdminToken, upload.single("image"), AdminController.modifyAdminProfile);
 
 //get admin profile
-route.get("/retrieveAdminProfile", checkAccessWithSecretKey(), AdminController.retrieveAdminProfile);
+route.get("/retrieveAdminProfile", checkAccessWithSecretKey(), validateAdminToken, AdminController.retrieveAdminProfile);
 
 //send email ( forgot password )
-route.patch("/sendPasswordResetRequest", checkAccessWithSecretKey(), AdminController.sendPasswordResetRequest);
+route.post("/sendPasswordResetRequest", checkAccessWithSecretKey(), AdminController.sendPasswordResetRequest);
 
 //update password
-route.patch("/modifyPassword", checkAccessWithSecretKey(), AdminController.modifyPassword);
+route.patch("/modifyPassword", checkAccessWithSecretKey(), validateAdminToken, AdminController.modifyPassword);
 
 //set Password
-route.patch("/performPasswordReset", checkAccessWithSecretKey(), AdminController.performPasswordReset);
+route.patch("/performPasswordReset", checkAccessWithSecretKey(), validateAdminToken, AdminController.performPasswordReset);
 
 module.exports = route;

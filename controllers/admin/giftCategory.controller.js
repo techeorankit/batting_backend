@@ -51,7 +51,14 @@ exports.updateGiftCategory = async (req, res) => {
 //retrieve all giftCategories
 exports.getAllGiftCategories = async (req, res) => {
   try {
-    const categories = await GiftCategory.find({}).select("_id name createdAt").lean();
+    const start = req.query.start ? parseInt(req.query.start) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
+    const categories = await GiftCategory.find({ isDelete: false })
+      .select("_id name createdAt")
+      .skip((start - 1) * limit)
+      .limit(limit)
+      .lean();
 
     return res.status(200).json({
       status: true,

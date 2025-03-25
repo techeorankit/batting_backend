@@ -10,11 +10,17 @@ const admin = require("./admin.route");
 const setting = require("./setting.route");
 const giftCategory = require("./giftCategory.route");
 const gift = require("./gift.route");
+const vipPlanPrivilege = require("./vipPlanPrivilege.route");
+const host = require("./host.route");
+const dashboard = require("./dashboard.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
-route.use("/setting", setting);
-route.use("/giftCategory", giftCategory);
-route.use("/gift", gift);
+route.use("/setting", validateAdminToken, setting);
+route.use("/giftCategory", validateAdminToken, giftCategory);
+route.use("/gift", validateAdminToken, gift);
+route.use("/vipPlanPrivilege", validateAdminToken, vipPlanPrivilege);
+route.use("/host", validateAdminToken, host);
+route.use("/dashboard", validateAdminToken, dashboard);
 
 module.exports = route;

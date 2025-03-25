@@ -114,6 +114,9 @@ exports.retrieveGifts = async (req, res, next) => {
   try {
     const gift = await Gift.aggregate([
       {
+        $match: { iDelete: false },
+      },
+      {
         $lookup: {
           from: "giftcategories",
           localField: "giftCategoryId",

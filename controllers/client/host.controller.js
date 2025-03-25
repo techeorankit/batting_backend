@@ -44,25 +44,16 @@ exports.initiateHostRequest = async (req, res) => {
 
     const { fcmToken, name, bio, dob, gender, countryFlagImage, country, language, impression, agencyCode } = req.body;
 
-    if (
-      !fcmToken ||
-      !name ||
-      !bio ||
-      !dob ||
-      !gender ||
-      !countryFlagImage ||
-      !country ||
-      !impression ||
-      !req.files //
-    ) {
+    if (!fcmToken || !name || !bio || !dob || !gender || !countryFlagImage || !country || !impression || !language || !req.files) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({ status: false, message: "Oops ! Invalid details." });
     }
 
-    const [uniqueId, agencyDetails, existingHost] = await Promise.all([
+    const [uniqueId, agencyDetails, existingHost, declineHostRequest] = await Promise.all([
       generateUniqueId(),
       agencyCode ? Agency.findOne({ code: agencyCode }).select("_id").lean() : null,
       Host.findOne({ status: 1, userId: userId }).select("_id").lean(),
+      Host.findOne({ status: 3, userId: userId }).select("_id").lean(),
     ]);
 
     if (existingHost) {
@@ -80,6 +71,10 @@ exports.initiateHostRequest = async (req, res) => {
       message: "Host request successfully sent.",
     });
 
+    if (declineHostRequest) {
+      await Host.findByIdAndDelete(declineHostRequest);
+    }
+
     const newHost = new Host({
       fcmToken,
       userId,
@@ -90,7 +85,7 @@ exports.initiateHostRequest = async (req, res) => {
       gender,
       countryFlagImage,
       country,
-      language: language || "",
+      language,
       impression,
       image: req.files.image ? req.files.image[0].path : "",
       identityProof: req.files.identityProof ? req.files.identityProof[0].path : "",

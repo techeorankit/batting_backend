@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const adminSchema = new mongoose.Schema(
   {
+    uid: { type: String, trim: true, default: "" },
     name: { type: String, trim: true, default: "" },
     email: { type: String, trim: true, default: "" },
     password: { type: String, trim: true, default: "" },

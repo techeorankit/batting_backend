@@ -14,27 +14,32 @@ const validateAdminFirebaseToken = async (req, res, next) => {
   console.log("🔹 [AUTH] Validating Admin Firebase token...");
 
   const authHeader = req.headers["authorization"];
+  const adminUid = req.headers["x-admin-uid"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     console.warn("⚠️ [AUTH] Missing or invalid authorization header.");
     return res.status(401).json({ status: false, message: "Authorization token required" });
   }
 
+  if (!adminUid) {
+    console.warn("⚠️ [AUTH] Missing API key or Admin UID.");
+    return res.status(401).json({ status: false, message: "Admin UID required for authentication." });
+  }
+
   const token = authHeader.split("Bearer ")[1];
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    console.log("✅ Decoded Token:", decodedToken);
+    const [decodedToken, mainAdmin] = await Promise.all([admin.auth().verifyIdToken(token), Admin.findOne({ uid: adminUid }).select("_id email password")]);
 
     if (!decodedToken || !decodedToken.email) {
       console.warn("⚠️ [AUTH] Invalid token. Email not found.");
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 
-    const [mainAdmin] = await Promise.all([Admin.findOne({ email: decodedToken.email }).select("_id email password")]);
+    console.log("✅ Decoded Token:", decodedToken);
 
     if (!mainAdmin) {
-      console.warn("⚠️ [AUTH] Admin user not found.");
+      console.warn("⚠️ [AUTH] Admin not found.");
       return res.status(401).json({ status: false, message: "Admin not found. Authorization failed." });
     }
 
