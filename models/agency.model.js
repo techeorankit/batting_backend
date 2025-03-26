@@ -2,8 +2,7 @@ const mongoose = require("mongoose");
 
 const agencySchema = new mongoose.Schema(
   {
-    uniqueId: { type: String, unique: true, default: "" },
-    agencyCode: { type: String, default: "", unique: true },
+    agencyCode: { type: String, unique: true, default: "" },
     name: { type: String, default: "" },
     commissionType: { type: Number, enum: [1, 2] },
     commission: { type: Number, default: 10 },
@@ -18,7 +17,6 @@ const agencySchema = new mongoose.Schema(
     totalEarnings: { type: Number, default: 0, min: 0 },
     totalWithdrawn: { type: Number, default: 0, min: 0 },
     isBlock: { type: Boolean, default: false },
-    date: { type: String, default: "" },
   },
   {
     timestamps: true,

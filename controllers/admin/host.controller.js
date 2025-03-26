@@ -1,5 +1,6 @@
 const Host = require("../../models/host.model");
 const User = require("../../models/user.model");
+const Agency = require("../../models/agency.model");
 
 //private key
 const admin = require("../../util/privateKey");
@@ -25,6 +26,7 @@ exports.fetchHostRequest = async (req, res) => {
     const [total, request] = await Promise.all([
       Host.countDocuments({ ...statusQuery }),
       Host.find({ ...statusQuery })
+        .populate("agencyId", "name agencyCode")
         .skip((start - 1) * limit)
         .limit(limit)
         .sort({ createdAt: -1 }),
@@ -101,7 +103,7 @@ exports.handleHostRequest = async (req, res) => {
       }
     } else if (statusNumber === 3) {
       if (!reason || reason.trim() === "") {
-        return res.status(400).json({ status: false, message: "Please provide a reason for rejection." });
+        return res.status(200).json({ status: false, message: "Please provide a reason for rejection." });
       }
 
       host.status = 3;
@@ -164,6 +166,74 @@ exports.toggleHostBlockStatus = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
+  }
+};
+
+//assign host under agency
+exports.assignHostToAgencyHandler = async (req, res) => {
+  try {
+    const { requestId, agencyId } = req.query;
+
+    if (!requestId || !agencyId) {
+      return res.status(200).json({
+        status: false,
+        message: "Required parameters missing: requestId or agencyId.",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(requestId) || !mongoose.Types.ObjectId.isValid(agencyId)) {
+      return res.status(200).json({
+        status: false,
+        message: "Invalid requestId or agencyId format. Must be a valid ObjectId.",
+      });
+    }
+
+    const requestObjectId = new mongoose.Types.ObjectId(requestId);
+    const [hostRequest, agency] = await Promise.all([Host.findOne({ _id: requestObjectId, status: 1 }), Agency.findById(agencyId).select("_id name agencyCode").lean()]);
+
+    if (!hostRequest) {
+      return res.status(200).json({ status: false, message: "Host request not found." });
+    }
+
+    if (hostRequest.agencyId !== null) {
+      return res.status(200).json({ status: false, message: "This host request is already assigned to an agency." });
+    }
+
+    if (!agency) {
+      return res.status(200).json({ status: false, message: "Agency not found." });
+    }
+
+    if (hostRequest.status === 2) {
+      return res.status(200).json({ status: false, message: "This host request has already been accepted." });
+    }
+
+    if (hostRequest.status === 3) {
+      return res.status(200).json({ status: false, message: "This host request has already been rejected." });
+    }
+
+    hostRequest.agencyId = agency._id;
+    await hostRequest.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "Host successfully assigned to the agency.",
+      request: { ...hostRequest.toObject(), agency },
+    });
+  } catch (error) {
+    console.error("Error in assignHostToAgencyHandler:", error);
+    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
+  }
+};
+
+//get active agency list ( when assign host under agency )
+exports.getActiveAgenciesList = async (req, res) => {
+  try {
+    const agencies = await Agency.find({ isBlock: false }).select("_id name agencyCode").lean();
+
+    return res.status(200).json({ status: true, message: "Active agencies retrieved successfully.", data: agencies });
+  } catch (error) {
+    console.error("Error in getActiveAgenciesList:", error);
     return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
   }
 };

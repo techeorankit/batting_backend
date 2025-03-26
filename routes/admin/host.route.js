@@ -17,4 +17,10 @@ route.patch("/handleHostRequest", checkAccessWithSecretKey(), HostController.han
 //handle block or not the host
 route.patch("/toggleHostBlockStatus", checkAccessWithSecretKey(), HostController.toggleHostBlockStatus);
 
+//assign host under agency
+route.patch("/assignHostToAgencyHandler", checkAccessWithSecretKey(), HostController.assignHostToAgencyHandler);
+
+//get active agency list ( when assign host under agency )
+route.get("/getActiveAgenciesList", checkAccessWithSecretKey(), HostController.getActiveAgenciesList);
+
 module.exports = route;
