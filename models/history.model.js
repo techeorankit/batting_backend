@@ -29,6 +29,8 @@ const historySchema = new mongoose.Schema(
     hostCoin: { type: Number, default: 0 },
     adminCoin: { type: Number, default: 0 },
 
+    price: { type: Number, default: 0 },
+
     date: { type: String, default: "" },
   },
   {

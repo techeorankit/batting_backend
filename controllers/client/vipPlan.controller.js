@@ -74,7 +74,7 @@ exports.purchaseVipPlan = async (req, res) => {
         planEndDate.add(vipPlan.validity, "years");
         break;
       default:
-        return res.status(400).json({ status: false, message: "Invalid validity type in VIP plan." });
+        return res.status(200).json({ status: false, message: "Invalid validity type in VIP plan." });
     }
 
     await Promise.all([

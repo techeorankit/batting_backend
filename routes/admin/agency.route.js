@@ -19,10 +19,16 @@ route.post("/createAgency", checkAccessWithSecretKey(), upload.single("image"), 
 //update agency
 route.patch("/updateAgency", checkAccessWithSecretKey(), upload.single("image"), AgencyController.updateAgency);
 
-//get all agencies
+//toggle agency block status
+route.patch("/toggleAgencyBlockStatus", checkAccessWithSecretKey(), AgencyController.toggleAgencyBlockStatus);
+
+//get agencies
 route.get("/getAgencies", checkAccessWithSecretKey(), AgencyController.getAgencies);
 
 //delete agency
 route.delete("/deleteAgency", checkAccessWithSecretKey(), AgencyController.deleteAgency);
+
+//get agency list ( when assign host under agency )
+route.get("/getActiveAgenciesList", checkAccessWithSecretKey(), AgencyController.getActiveAgenciesList);
 
 module.exports = route;

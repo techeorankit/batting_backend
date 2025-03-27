@@ -290,7 +290,8 @@ io.on("connection", async (socket) => {
       };
 
       try {
-        const response = await admin.messaging().send(payload);
+        const adminInstance = await admin;
+        const response = await adminInstance.messaging().send(payload);
         console.log("✅ Successfully sent FCM notification for gift:", response);
       } catch (error) {
         console.log("❌ Error sending FCM message:", error);

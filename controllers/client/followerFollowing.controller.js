@@ -19,7 +19,7 @@ exports.handleFollowUnfollow = async (req, res) => {
     }
 
     if (!req.query.followingId) {
-      return res.status(400).json({ status: false, message: "Invalid request. followingId is required." });
+      return res.status(200).json({ status: false, message: "Invalid request. followingId is required." });
     }
 
     const followerId = new mongoose.Types.ObjectId(req.user.userId);
@@ -37,7 +37,7 @@ exports.handleFollowUnfollow = async (req, res) => {
     if (toUser.isBlock) return res.status(403).json({ status: false, message: "Host is blocked." });
 
     if (fromUser._id.equals(toUser._id)) {
-      return res.status(400).json({ status: false, message: "You can't follow your own account." });
+      return res.status(200).json({ status: false, message: "You can't follow your own account." });
     }
 
     if (isBlocked) {
@@ -91,6 +91,7 @@ exports.getFollowingList = async (req, res) => {
     ]);
 
     if (!user) return res.status(200).json({ status: false, message: "User not found." });
+    if (user.isBlock) return res.status(403).json({ status: false, message: "User is blocked." });
 
     res.status(200).json({
       status: true,
@@ -107,7 +108,7 @@ exports.getFollowingList = async (req, res) => {
 exports.getFollowerList = async (req, res) => {
   try {
     if (!req.query.hostId) {
-      return res.status(400).json({ status: false, message: "hostId is required." });
+      return res.status(200).json({ status: false, message: "hostId is required." });
     }
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);

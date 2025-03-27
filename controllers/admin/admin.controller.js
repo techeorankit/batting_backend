@@ -3,9 +3,6 @@ const Admin = require("../../models/admin.model");
 //fs
 const fs = require("fs");
 
-//jwt token
-const jwt = require("jsonwebtoken");
-
 //nodemailer
 const nodemailer = require("nodemailer");
 

@@ -3,7 +3,7 @@ const GiftCategory = require("../../models/giftCategory.model");
 //retrieve all giftCategories
 exports.listGiftCategories = async (req, res) => {
   try {
-    const categories = await GiftCategory.find({}).select("_id name ").lean();
+    const categories = await GiftCategory.find({ isDelete: false }).select("_id name ").lean();
 
     return res.status(200).json({
       status: true,

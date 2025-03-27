@@ -15,6 +15,11 @@ const vipPlanPrivilege = require("./vipPlanPrivilege.route");
 const host = require("./host.route");
 const dashboard = require("./dashboard.route");
 const agency = require("./agency.route");
+const block = require("./block.route");
+const user = require("./user.route");
+const followerFollowing = require("./followerFollowing.route");
+const coinPlan = require("./coinPlan.route");
+const paymentMethod = require("./paymentMethod.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
@@ -26,5 +31,10 @@ route.use("/vipPlanPrivilege", validateAdminToken, vipPlanPrivilege);
 route.use("/host", validateAdminToken, host);
 route.use("/dashboard", validateAdminToken, dashboard);
 route.use("/agency", validateAdminToken, agency);
+route.use("/block", validateAdminToken, block);
+route.use("/user", validateAdminToken, user);
+route.use("/followerFollowing", validateAdminToken, followerFollowing);
+route.use("/coinPlan", coinPlan);
+route.use("/paymentMethod", paymentMethod);
 
 module.exports = route;

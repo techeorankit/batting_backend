@@ -7,7 +7,7 @@ exports.fetchGiftList = async (req, res, next) => {
     let { giftCategoryId } = req.query;
 
     if (!giftCategoryId) {
-      return res.status(400).json({ status: false, message: "giftCategoryId query param is required." });
+      return res.status(200).json({ status: false, message: "giftCategoryId query param is required." });
     }
 
     const [giftCategory, gifts] = await Promise.all([

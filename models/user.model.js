@@ -39,13 +39,12 @@ const userSchema = new mongoose.Schema(
       price: { type: Number, default: 0 },
     },
 
-    isBlock: { type: Boolean, default: false },
     isFake: { type: Boolean, default: false },
-
+    isBlock: { type: Boolean, default: false },
     isOnline: { type: Boolean, default: false },
     isBusy: { type: Boolean, default: false },
 
-    callId: { type: String, default: "" },
+    callId: { type: String, default: null }, //for videoCall
 
     isHost: { type: Boolean, default: false },
     hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null },

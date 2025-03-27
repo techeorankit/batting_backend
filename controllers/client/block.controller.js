@@ -16,7 +16,7 @@ exports.blockHost = async (req, res) => {
     }
 
     if (!req.query.hostId) {
-      return res.status(400).json({ status: false, message: "Invalid request. hostId is required." });
+      return res.status(200).json({ status: false, message: "Invalid request. hostId is required." });
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
@@ -53,11 +53,11 @@ exports.blockHost = async (req, res) => {
 exports.blockUser = async (req, res) => {
   try {
     if (!req.query.hostId) {
-      return res.status(400).json({ status: false, message: "Invalid request. hostId is required." });
+      return res.status(200).json({ status: false, message: "Invalid request. hostId is required." });
     }
 
     if (!req.query.userId) {
-      return res.status(400).json({ status: false, message: "Invalid request. userId is required." });
+      return res.status(200).json({ status: false, message: "Invalid request. userId is required." });
     }
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
@@ -124,7 +124,7 @@ exports.getBlockedHostsForUser = async (req, res) => {
 exports.getBlockedUsersForHost = async (req, res) => {
   try {
     if (!req.query.hostId) {
-      return res.status(400).json({ status: false, message: "Invalid request. hostId is required." });
+      return res.status(200).json({ status: false, message: "Invalid request. hostId is required." });
     }
 
     const start = req.query.start ? parseInt(req.query.start) : 1;

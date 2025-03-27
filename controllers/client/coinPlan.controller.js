@@ -73,6 +73,7 @@ exports.recordCoinPlanPurchase = async (req, res) => {
         userCoin: totalCoins,
         paymentGateway: trimmedPaymentGateway,
         uniqueId: uniqueId,
+        price: coinPlan?.price,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),
     ]);

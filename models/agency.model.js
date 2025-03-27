@@ -4,7 +4,7 @@ const agencySchema = new mongoose.Schema(
   {
     agencyCode: { type: String, unique: true, default: "" },
     name: { type: String, default: "" },
-    commissionType: { type: Number, enum: [1, 2] },
+    commissionType: { type: Number, enum: [1, 2] }, //1.percentage 2.salary
     commission: { type: Number, default: 10 },
     email: { type: String, default: "" },
     password: { type: String, default: "" },

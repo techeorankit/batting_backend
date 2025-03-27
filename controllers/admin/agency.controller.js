@@ -108,20 +108,104 @@ exports.updateAgency = async (req, res) => {
   }
 };
 
-//get all agencies
+//toggle agency block status
+exports.toggleAgencyBlockStatus = async (req, res, next) => {
+  try {
+    const { agencyId } = req.query;
+
+    if (!agencyId) {
+      return res.status(200).json({ status: false, message: "Agency ID is required." });
+    }
+
+    const agency = await Agency.findById(agencyId);
+    if (!agency) {
+      return res.status(200).json({ status: false, message: "Agency not found." });
+    }
+
+    agency.isBlock = !agency.isBlock;
+    await agency.save();
+
+    return res.status(200).json({
+      status: true,
+      message: `Agency has been ${agency.isBlock ? "blocked" : "unblocked"} successfully.`,
+      data: agency,
+    });
+  } catch (error) {
+    console.error("Error updating agency block status:", error);
+    return res.status(500).json({ status: false, message: "An error occurred while updating the agency's block status." });
+  }
+};
+
+//get agencies
 exports.getAgencies = async (req, res) => {
   try {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const searchString = req.query.search || "";
+    const startDate = req.query.startDate || "All";
+    const endDate = req.query.endDate || "All";
 
-    const agencies = await Agency.find()
-      .skip((start - 1) * limit)
-      .limit(limit)
-      .lean();
+    let matchQuery = {};
+
+    if (startDate !== "All" && endDate !== "All") {
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate);
+      endDateObj.setHours(23, 59, 59, 999);
+
+      matchQuery.createdAt = { $gte: startDateObj, $lte: endDateObj };
+    }
+
+    if (searchString !== "All" && searchString !== "") {
+      matchQuery.$or = [{ name: { $regex: searchString, $options: "i" } }, { email: { $regex: searchString, $options: "i" } }, { agencyCode: { $regex: searchString, $options: "i" } }];
+    }
+
+    const [total, agencies] = await Promise.all([
+      Agency.countDocuments(matchQuery),
+      Agency.aggregate([
+        { $match: matchQuery },
+        {
+          $lookup: {
+            from: "hosts",
+            localField: "_id",
+            foreignField: "agencyId",
+            as: "hosts",
+          },
+        },
+        {
+          $addFields: {
+            totalHosts: { $size: "$hosts" },
+          },
+        },
+        { $unset: "hosts" },
+        {
+          $project: {
+            _id: 1,
+            totalHosts: 1,
+            name: 1,
+            email: 1,
+            commissionType: 1,
+            commission: 1,
+            agencyCode: 1,
+            mobileNumber: 1,
+            image: 1,
+            countryFlagImage: 1,
+            country: 1,
+            hostCoins: 1,
+            totalEarnings: 1,
+            isBlock: 1,
+            createdAt: 1,
+          },
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: (start - 1) * limit },
+        { $limit: limit },
+      ]),
+    ]);
 
     return res.status(200).json({
       status: true,
       message: "Agencies retrieved successfully!",
+      total: total,
       data: agencies,
     });
   } catch (error) {
@@ -136,12 +220,12 @@ exports.deleteAgency = async (req, res) => {
     const { agencyId } = req.query;
 
     if (!agencyId) {
-      return res.status(400).json({ status: false, message: "Agency ID is required." });
+      return res.status(200).json({ status: false, message: "Agency ID is required." });
     }
 
     const agency = await Agency.findById(agencyId);
     if (!agency) {
-      return res.status(404).json({ status: false, message: "Agency not found." });
+      return res.status(200).json({ status: false, message: "Agency not found." });
     }
 
     await agency.deleteOne();
@@ -153,5 +237,17 @@ exports.deleteAgency = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: "Internal server error." });
+  }
+};
+
+//get agency list ( when assign host under agency )
+exports.getActiveAgenciesList = async (req, res) => {
+  try {
+    const agencies = await Agency.find({ isBlock: false }).select("_id name agencyCode").lean();
+
+    return res.status(200).json({ status: true, message: "Active agencies retrieved successfully.", data: agencies });
+  } catch (error) {
+    console.error("Error in getActiveAgenciesList:", error);
+    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
   }
 };

@@ -171,7 +171,7 @@ exports.toggleHostBlockStatus = async (req, res) => {
 };
 
 //assign host under agency
-exports.assignHostToAgencyHandler = async (req, res) => {
+exports.assignHostToAgency = async (req, res) => {
   try {
     const { requestId, agencyId } = req.query;
 
@@ -221,19 +221,7 @@ exports.assignHostToAgencyHandler = async (req, res) => {
       request: { ...hostRequest.toObject(), agency },
     });
   } catch (error) {
-    console.error("Error in assignHostToAgencyHandler:", error);
-    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
-  }
-};
-
-//get active agency list ( when assign host under agency )
-exports.getActiveAgenciesList = async (req, res) => {
-  try {
-    const agencies = await Agency.find({ isBlock: false }).select("_id name agencyCode").lean();
-
-    return res.status(200).json({ status: true, message: "Active agencies retrieved successfully.", data: agencies });
-  } catch (error) {
-    console.error("Error in getActiveAgenciesList:", error);
+    console.error("Error in assignHostToAgency:", error);
     return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
   }
 };

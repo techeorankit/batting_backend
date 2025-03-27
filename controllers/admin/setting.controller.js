@@ -3,29 +3,57 @@ const Setting = require("../../models/setting.model");
 //update setting
 exports.updateSetting = async (req, res) => {
   try {
-    // if (!req.query.settingId) {
-    //   return res.status(200).json({ status: false, message: "SettingId mumst be requried." });
-    // }
+    if (!req.query.settingId) {
+      return res.status(200).json({ status: false, message: "SettingId mumst be requried." });
+    }
 
-    // const setting = await Setting.findById(req.query.settingId);
-    // if (!setting) {
-    //   return res.status(200).json({ status: false, message: "Setting does not found." });
-    // }
+    const setting = await Setting.findById(req.query.settingId);
+    if (!setting) {
+      return res.status(200).json({ status: false, message: "Setting does not found." });
+    }
 
-    const setting = new Setting();
+    // const setting = new Setting();
 
-    setting.minCoinsToConvert = req.body.minCoinsToConvert ? req.body.minCoinsToConvert : setting.minCoinsToConvert;
-    setting.privateKey = req.body.privateKey ? req.body.privateKey: setting.privateKey;
+    setting.privacyPolicyLink = req.body.privacyPolicyLink ? req.body.privacyPolicyLink : setting.privacyPolicyLink;
+    setting.termsOfUsePolicyLink = req.body.termsOfUsePolicyLink ? req.body.termsOfUsePolicyLink : setting.termsOfUsePolicyLink;
+    setting.stripePublishableKey = req.body.stripePublishableKey ? req.body.stripePublishableKey : setting.stripePublishableKey;
+    setting.stripeSecretKey = req.body.stripeSecretKey ? req.body.stripeSecretKey : setting.stripeSecretKey;
+    setting.razorpayId = req.body.razorpayId ? req.body.razorpayId : setting.razorpayId;
+    setting.razorpaySecretKey = req.body.razorpaySecretKey ? req.body.razorpaySecretKey : setting.razorpaySecretKey;
+    setting.flutterwaveId = req.body.flutterwaveId ? req.body.flutterwaveId : setting.flutterwaveId;
+    setting.loginBonus = req.body.loginBonus ? Number(req.body.loginBonus) : setting.loginBonus;
+    setting.adminCommissionRate = req.body.adminCommissionRate ? Number(req.body.adminCommissionRate) : setting.adminCommissionRate;
+    setting.minCoinsToConvert = req.body.minCoinsToConvert ? Number(req.body.minCoinsToConvert) : setting.minCoinsToConvert;
+    setting.minCoinsForUserPayout = req.body.minCoinsForUserPayout ? Number(req.body.minCoinsForUserPayout) : setting.minCoinsForUserPayout;
+    setting.minCoinsForHostPayout = req.body.minCoinsForHostPayout ? Number(req.body.minCoinsForHostPayout) : setting.minCoinsForHostPayout;
+    setting.minCoinsForAgencyPayout = req.body.minCoinsForAgencyPayout ? Number(req.body.minCoinsForAgencyPayout) : setting.minCoinsForAgencyPayout;
+    setting.maxFreeChatMessages = req.body.maxFreeChatMessages ? Number(req.body.maxFreeChatMessages) : setting.maxFreeChatMessages;
+    setting.privateKey = req.body.privateKey ? JSON.parse(req.body.privateKey) : setting.privateKey;
 
     await setting.save();
 
-    updateSettingFile(setting);
-
-    return res.status(200).json({
+    res.status(200).json({
       status: true,
       message: "Setting has been Updated.",
       data: setting,
     });
+
+    updateSettingFile(setting);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
+//get setting
+exports.fetchSettings = async (req, res) => {
+  try {
+    const setting = settingJSON ? settingJSON : null;
+    if (!setting) {
+      return res.status(200).json({ status: false, message: "Setting does not found." });
+    }
+
+    return res.status(200).json({ status: true, message: "Success", data: setting });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });

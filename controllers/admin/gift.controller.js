@@ -14,7 +14,7 @@ exports.addGift = async (req, res, next) => {
 
     if (!type || !giftCategoryId) {
       if (req.files) deleteFiles(req.files);
-      return res.status(400).json({ status: false, message: "Oops! Invalid details." });
+      return res.status(200).json({ status: false, message: "Oops! Invalid details." });
     }
 
     const [giftCategory] = await Promise.all([GiftCategory.findById(giftCategoryId).select("_id")]);
@@ -51,7 +51,7 @@ exports.modifyGift = async (req, res, next) => {
 
     if (!giftId) {
       if (req.files) deleteFiles(req.files);
-      return res.status(400).json({ status: false, message: "giftId must be required." });
+      return res.status(200).json({ status: false, message: "giftId must be required." });
     }
 
     const [gift, giftCategory] = await Promise.all([
