@@ -1136,7 +1136,7 @@ io.on("connection", async (socket) => {
 
       await Promise.all([
         User.findByIdAndUpdate(senderUser._id, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }, { new: true, select: "_id coin spentCoins" }),
-        Host.findByIdAndUpdate(receiverUser._id, { $inc: { coin: totalCoin, totalGifts: 1 } }, { new: true, select: "_id coin totalGifts" }),
+        Host.findByIdAndUpdate(receiverUser._id, { $inc: { coin: totalCoin, totalGifts: giftCount } }, { new: true, select: "_id coin totalGifts" }),
         History.create({
           uniqueId: uniqueId,
           type: 2,
