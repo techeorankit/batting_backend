@@ -18,6 +18,9 @@ const settingSchema = new mongoose.Schema(
     flutterwaveEnabled: { type: Boolean, default: false },
     flutterwaveId: { type: String, default: "FLUTTER WAVE ID" },
 
+    agoraAppId: { type: String, default: "AGORA APP ID" },
+    agoraAppCertificate: { type: String, default: "AGORA APP CERTIFICATE" },
+
     loginBonus: { type: Number, default: 0 },
     isDemoData: { type: Boolean, default: false },
     adminCommissionRate: { type: Number, default: 0 }, //in %

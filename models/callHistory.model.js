@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const callHistorySchema = new mongoose.Schema(
   {
-    callId: { type: String, unique: true, default: "" },
+    callId: { type: String, unique: true, default: null },
     callerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null },
     callType: { type: String, enum: ["audio", "video"], default: "" },

@@ -54,15 +54,19 @@ exports.getAllGiftCategories = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const categories = await GiftCategory.find({ isDelete: false })
-      .select("_id name createdAt")
-      .skip((start - 1) * limit)
-      .limit(limit)
-      .lean();
+    const [total, categories] = await Promise.all([
+      GiftCategory.countDocuments({ isDelete: false }),
+      GiftCategory.find({ isDelete: false })
+        .select("_id name createdAt")
+        .skip((start - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
 
     return res.status(200).json({
       status: true,
       message: "Gift categories retrieved successfully.",
+      total,
       data: categories,
     });
   } catch (error) {

@@ -21,6 +21,8 @@ const chatTopic = require("./chatTopic.route");
 const chat = require("./chat.route");
 const setting = require("./setting.route");
 const history = require("./history.route");
+const liveBroadcaster = require("./liveBroadcaster.route");
+const identityProof = require("./identityProof.route");
 
 //exports client's route.js
 route.use("/user", user);
@@ -38,5 +40,7 @@ route.use("/chatTopic", chatTopic);
 route.use("/chat", chat);
 route.use("/setting", setting);
 route.use("/history", history);
+route.use("/liveBroadcaster", liveBroadcaster);
+route.use("/identityProof", identityProof);
 
 module.exports = route;

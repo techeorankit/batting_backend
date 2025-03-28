@@ -42,9 +42,9 @@ exports.initiateHostRequest = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    const { fcmToken, name, bio, dob, gender, countryFlagImage, country, language, impression, agencyCode } = req.body;
+    const { fcmToken, name, bio, dob, gender, countryFlagImage, country, language, impression, agencyCode, identityProofType } = req.body;
 
-    if (!fcmToken || !name || !bio || !dob || !gender || !countryFlagImage || !country || !impression || !language || !req.files) {
+    if (!fcmToken || !name || !bio || !dob || !gender || !countryFlagImage || !country || !impression || !language || !identityProofType || !req.files) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({ status: false, message: "Oops ! Invalid details." });
     }
@@ -87,8 +87,9 @@ exports.initiateHostRequest = async (req, res) => {
       country,
       language,
       impression,
+      identityProofType,
+      identityProof: req.files.identityProof?.map((file) => file.path) || [],
       image: req.files.image ? req.files.image[0].path : "",
-      identityProof: req.files.identityProof ? req.files.identityProof[0].path : "",
       photoGallery: req.files.photoGallery?.map((file) => file.path) || [],
       uniqueId,
       status: 1,

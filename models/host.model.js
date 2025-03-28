@@ -8,7 +8,7 @@ const hostSchema = new mongoose.Schema(
     agencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", default: null },
 
     name: { type: String, default: "" },
-    gender: { type: String, default: "Female" },
+    gender: { type: String, default: "female" },
     bio: { type: String, default: "" },
     age: { type: Number, default: 18 },
     dob: { type: String, default: "" },
@@ -19,7 +19,8 @@ const hostSchema = new mongoose.Schema(
     impression: { type: Array, default: [] },
     language: { type: Array, default: [] },
     image: { type: String, default: "" },
-    identityProof: { type: String, default: "" },
+    identityProofType: { type: String, default: "" },
+    identityProof: { type: Array, default: [] },
     photoGallery: { type: Array, default: [] },
 
     ipAddress: { type: String, default: "" },
@@ -49,10 +50,13 @@ const hostSchema = new mongoose.Schema(
     isOnline: { type: Boolean, default: false },
     isBusy: { type: Boolean, default: false },
 
-    callId: { type: String, default: "" },
+    callId: { type: String, default: null },
 
     isLive: { type: Boolean, default: false },
     liveHistoryId: { type: mongoose.Schema.Types.ObjectId, ref: "LiveHistory", default: null },
+    agoraUid: { type: Number, default: 0 },
+    channel: { type: String, default: "" },
+    token: { type: String, default: "" },
 
     date: { type: String, default: "" },
   },

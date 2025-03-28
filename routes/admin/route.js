@@ -19,6 +19,8 @@ const block = require("./block.route");
 const user = require("./user.route");
 const followerFollowing = require("./followerFollowing.route");
 const coinPlan = require("./coinPlan.route");
+const vipPlan = require("./vipPlan.route");
+const identityProof = require("./identityProof.route");
 const paymentMethod = require("./paymentMethod.route");
 
 //exports admin's route.js
@@ -35,6 +37,8 @@ route.use("/block", validateAdminToken, block);
 route.use("/user", validateAdminToken, user);
 route.use("/followerFollowing", validateAdminToken, followerFollowing);
 route.use("/coinPlan", coinPlan);
+route.use("/vipPlan", vipPlan);
+route.use("/identityProof", identityProof);
 route.use("/paymentMethod", paymentMethod);
 
 module.exports = route;

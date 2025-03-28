@@ -6,6 +6,9 @@ const Chat = require("./models/chat.model");
 const History = require("./models/history.model");
 const Gift = require("./models/gift.model");
 const Privatecall = require("./models/privatecall.model");
+const LiveBroadcaster = require("./models/liveBroadcaster.model");
+const LiveBroadcastView = require("./models/liveBroadcastView.model");
+const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("./util/generateHistoryUniqueId");
@@ -937,9 +940,9 @@ io.on("connection", async (socket) => {
   //random video call
 
   //live-streaming
-  socket.on("joinLiveRoom", async (data) => {
+  socket.on("liveRoomJoin", async (data) => {
     const parsedData = JSON.parse(data);
-    console.log("joinLiveRoom connected : ", parsedData);
+    console.log("liveRoomJoin connected : ", parsedData);
 
     const sockets = await io.in(globalRoom).fetchSockets();
 
@@ -955,133 +958,139 @@ io.on("connection", async (socket) => {
 
         // Join the new live room
         socket.join(parsedData.liveHistoryId);
-        socket.liveHistoryId = parsedData.liveHistoryId; // Store current room in socket
         console.log(`Joined new room: ${parsedData.liveHistoryId}`);
       });
 
-      io.in(parsedData.liveHistoryId).emit("joinLiveRoom", data);
+      io.in(parsedData.liveHistoryId).emit("liveRoomJoin", data);
     } else {
       console.log("Sockets not able to emit");
     }
   });
 
-  socket.on("countLiveJoin", async (data) => {
+  socket.on("liveJoinerCount", async (data) => {
     const dataOfaddView = JSON.parse(data);
-    console.log("[countLiveJoin] Received data:", dataOfaddView);
+    console.log("[liveJoinerCount] Received data:", dataOfaddView);
 
-    const { userId, liveHistoryId } = dataOfaddView;
+    const { hostId, liveHistoryId } = dataOfaddView;
 
-    const [sockets, user, liveUser, pkLiveUser, existLiveView] = await Promise.all([
-      io.in(globalRoom).fetchSockets(),
-      User.findById(userId).select("name userName image gender countryFlagImage country uniqueId isVerified channel token").lean(),
-      LiveStreamer.findOne({ liveHistoryId }).select("view").lean(),
-      LiveStreamer.findOne({ isPkMode: true, liveHistoryId }).select("pkEndTime").lean(),
-      LiveStreamerView.findOne({ userId, liveHistoryId }).lean(),
+    const [host, liveUser, existLiveView] = await Promise.all([
+      Host.findById(hostId).select("_id name image gender countryFlagImage country").lean(),
+      LiveBroadcaster.findOne({ liveHistoryId }).select("view").lean(),
+      LiveBroadcastView.findOne({ hostId, liveHistoryId }).lean(),
     ]);
 
-    if (sockets?.length) {
-      sockets[0].join(liveHistoryId);
+    if (!host) {
+      console.log(`[liveJoinerCount] Host not found.`);
+    }
+
+    if (!liveUser) {
+      console.log(`[liveJoinerCount] LiveUser not found.`);
+    }
+
+    if (!socket.rooms.has(liveHistoryId)) {
+      socket.join(liveHistoryId.toString());
+      console.log(`[liveJoinerCount] joined room: ${liveHistoryId}`);
     } else {
-      console.log("[countLiveJoin] No sockets available to emit");
+      console.log(`[liveJoinerCount] User is already in room: ${liveHistoryId}`);
     }
 
-    if (pkLiveUser) {
-      const duration = pkLiveUser.pkEndTime ? Math.round((new Date(pkLiveUser?.pkEndTime).getTime() - new Date().getTime()) / 1000) : 0;
+    if (!existLiveView) {
+      console.log("[liveJoinerCount] Creating new LiveView entry");
 
-      const rankedLiveUser = await LiveStreamer.aggregate([{ $match: { _id: pkLiveUser._id } }, { $addFields: { duration } }]);
-
-      if (rankedLiveUser.length > 0) {
-        io.in(liveHistoryId).emit("pkRankUpdate", rankedLiveUser[0]);
-      }
-    }
-
-    if (user && liveUser && !existLiveView) {
-      console.log("[countLiveJoin] Creating new LiveView entry");
-
-      await LiveStreamerView.create({
-        userId,
+      await LiveBroadcastView.create({
+        hostId,
         liveHistoryId,
-        ...user,
+        ...host,
       });
     }
 
-    const totalViews = await LiveStreamerView.countDocuments({ liveHistoryId });
-    console.log(`[countLiveJoin] Total viewers for ${liveHistoryId}:`, totalViews);
+    const totalViews = await LiveBroadcastView.countDocuments({ liveHistoryId });
+    console.log(`[liveJoinerCount] Total viewers for ${liveHistoryId}:`, totalViews);
 
-    io.in(liveHistoryId).emit("countLiveJoin", totalViews);
+    io.in(liveHistoryId).emit("liveJoinerCount", totalViews);
 
-    if (liveUser) {
-      await LiveStreamer.updateOne({ _id: liveUser._id }, { $set: { view: totalViews } });
-    }
+    await Promise.all([
+      LiveBroadcaster.updateOne(
+        { _id: liveUser._id },
+        {
+          $set: { view: totalViews },
+        }
+      ),
+      LiveBroadcastHistory.updateOne(
+        { _id: liveHistoryId },
+        {
+          $set: { audienceCount: totalViews },
+        }
+      ),
+    ]);
   });
 
-  socket.on("reduceLiveJoiners", async (data) => {
+  socket.on("removeLiveJoiner", async (data) => {
     try {
       const dataOflessView = JSON.parse(data);
-      console.log("[reduceLiveJoiners] Received data:", dataOflessView);
+      console.log("[removeLiveJoiner] Received data:", dataOflessView);
 
-      const { userId, liveHistoryId } = dataOflessView;
+      const { hostId, liveHistoryId } = dataOflessView;
 
-      const [sockets, liveUser, existLiveView] = await Promise.all([
-        io.in(globalRoom).fetchSockets(),
-        LiveStreamer.findOne({ liveHistoryId }).select("_id view").lean(),
-        LiveStreamerView.findOne({ userId, liveHistoryId }).lean(),
-      ]);
+      const [liveUser, existLiveView] = await Promise.all([LiveBroadcaster.findOne({ liveHistoryId }).select("_id view").lean(), LiveBroadcastView.findOne({ hostId, liveHistoryId }).lean()]);
 
-      if (sockets?.length) {
-        sockets[0].leave(liveHistoryId);
-      } else {
-        console.log("[reduceLiveJoiners] No sockets available to leave");
+      if (!liveUser) {
+        console.log(`[removeLiveJoiner] LiveUser not found.`);
       }
 
       if (existLiveView) {
-        console.log("[reduceLiveJoiners] Removing user from LiveView");
-        await LiveStreamerView.deleteOne({ _id: existLiveView._id });
+        console.log("[removeLiveJoiner] Removing user from LiveView");
+        await LiveBroadcastView.deleteOne({ _id: existLiveView._id });
       }
 
-      const totalViews = await LiveStreamerView.countDocuments({ liveHistoryId });
-      console.log(`[reduceLiveJoiners] Updated total viewers for ${liveHistoryId}:`, totalViews);
+      const totalViews = await LiveBroadcastView.countDocuments({ liveHistoryId });
+      console.log(`[removeLiveJoiner] Updated total viewers for ${liveHistoryId}:`, totalViews);
 
-      io.in(liveHistoryId).emit("reduceLiveJoiners", totalViews);
+      io.in(liveHistoryId).emit("removeLiveJoiner", totalViews);
 
-      if (liveUser) {
-        await LiveStreamer.updateOne({ _id: liveUser._id }, { $set: { view: totalViews } });
+      await LiveBroadcaster.updateOne({ _id: liveUser._id }, { $set: { view: totalViews } });
+
+      if (!socket.rooms.has(liveHistoryId)) {
+        socket.leave(liveHistoryId);
+        console.log(`[removeLiveJoiner] joined room: ${liveHistoryId}`);
+      } else {
+        console.log(`[removeLiveJoiner] User is already in room: ${liveHistoryId}`);
       }
     } catch (error) {
-      console.error("[reduceLiveJoiners] Error:", error);
+      console.error("[removeLiveJoiner] Error:", error);
     }
   });
 
-  socket.on("broadcastLiveComment", async (data) => {
+  socket.on("liveCommentBroadcast", async (data) => {
     try {
       const dataOfComment = JSON.parse(data);
-      console.log("[broadcastLiveComment] Parsed data:", dataOfComment);
+      console.log("[liveCommentBroadcast] Parsed data:", dataOfComment);
 
       const { liveHistoryId } = dataOfComment;
 
-      const [sockets, liveHistory] = await Promise.all([io.in(globalRoom).fetchSockets(), LiveHistory.findById(liveHistoryId).select("_id").lean()]);
-
-      if (sockets?.length) {
-        sockets[0].join(liveHistoryId);
+      if (!socket.rooms.has(liveHistoryId)) {
+        socket.join(liveHistoryId.toString());
+        console.log(`[liveCommentBroadcast] joined room: ${liveHistoryId}`);
       } else {
-        console.log("[broadcastLiveComment] No sockets available to join room");
+        console.log(`[liveCommentBroadcast] User is already in room: ${liveHistoryId}`);
       }
 
-      io.in(liveHistoryId).emit("broadcastLiveComment", data);
+      const [liveHistory] = await Promise.all([LiveBroadcastHistory.findById(liveHistoryId).select("_id").lean()]);
+
+      io.in(liveHistoryId).emit("liveCommentBroadcast", data);
 
       const socketCount = (await io.in(liveHistoryId).fetchSockets())?.length || 0;
-      console.log(`[broadcastLiveComment] Active sockets in room ${liveHistoryId}:`, socketCount);
+      console.log(`[liveCommentBroadcast] Active sockets in room ${liveHistoryId}:`, socketCount);
 
       if (liveHistory) {
-        await LiveStreamerHistory.updateOne({ _id: liveHistory._id }, { $inc: { totalLiveChat: 1 } });
-        console.log(`[broadcastLiveComment] Updated totalLiveChat for ${liveHistoryId}`);
+        await LiveBroadcastHistory.updateOne({ _id: liveHistory._id }, { $inc: { liveComments: 1 } });
       }
     } catch (error) {
-      console.error("[broadcastLiveComment] Error:", error);
+      console.error("[liveCommentBroadcast] Error:", error);
     }
   });
 
-  socket.on("sendGift", async (data) => {
+  socket.on("liveGiftSent", async (data) => {
     const giftData = JSON.parse(data);
     socket.join(giftData.liveHistoryId);
 
@@ -1091,25 +1100,25 @@ io.on("connection", async (socket) => {
       const [uniqueId, senderUser, receiverUser, gift] = await Promise.all([
         generateHistoryUniqueId(),
         User.findById(giftData.senderUserId).lean().select("_id coin"),
-        User.findById(giftData.receiverUserId).lean().select("_id coin receivedCoins receivedGifts"),
+        Host.findById(giftData.receiverUserId).lean().select("_id coin totalGifts"),
         Gift.findById(giftData.giftId).lean().select("_id coin"),
       ]);
 
       if (!senderUser) {
         console.log("Sender user not found");
-        io.in(`globalRoom:${giftData.senderUserId}`).emit("gift", { error: "Sender user not found" });
+        io.in(`globalRoom:${giftData.senderUserId}`).emit("liveGiftReceived", { error: "Sender user not found" });
         return;
       }
 
       if (!receiverUser) {
         console.log("Receiver user not found");
-        io.in(`globalRoom:${giftData.receiverUserId}`).emit("gift", { error: "Receiver user not found" });
+        io.in(`globalRoom:${giftData.receiverUserId}`).emit("liveGiftReceived", { error: "Receiver user not found" });
         return;
       }
 
       if (!gift) {
         console.log("Gift not found");
-        io.in(`globalRoom:${giftData.senderUserId}`).emit("gift", { error: "Gift not found" });
+        io.in(`globalRoom:${giftData.senderUserId}`).emit("liveGiftReceived", { error: "Gift not found" });
         return;
       }
 
@@ -1119,22 +1128,15 @@ io.on("connection", async (socket) => {
 
       if (senderUser.coin < totalCoin) {
         console.log("Insufficient coins");
-        io.in(`globalRoom:${giftData.senderUserId}`).emit("gift", { error: "You don't have enough coins" });
+        io.in(`globalRoom:${giftData.senderUserId}`).emit("liveGiftReceived", { error: "You don't have enough coins" });
         return;
       }
 
-      const [updatedSenderUser, updatedReceiverUser] = await Promise.all([
-        User.findByIdAndUpdate(senderUser._id, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }, { new: true, select: "_id coin spentCoins" }),
-        User.findByIdAndUpdate(receiverUser._id, { $inc: { coin: totalCoin, receivedCoins: totalCoin, receivedGifts: 1 } }, { new: true, select: "_id coin receivedCoins receivedGifts" }),
-      ]);
-
-      io.in(giftData.liveHistoryId).emit("gift", {
-        giftData,
-        senderUser: updatedSenderUser,
-        receiverUser: updatedReceiverUser,
-      });
+      io.in(giftData.liveHistoryId).emit("liveGiftReceived", giftData);
 
       await Promise.all([
+        User.findByIdAndUpdate(senderUser._id, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }, { new: true, select: "_id coin spentCoins" }),
+        Host.findByIdAndUpdate(receiverUser._id, { $inc: { coin: totalCoin, totalGifts: 1 } }, { new: true, select: "_id coin totalGifts" }),
         History.create({
           uniqueId: uniqueId,
           type: 2,
@@ -1145,36 +1147,45 @@ io.on("connection", async (socket) => {
           userCoin: totalCoin,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
-        LiveStreamerHistory.findByIdAndUpdate(giftData.liveHistoryId, { $inc: { totalGift: 1 } }, { new: true }),
+        LiveBroadcastHistory.findByIdAndUpdate(
+          giftData.liveHistoryId,
+          {
+            $inc: {
+              coins: totalCoin,
+              gifts: giftCount,
+            },
+          },
+          { new: true }
+        ),
       ]);
     } catch (error) {
-      console.error("Error in sendGift:", error);
-      io.in(giftData.liveHistoryId).emit("gift", { error: "An error occurred while processing the gift." });
+      console.error("Error in liveGiftSent:", error);
+      io.in(giftData.liveHistoryId).emit("liveGiftReceived", { error: "An error occurred while processing the gift." });
     }
   });
 
-  socket.on("endLiveStream", async (data) => {
+  socket.on("liveStreamEnd", async (data) => {
     try {
       const parsedData = JSON.parse(data);
-      console.log("Received endLiveStream event with data:", parsedData);
+      console.log("Received liveStreamEnd event with data:", parsedData);
 
-      const { userId, liveHistoryId } = parsedData;
+      const { hostId, liveHistoryId } = parsedData;
 
-      io.in(liveHistoryId).emit("endLiveStream", parsedData);
+      io.in(liveHistoryId).emit("liveStreamEnd", parsedData);
 
-      const [user, liveUser, liveHistory] = await Promise.all([
-        User.findOne({ liveHistoryId }).select("_id isLive isBusy liveHistoryId name").lean(),
-        LiveStreamer.findOne({ userId, liveHistoryId }).select("_id userId liveHistoryId isAudio").lean(),
-        LiveStreamerHistory.findById(liveHistoryId).select("_id startTime endTime duration").lean(),
+      const [host, liveUser, liveHistory] = await Promise.all([
+        Host.findOne({ liveHistoryId }).select("_id isLive isBusy liveHistoryId").lean(),
+        LiveBroadcaster.findOne({ hostId, liveHistoryId }).select("_id hostId liveHistoryId isAudio").lean(),
+        LiveBroadcastView.findById(liveHistoryId).select("_id startTime endTime duration").lean(),
       ]);
 
-      if (!user) {
-        console.log("⚠️ User not found.");
+      if (!host) {
+        console.log("⚠️ Host not found.");
         return;
       }
 
       if (!liveUser) {
-        console.log(`⚠️ No LiveUser found with userId: ${userId} and liveHistoryId: ${liveHistoryId}`);
+        console.log(`⚠️ No LiveUser found with hostId: ${hostId} and liveHistoryId: ${liveHistoryId}`);
         return;
       }
 
@@ -1183,26 +1194,21 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      if (user.isLive) {
+      if (host.isLive) {
         const endTime = moment().format("HH:mm:ss");
         const startTime = moment(liveHistory.startTime, "HH:mm:ss");
         const duration = moment.utc(moment(endTime, "HH:mm:ss").diff(startTime)).format("HH:mm:ss");
 
         await Promise.all([
-          LiveStreamerHistory.updateOne({ _id: liveHistory._id }, { $set: { endTime, duration } }),
-          User.updateOne({ _id: user._id }, { $set: { isLive: false, isBusy: false, liveHistoryId: null } }),
-          LiveStreamerView.deleteMany({ liveHistoryId }),
+          LiveBroadcastHistory.updateOne({ _id: liveHistory._id }, { $set: { endTime, duration } }),
+          Host.updateOne({ _id: host._id }, { $set: { isLive: false, isBusy: false, liveHistoryId: null } }),
+          LiveBroadcastView.deleteMany({ liveHistoryId }),
+          LiveBroadcaster.deleteOne({ hostId, liveHistoryId }),
         ]);
 
-        console.log(`✅ User ${user.name} is no longer live.`);
+        console.log(`✅ Host is no longer live.`);
         console.log("✅ Related liveViews deleted.");
-
-        if (!liveUser.isAudio) {
-          await LiveStreamer.deleteOne({ userId, liveHistoryId });
-          console.log(`✅ LiveStreamer entry deleted for userId: ${userId}`);
-        } else {
-          console.log("🔊 liveUser.isAudio is true, skipping LiveStreamer deletion.");
-        }
+        console.log(`✅ LiveBroadcaster entry deleted for hostId: ${hostId}`);
       }
 
       const sockets = await io.in(liveHistoryId).fetchSockets();
@@ -1215,7 +1221,7 @@ io.on("connection", async (socket) => {
         console.log("⚠️ No active sockets found to remove.");
       }
     } catch (error) {
-      console.error("❌ Error in endLiveStream:", error);
+      console.error("❌ Error in liveStreamEnd:", error);
     }
   });
 
@@ -1227,47 +1233,46 @@ io.on("connection", async (socket) => {
       console.log("🔄 Checking active sockets in room:", sockets.length);
 
       if (sockets?.length == 0) {
-        const userId = new mongoose.Types.ObjectId(id);
-        console.log(`🔍 Fetching user data for userId: ${userId}`);
+        const hostId = new mongoose.Types.ObjectId(id);
+        console.log(`🔍 Fetching host data for hostId: ${hostId}`);
 
-        const user = await User.findById(userId).select("_id callId").lean();
-        if (user) {
-          if (user.callId && user.callId !== null) {
-            const callId = new mongoose.Types.ObjectId(user.callId);
+        const host = await Host.findById(hostId).select("_id callId").lean();
+        if (host) {
+          if (host.callId && host.callId !== null) {
+            const callId = new mongoose.Types.ObjectId(host.callId);
             console.log(`📞 User was in an active call. Ending Call ID: ${callId}`);
 
-            io.socketsLeave(user.callId.toString());
+            io.socketsLeave(host.callId.toString());
 
             const [privateCallDelete, userUpdate, callHistory] = await Promise.all([
-              Privatecall.deleteOne({ $or: [{ caller: id }, { receiver: id }] }),
-              User.findOneAndUpdate({ _id: userId }, { $set: { isOnline: false, isBusy: false, isLive: false, callId: null, liveHistoryId: null } }, { new: true }),
-              // History.findById(callId).select("_id callStartTime"),
+              Privatecall.deleteOne({ receiver: id }),
+              Host.findOneAndUpdate({ _id: hostId }, { $set: { isOnline: false, isBusy: false, isLive: false, callId: null, liveHistoryId: null } }, { new: true }),
+              History.findById(callId).select("_id callStartTime"),
             ]);
 
-            // if (callHistory) {
-            //   callHistory.callEndTime = moment().format("HH:mm:ss");
+            if (callHistory) {
+              callHistory.callEndTime = moment().format("HH:mm:ss");
 
-            //   const duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
+              const duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
 
-            //   callHistory.callConnect = false;
-            //   callHistory.duration = duration;
+              callHistory.callConnect = false;
+              callHistory.duration = duration;
 
-            //   await Promise.all([
-            //     callHistory?.save(),
-            //     Chat.findOneAndUpdate(
-            //       { callId: callHistory._id },
-            //       {
-            //         $set: {
-            //           callDuration: duration,
-            //           messageType: 3,
-            //           callType: 1, // 1 = Received Call
-            //           isRead: true,
-            //         },
-            //       },
-            //       { new: true }
-            //     ),
-            //   ]);
-            // }
+              await Promise.all([
+                callHistory?.save(),
+                Chat.findOneAndUpdate(
+                  { callId: callHistory._id },
+                  {
+                    $set: {
+                      callDuration: duration,
+                      callType: 1, // 1 = Received Call
+                      isRead: true,
+                    },
+                  },
+                  { new: true }
+                ),
+              ]);
+            }
           }
         }
       }
