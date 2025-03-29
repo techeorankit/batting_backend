@@ -38,7 +38,7 @@ exports.pushChatMessage = async (req, res) => {
     const [uniqueId, sender, receiver, chatTopic] = await Promise.all([
       generateHistoryUniqueId(),
       User.findById(senderId).lean().select("name coin"),
-      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name fcmToken chatRate"),
+      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name fcmToken chatRate agencyId"),
       ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId freeMessageCount"),
     ]);
 
@@ -120,6 +120,7 @@ exports.pushChatMessage = async (req, res) => {
           type: 9,
           userId: senderId,
           hostId: receiverId,
+          agencyId: receiver?.agencyId,
           userCoin: chatRate,
           hostCoin: hostEarnings,
           adminCoin: adminShare,

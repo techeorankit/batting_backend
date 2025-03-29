@@ -1,0 +1,22 @@
+//express
+const express = require("express");
+const route = express.Router();
+
+//validate agency's access token
+// const validateAgencyToken = require("");
+
+//require agency's route.js
+const agency = require("./agency.route");
+const paymentMethod = require("./paymentMethod.route");
+const host = require("./host.route");
+const history = require("./history.route");
+const liveBroadcastHistory = require("./liveBroadcastHistory.route");
+
+//exports agency's route.js
+route.use("/agency", agency);
+route.use("/paymentMethod", paymentMethod);
+route.use("/host", host);
+route.use("/history", history);
+route.use("/liveBroadcastHistory", liveBroadcastHistory);
+
+module.exports = route;

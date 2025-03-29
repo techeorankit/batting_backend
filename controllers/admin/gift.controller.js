@@ -17,7 +17,7 @@ exports.addGift = async (req, res, next) => {
       return res.status(200).json({ status: false, message: "Oops! Invalid details." });
     }
 
-    const [giftCategory] = await Promise.all([GiftCategory.findById(giftCategoryId).select("_id")]);
+    const [giftCategory] = await Promise.all([GiftCategory.findById(giftCategoryId).select("_id name")]);
 
     if (!giftCategory) {
       if (req.files) deleteFiles(req.files);
@@ -35,7 +35,7 @@ exports.addGift = async (req, res, next) => {
     const gift = new Gift(giftData);
     await gift.save();
 
-    return res.status(200).json({ status: true, message: "Gift has been created by the admin.", data: gift });
+    return res.status(200).json({ status: true, message: "Gift has been created by the admin.", data: { ...gift.toObject(), giftCategory } });
   } catch (error) {
     if (req.files) deleteFiles(req.files);
     console.error(error);
@@ -56,7 +56,7 @@ exports.modifyGift = async (req, res, next) => {
 
     const [gift, giftCategory] = await Promise.all([
       Gift.findById(giftId).select("_id giftCategoryId type coin image svgaImage"),
-      giftCategoryId ? GiftCategory.findById(giftCategoryId).select("_id") : null,
+      giftCategoryId ? GiftCategory.findById(giftCategoryId).select("_id name") : null,
     ]);
 
     if (!gift) {
@@ -101,7 +101,7 @@ exports.modifyGift = async (req, res, next) => {
 
     await gift.save();
 
-    return res.status(200).json({ status: true, message: "Gift has been updated by the admin.", data: gift });
+    return res.status(200).json({ status: true, message: "Gift has been updated by the admin.", data: { ...gift.toObject(), giftCategory } });
   } catch (error) {
     if (req.files) deleteFiles(req.files);
     console.log(error);
@@ -114,7 +114,7 @@ exports.retrieveGifts = async (req, res, next) => {
   try {
     const gift = await Gift.aggregate([
       {
-        $match: { iDelete: false },
+        $match: { isDelete: false },
       },
       {
         $lookup: {

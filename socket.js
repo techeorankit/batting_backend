@@ -63,7 +63,7 @@ io.on("connection", async (socket) => {
     }
 
     if (parseData?.receiverRole === "host") {
-      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin chatRate");
+      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin chatRate agencyId");
     } else if (parseData?.receiverRole === "user") {
       receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
     }
@@ -141,6 +141,7 @@ io.on("connection", async (socket) => {
               type: 9,
               userId: sender._id,
               hostId: receiver._id,
+              agencyId: receiver?.agencyId,
               userCoin: chatRate,
               hostCoin: hostEarnings,
               adminCoin: adminShare,
@@ -198,7 +199,7 @@ io.on("connection", async (socket) => {
     }
 
     if (parseData?.receiverRole === "host") {
-      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
+      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin agencyId");
     } else if (parseData?.receiverRole === "user") {
       receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
     }
@@ -268,6 +269,7 @@ io.on("connection", async (socket) => {
         type: 10,
         userId: sender._id,
         hostId: receiver._id,
+        agencyId: receiver?.agencyId,
         giftId: gift._id,
         giftCount: giftCount,
         userCoin: totalGiftCost,
@@ -1100,7 +1102,7 @@ io.on("connection", async (socket) => {
       const [uniqueId, senderUser, receiverUser, gift] = await Promise.all([
         generateHistoryUniqueId(),
         User.findById(giftData.senderUserId).lean().select("_id coin"),
-        Host.findById(giftData.receiverUserId).lean().select("_id coin totalGifts"),
+        Host.findById(giftData.receiverUserId).lean().select("_id coin totalGifts agencyId"),
         Gift.findById(giftData.giftId).lean().select("_id coin"),
       ]);
 
@@ -1142,6 +1144,7 @@ io.on("connection", async (socket) => {
           type: 2,
           userId: senderUser._id,
           otherUserId: receiverUser._id,
+          agencyId: receiverUser?.agencyId,
           giftId: giftData.giftId,
           giftReceivedCount: giftCount,
           userCoin: totalCoin,

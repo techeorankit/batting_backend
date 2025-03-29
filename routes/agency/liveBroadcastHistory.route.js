@@ -6,9 +6,9 @@ const route = express.Router();
 const checkAccessWithSecretKey = require("../../checkAccess");
 
 //controller
-const LiveBroadcastHistoryController = require("../../controllers/admin/liveBroadcastHistory.cntroller");
+const LiveBroadcastHistoryController = require("../../controllers/agency/liveBroadcastHistory.controller");
 
 //get live history ( host )
-route.get("/fetchLiveHistory", checkAccessWithSecretKey(), LiveBroadcastHistoryController.fetchLiveHistory);
+route.get("/getLiveSessionHistory", checkAccessWithSecretKey(), LiveBroadcastHistoryController.getLiveSessionHistory);
 
 module.exports = route;

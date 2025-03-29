@@ -23,7 +23,6 @@ const settingSchema = new mongoose.Schema(
 
     loginBonus: { type: Number, default: 0 },
     isDemoData: { type: Boolean, default: false },
-    adminCommissionRate: { type: Number, default: 0 }, //in %
 
     currency: {
       name: { type: String, default: "" },
@@ -35,7 +34,16 @@ const settingSchema = new mongoose.Schema(
 
     privateKey: { type: Object, default: {} }, //firebase.json handle notification
 
+    generalRandomCallRate: { type: Number, default: 0 },
+    femaleRandomCallRate: { type: Number, default: 0 },
+    maleRandomCallRate: { type: Number, default: 0 },
+    videoPrivateCallRate: { type: Number, default: 0 },
+    audioPrivateCallRate: { type: Number, default: 0 },
+    chatInteractionRate: { type: Number, default: 0 },
+
+    adminCommissionRate: { type: Number, default: 0 }, //in %
     minCoinsToConvert: { type: Number, default: 0 }, //min coin requried for convert coin to default currency i.e., 1000 coin = 1 $
+
     minCoinsForUserPayout: { type: Number, default: 0 }, //for user
     minCoinsForHostPayout: { type: Number, default: 0 }, //for host
     minCoinsForAgencyPayout: { type: Number, default: 0 }, //for agency

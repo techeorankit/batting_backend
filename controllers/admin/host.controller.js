@@ -47,6 +47,10 @@ exports.fetchHostRequest = async (req, res) => {
 //accept Or decline host request
 exports.handleHostRequest = async (req, res) => {
   try {
+    if (!settingJSON) {
+      return res.status(200).json({ status: false, message: "Setting not found." });
+    }
+
     const { requestId, userId, status, reason } = req.query;
 
     if (!requestId || !userId || !status) {
@@ -73,6 +77,12 @@ exports.handleHostRequest = async (req, res) => {
 
     if (statusNumber === 2) {
       host.status = 2;
+      host.randomCallRate = settingJSON.generalRandomCallRate;
+      host.randomCallFemaleRate = settingJSON.femaleRandomCallRate;
+      host.randomCallMaleRate = settingJSON.maleRandomCallRate;
+      host.privateCallRate = settingJSON.videoPrivateCallRate;
+      host.audioCallRate = settingJSON.audioPrivateCallRate;
+      host.chatRate = settingJSON.chatInteractionRate;
       await host.save();
 
       res.status(200).json({ status: true, message: "Host request accepted successfully.", data: host });

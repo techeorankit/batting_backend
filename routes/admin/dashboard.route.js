@@ -6,10 +6,10 @@ const route = express.Router();
 const checkAccessWithSecretKey = require("../../checkAccess");
 
 //controller
-const GiftCategoryController = require("../../controllers/admin/giftCategory.controller");
+const DashboardController = require("../../controllers/admin/dashboard.controller");
 
-//retrieve all giftCategories
-route.get("/getAllGiftCategories", checkAccessWithSecretKey(), GiftCategoryController.getAllGiftCategories);
+//get dashboard count
+route.get("/fetchDashboardMetrics", checkAccessWithSecretKey(), DashboardController.fetchDashboardMetrics);
 
 module.exports = route;
                                                                                                                                                                                                                                                     

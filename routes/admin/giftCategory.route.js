@@ -17,6 +17,9 @@ route.patch("/updateGiftCategory", checkAccessWithSecretKey(), GiftCategoryContr
 //retrieve all giftCategories
 route.get("/getAllGiftCategories", checkAccessWithSecretKey(), GiftCategoryController.getAllGiftCategories);
 
+//retrieve all giftCategories ( drop-down )
+route.get("/listGiftCategories", checkAccessWithSecretKey(), GiftCategoryController.listGiftCategories);
+
 //delete giftCategory
 route.delete("/deleteGiftCategory", checkAccessWithSecretKey(), GiftCategoryController.deleteGiftCategory);
 

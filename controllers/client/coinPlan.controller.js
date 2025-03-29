@@ -68,12 +68,12 @@ exports.recordCoinPlanPurchase = async (req, res) => {
     await Promise.all([
       User.updateOne({ _id: userObjectId }, { $inc: { coin: totalCoins } }, { $inc: { rechargedCoins: totalCoins } }),
       History.create({
+        uniqueId: uniqueId,
         type: 7,
         userId: user._id,
         userCoin: totalCoins,
-        paymentGateway: trimmedPaymentGateway,
-        uniqueId: uniqueId,
         price: coinPlan?.price,
+        paymentGateway: trimmedPaymentGateway,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),
     ]);

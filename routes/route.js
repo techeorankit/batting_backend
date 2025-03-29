@@ -6,13 +6,13 @@ const route = express.Router();
 const admin = require("./admin/route");
 
 //agency index.js
-// const agency = require("./agency/route");
+const agency = require("./agency/route");
 
 //client index.js
 const client = require("./client/route");
 
 route.use("/admin", admin);
-// route.use("/agency", agency);
+route.use("/agency", agency);
 route.use("/client", client);
 
 module.exports = route;

@@ -2,7 +2,7 @@
 const express = require("express");
 const route = express.Router();
 
-//validate user's access token
+//validate admin's access token
 const validateAdminToken = require("../../middleware/verifyAdminAuthToken.middleware");
 
 //require admin's route.js
@@ -22,13 +22,16 @@ const coinPlan = require("./coinPlan.route");
 const vipPlan = require("./vipPlan.route");
 const identityProof = require("./identityProof.route");
 const paymentMethod = require("./paymentMethod.route");
+const history = require("./history.route");
+const dailyRewardCoin = require("./dailyRewardCoin.route");
+const liveBroadcastHistory = require("./liveBroadcastHistory.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
 route.use("/setting", validateAdminToken, setting);
 route.use("/impression", validateAdminToken, impression);
 route.use("/giftCategory", validateAdminToken, giftCategory);
-route.use("/gift", validateAdminToken, gift);
+route.use("/gift", gift);
 route.use("/vipPlanPrivilege", validateAdminToken, vipPlanPrivilege);
 route.use("/host", validateAdminToken, host);
 route.use("/dashboard", validateAdminToken, dashboard);
@@ -40,5 +43,8 @@ route.use("/coinPlan", coinPlan);
 route.use("/vipPlan", vipPlan);
 route.use("/identityProof", identityProof);
 route.use("/paymentMethod", paymentMethod);
+route.use("/history", history);
+route.use("/dailyRewardCoin", dailyRewardCoin);
+route.use("/liveBroadcastHistory", liveBroadcastHistory);
 
 module.exports = route;

@@ -8,6 +8,7 @@ const historySchema = new mongoose.Schema(
     type: { type: Number, enum: HISTORY_TYPE },
 
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }, // Sender OR Caller
+    agencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", default: null }, // Agency under which host
     hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null }, // Receiver
 
     giftId: { type: mongoose.Schema.Types.ObjectId, ref: "Gift", default: null },
