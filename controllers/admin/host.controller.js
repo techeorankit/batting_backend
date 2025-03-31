@@ -61,10 +61,14 @@ exports.handleHostRequest = async (req, res) => {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const statusNumber = Number(status);
 
-    const host = await Host.findById(hostObjectId);
+    const host = await Host.findOne({ _id: hostObjectId });
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host request not found." });
+    }
+
+    if (host.agencyId === null) {
+      return res.status(200).json({ status: false, message: "Please assign this host to an agency before accepting the request." });
     }
 
     if (host.status === 2) {

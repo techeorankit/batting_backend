@@ -1,5 +1,6 @@
 const Host = require("../../models/host.model");
 const Agency = require("../../models/agency.model");
+const User = require("../../models/user.model");
 
 //private key
 const admin = require("../../util/privateKey");
@@ -18,14 +19,15 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops ! Invalid details!" });
     }
 
+    const status = parseInt(req.query.status);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
-
     const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
 
-    const [agency, hosts] = await Promise.all([
+    const [agency, totalHosts, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
-      Host.find({ agency: agencyId, isBlock: false, status: parseInt(req.query.status) })
+      Host.countDocuments({ agencyId: agencyId, isBlock: false, status: status }),
+      Host.find({ agencyId: agencyId, isBlock: false, status: status })
         .select("_id name gender image impression identityProofType uniqueId isOnline isBusy isLive")
         .skip((start - 1) * limit)
         .limit(limit)
@@ -40,6 +42,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Agency wise hosts fetched successfully!",
+      totalHosts: totalHosts,
       hosts: hosts,
     });
   } catch (error) {
@@ -191,5 +194,37 @@ exports.retrieveAgencyHosts = async (req, res) => {
   } catch (error) {
     console.error("Error fetching agency wise hosts:", error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
+//handle block or not the host
+exports.modifyHostBlockStatus = async (req, res) => {
+  try {
+    const { hostId } = req.query;
+
+    if (!hostId) {
+      return res.status(200).json({ status: false, message: "Host ID is required!" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(hostId)) {
+      return res.status(200).json({ status: false, message: "Invalid hostId format." });
+    }
+
+    const host = await Host.findOne({ _id: hostId });
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
+
+    host.isBlock = !host.isBlock;
+    await host.save();
+
+    return res.status(200).json({
+      status: true,
+      message: `Host has been ${host.isBlock ? "blocked" : "unblocked"} successfully.`,
+      data: host,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
   }
 };

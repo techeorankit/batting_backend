@@ -12,9 +12,12 @@ const HostController = require("../../controllers/agency/host.controller");
 route.get("/fetchHostRequestsByAgency", checkAccessWithSecretKey(), HostController.fetchHostRequestsByAgency);
 
 //accept Or decline host request
-route.get("/manageHostRequest", checkAccessWithSecretKey(), HostController.manageHostRequest);
+route.patch("/manageHostRequest", checkAccessWithSecretKey(), HostController.manageHostRequest);
 
 //get agency wise host
 route.get("/retrieveAgencyHosts", checkAccessWithSecretKey(), HostController.retrieveAgencyHosts);
+
+//handle block or not the host
+route.patch("/modifyHostBlockStatus", checkAccessWithSecretKey(), HostController.modifyHostBlockStatus);
 
 module.exports = route;

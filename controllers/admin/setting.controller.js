@@ -1,4 +1,5 @@
 const Setting = require("../../models/setting.model");
+const Host = require("../../models/host.model");
 
 //update setting
 exports.updateSetting = async (req, res) => {
@@ -30,6 +31,13 @@ exports.updateSetting = async (req, res) => {
     setting.maxFreeChatMessages = req.body.maxFreeChatMessages ? Number(req.body.maxFreeChatMessages) : setting.maxFreeChatMessages;
     setting.privateKey = req.body.privateKey ? JSON.parse(req.body.privateKey) : setting.privateKey;
 
+    setting.generalRandomCallRate = req.body.generalRandomCallRate !== undefined ? Number(req.body.generalRandomCallRate) : setting.generalRandomCallRate;
+    setting.femaleRandomCallRate = req.body.femaleRandomCallRate !== undefined ? Number(req.body.femaleRandomCallRate) : setting.femaleRandomCallRate;
+    setting.maleRandomCallRate = req.body.maleRandomCallRate !== undefined ? Number(req.body.maleRandomCallRate) : setting.maleRandomCallRate;
+    setting.videoPrivateCallRate = req.body.videoPrivateCallRate !== undefined ? Number(req.body.videoPrivateCallRate) : setting.videoPrivateCallRate;
+    setting.audioPrivateCallRate = req.body.audioPrivateCallRate !== undefined ? Number(req.body.audioPrivateCallRate) : setting.audioPrivateCallRate;
+    setting.chatInteractionRate = req.body.chatInteractionRate !== undefined ? Number(req.body.chatInteractionRate) : setting.chatInteractionRate;
+
     await setting.save();
 
     res.status(200).json({
@@ -37,6 +45,20 @@ exports.updateSetting = async (req, res) => {
       message: "Setting has been Updated.",
       data: setting,
     });
+
+    await Host.updateMany(
+      {},
+      {
+        $set: {
+          randomCallRate: setting.generalRandomCallRate,
+          randomCallFemaleRate: setting.femaleRandomCallRate,
+          randomCallMaleRate: setting.maleRandomCallRate,
+          privateCallRate: setting.videoPrivateCallRate,
+          audioCallRate: setting.audioPrivateCallRate,
+          chatRate: setting.chatInteractionRate,
+        },
+      }
+    );
 
     updateSettingFile(setting);
   } catch (error) {

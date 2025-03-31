@@ -325,3 +325,35 @@ exports.fetchHostInfo = async (req, res) => {
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
   }
 };
+
+//get random free host ( random video call )
+exports.retrieveAvailableHost = async (req, res) => {
+  try {
+    const [randomHost] = await Promise.all([
+      Host.aggregate([
+        {
+          $match: {
+            isOnline: true,
+            isBusy: false,
+            isFake: false,
+            isLive: false,
+            callId: null,
+          },
+        },
+        { $sample: { size: 1 } },
+      ]),
+    ]);
+
+    if (!randomHost.length) {
+      return res.status(200).json({ status: false, message: "No available hosts found!" });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Random host found!",
+      data: randomHost[0],
+    });
+  } catch (error) {
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+  }
+};

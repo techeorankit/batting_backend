@@ -13,7 +13,7 @@ const history = require("./history.route");
 const liveBroadcastHistory = require("./liveBroadcastHistory.route");
 
 //exports agency's route.js
-route.use("/agency", agency);
+route.use("/", agency);
 route.use("/paymentMethod", paymentMethod);
 route.use("/host", host);
 route.use("/history", history);

@@ -4,19 +4,23 @@ const Agency = require("../../models/agency.model");
 const Cryptr = require("cryptr");
 const cryptr = new Cryptr("myTotallySecretKey");
 
+//mongoose
+const mongoose = require("mongoose");
+
 //agency login
 
 //update agency
 exports.modifyAgency = async (req, res) => {
   try {
-    const { agencyId } = req.query;
-    const { name, email, commissionType, commission, password, mobileNumber, description, countryFlagImage, country } = req.body;
-
-    if (!agencyId) {
-      return res.status(200).json({ status: false, message: "Agency ID is required." });
+    if (!req.agency || !req.agency.agencyId) {
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
-    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim() }) : null, Agency.findById(agencyId)]);
+    const { name, email, commissionType, commission, password, mobileNumber, description, countryFlagImage, country } = req.body;
+
+    const agencyObjectId = new mongoose.Types.ObjectId(req.agency.agencyId);
+
+    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim() }) : null, Agency.findById(agencyObjectId)]);
 
     if (email && existingAgency) {
       return res.status(200).json({ status: false, message: "Email already exists!" });
@@ -65,3 +69,27 @@ exports.modifyAgency = async (req, res) => {
 };
 
 //get agency profile
+exports.getAgencyProfile = async (req, res) => {
+  try {
+    if (!req.agency || !req.agency.agencyId) {
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    }
+
+    const agencyObjectId = new mongoose.Types.ObjectId(req.agency.agencyId);
+
+    const agency = await Agency.findById(agencyObjectId).lean();
+
+    if (!agency) {
+      return res.status(200).json({ status: false, message: "Agency not found." });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Agency profile retrieved successfully!",
+      data: agency,
+    });
+  } catch (error) {
+    console.error("Error fetching agency profile:", error);
+    return res.status(500).json({ status: false, message: "Internal server error." });
+  }
+};

@@ -41,4 +41,7 @@ route.get("/retrieveHosts", validateUserToken, checkAccessWithSecretKey(), HostC
 //get host profile ( user ) ( host )
 route.get("/fetchHostInfo", checkAccessWithSecretKey(), HostController.fetchHostInfo);
 
+//get random free host ( random video call )
+route.get("/retrieveAvailableHost", checkAccessWithSecretKey(), HostController.retrieveAvailableHost);
+
 module.exports = route;

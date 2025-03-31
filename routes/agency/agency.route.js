@@ -16,4 +16,7 @@ const upload = multer({ storage });
 //update agency
 route.patch("/modifyAgency", checkAccessWithSecretKey(), upload.single("image"), AgencyController.modifyAgency);
 
+//get agency profile
+route.get("/getAgencyProfile", checkAccessWithSecretKey(), AgencyController.getAgencyProfile);
+
 module.exports = route;

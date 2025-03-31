@@ -53,14 +53,18 @@ exports.getImpressions = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const impressions = await Impression.find()
-      .skip((start - 1) * limit)
-      .limit(limit)
-      .lean();
+    const [total, impressions] = await Promise.all([
+      Impression.countDocuments(),
+      Impression.find()
+        .skip((start - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
 
     return res.status(200).json({
       status: true,
       message: "Impressions retrieved successfully!",
+      total: total,
       data: impressions,
     });
   } catch (error) {

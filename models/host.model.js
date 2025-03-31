@@ -66,7 +66,7 @@ const hostSchema = new mongoose.Schema(
   }
 );
 
-hostSchema.index({ isBlock: 1 });
+hostSchema.index({ isOnline: 1, isBusy: 1, isFake: 1, isLive: 1, callId: 1 });
 hostSchema.index({ isFake: 1 });
 hostSchema.index({ createdAt: -1 });
 

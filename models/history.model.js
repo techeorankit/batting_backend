@@ -29,6 +29,7 @@ const historySchema = new mongoose.Schema(
     userCoin: { type: Number, default: 0 },
     hostCoin: { type: Number, default: 0 },
     adminCoin: { type: Number, default: 0 },
+    agencyCoin: { type: Number, default: 0 }, //agency earn commission on host's earning
 
     price: { type: Number, default: 0 },
 
@@ -41,8 +42,9 @@ const historySchema = new mongoose.Schema(
 );
 
 historySchema.index({ type: 1 });
-historySchema.index({ userId: 1 });
+historySchema.index({ agencyId: 1 });
 historySchema.index({ hostId: 1 });
+historySchema.index({ userId: 1 });
 historySchema.index({ giftId: 1 });
 historySchema.index({ createdAt: -1 });
 
