@@ -36,7 +36,7 @@ const validateAdminFirebaseToken = async (req, res, next) => {
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 
-    console.log("✅ Decoded Token:", decodedToken);
+    //console.log("✅ Decoded Token:", decodedToken);
 
     if (!mainAdmin) {
       console.warn("⚠️ [AUTH] Admin not found.");

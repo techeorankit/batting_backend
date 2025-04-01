@@ -5,6 +5,11 @@ const route = express.Router();
 //checkAccessWithSecretKey
 const checkAccessWithSecretKey = require("../../checkAccess");
 
+//multer
+const multer = require("multer");
+const storage = require("../../util/multer");
+const upload = multer({ storage });
+
 //controller
 const HostController = require("../../controllers/admin/host.controller");
 
@@ -14,10 +19,41 @@ route.get("/fetchHostRequest", checkAccessWithSecretKey(), HostController.fetchH
 //accept Or decline host request
 route.patch("/handleHostRequest", checkAccessWithSecretKey(), HostController.handleHostRequest);
 
+//assign host under agency
+route.patch("/assignHostToAgency", checkAccessWithSecretKey(), HostController.assignHostToAgency);
+
+//get agency wise hosts
+route.get("/listAgencyHosts", checkAccessWithSecretKey(), HostController.listAgencyHosts);
+
+//create host
+route.post(
+  "/createHost",
+  checkAccessWithSecretKey(),
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "photoGallery", maxCount: 10 },
+  ]),
+  HostController.createHost
+);
+
+//update host
+route.patch(
+  "/updateHost",
+  checkAccessWithSecretKey(),
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "photoGallery", maxCount: 10 },
+  ]),
+  HostController.updateHost
+);
+
 //handle block or not the host
 route.patch("/toggleHostBlockStatus", checkAccessWithSecretKey(), HostController.toggleHostBlockStatus);
 
-//assign host under agency
-route.patch("/assignHostToAgency", checkAccessWithSecretKey(), HostController.assignHostToAgency);
+//get hosts
+route.get("/fetchHostList", checkAccessWithSecretKey(), HostController.fetchHostList);
+
+//delete host
+route.delete("/deleteHost", checkAccessWithSecretKey(), HostController.deleteHost);
 
 module.exports = route;

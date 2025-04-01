@@ -8,7 +8,7 @@ const hostSchema = new mongoose.Schema(
     agencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", default: null },
 
     name: { type: String, default: "" },
-    gender: { type: String, default: "female" },
+    gender: { type: String, default: "" },
     bio: { type: String, default: "" },
     age: { type: Number, default: 18 },
     dob: { type: String, default: "" },
@@ -18,9 +18,9 @@ const hostSchema = new mongoose.Schema(
 
     impression: { type: Array, default: [] },
     language: { type: Array, default: [] },
-    image: { type: String, default: "" },
     identityProofType: { type: String, default: "" },
     identityProof: { type: Array, default: [] },
+    image: { type: String, default: "" },
     photoGallery: { type: Array, default: [] },
 
     ipAddress: { type: String, default: "" },

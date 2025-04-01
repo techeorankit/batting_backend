@@ -9,7 +9,6 @@ exports.retrieveUserList = async (req, res) => {
     const searchString = req.query.search || "";
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
-    const userType = parseInt(req.query.type);
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -35,60 +34,67 @@ exports.retrieveUserList = async (req, res) => {
     let filter = {
       ...dateFilterQuery,
       ...searchQuery,
-      isFake: userType === 2,
     };
 
-    const aggregationPipeline = [
-      { $match: filter },
-      { $sort: { createdAt: -1 } },
-      { $skip: (start - 1) * limit },
-      { $limit: limit },
-      {
-        $lookup: {
-          from: "followerfollowings",
-          localField: "_id",
-          foreignField: "toUserId",
-          as: "followers",
+    const [totalActiveUsers, totalVIPUsers, totalMaleUsers, totalFemaleUsers, totalUsers, users] = await Promise.all([
+      User.countDocuments({ isBlock: false, ...dateFilterQuery }),
+      User.countDocuments({ isVip: true, ...dateFilterQuery }),
+      User.countDocuments({ gender: "male", ...dateFilterQuery }),
+      User.countDocuments({ gender: "female", ...dateFilterQuery }),
+      User.countDocuments(filter),
+      User.aggregate([
+        { $match: filter },
+        { $sort: { createdAt: -1 } },
+        { $skip: (start - 1) * limit },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: "followerfollowings",
+            localField: "_id",
+            foreignField: "toUserId",
+            as: "followers",
+          },
         },
-      },
-      {
-        $lookup: {
-          from: "followerfollowings",
-          localField: "_id",
-          foreignField: "fromUserId",
-          as: "followings",
+        {
+          $lookup: {
+            from: "followerfollowings",
+            localField: "_id",
+            foreignField: "fromUserId",
+            as: "followings",
+          },
         },
-      },
-      {
-        $project: {
-          _id: 1,
-          uniqueId: 1,
-          name: 1,
-          image: 1,
-          countryFlagImage: 1,
-          country: 1,
-          gender: 1,
-          coin: 1,
-          rechargedCoins: 1,
-          isHost: 1,
-          isVip: 1,
-          isBlock: 1,
-          isFake: 1,
-          loginType: 1,
-          createdAt: 1,
-          totalFollowers: { $size: "$followers" },
-          totalFollowings: { $size: "$followings" },
+        {
+          $project: {
+            _id: 1,
+            uniqueId: 1,
+            name: 1,
+            email: 1,
+            image: 1,
+            countryFlagImage: 1,
+            country: 1,
+            gender: 1,
+            coin: 1,
+            rechargedCoins: 1,
+            isHost: 1,
+            isVip: 1,
+            isBlock: 1,
+            isOnline: 1,
+            loginType: 1,
+            createdAt: 1,
+            totalFollowers: { $size: "$followers" },
+            totalFollowings: { $size: "$followings" },
+          },
         },
-      },
-    ];
-
-    const [users, totalUsers] = await Promise.all([User.aggregate(aggregationPipeline), User.countDocuments(filter)]);
-
-    const message = userType === 1 ? "Retrieved real users!" : "Retrieved users added by admin!";
+      ]),
+    ]);
 
     return res.status(200).json({
       status: true,
-      message,
+      message: "Retrieved real users!",
+      totalActiveUsers,
+      totalVIPUsers,
+      totalMaleUsers,
+      totalFemaleUsers,
       total: totalUsers,
       data: users,
     });
@@ -123,5 +129,25 @@ exports.modifyUserBlockStatus = async (req, res, next) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: "An error occurred while updating user block status." });
+  }
+};
+
+//get user's profile
+exports.fetchUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(200).json({ status: false, message: "User ID is required." });
+    }
+
+    const [user] = await Promise.all([
+      User.findOne({ _id: userId }).select("name selfIntro gender bio age image email countryFlagImage country loginType uniqueId coin spentCoins rechargedCoins isOnline").lean(),
+    ]);
+
+    return res.status(200).json({ status: true, message: "The user has retrieved their profile.", user: user });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
   }
 };

@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const agencySchema = new mongoose.Schema(
   {
+    uid: { type: String, default: "" },
     agencyCode: { type: String, unique: true, default: "" },
     name: { type: String, default: "" },
     commissionType: { type: Number, enum: [1, 2] }, //1.percentage 2.salary

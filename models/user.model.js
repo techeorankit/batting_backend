@@ -6,10 +6,10 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, default: "" },
     selfIntro: { type: String, default: "" },
-    gender: { type: String, default: "Female" },
+    gender: { type: String, default: "" },
     bio: { type: String, default: "" },
     age: { type: Number, default: 18 },
-    image: { type: String, default: "storage/male.png" },
+    image: { type: String, default: "" },
     email: { type: String, default: "" },
     countryFlagImage: { type: String, default: "" },
     country: { type: String, trim: true, lowercase: true, default: "" },
@@ -39,7 +39,6 @@ const userSchema = new mongoose.Schema(
       price: { type: Number, default: 0 },
     },
 
-    isFake: { type: Boolean, default: false },
     isBlock: { type: Boolean, default: false },
     isOnline: { type: Boolean, default: false },
     isBusy: { type: Boolean, default: false },
@@ -60,7 +59,6 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ identity: 1, loginType: 1 });
 userSchema.index({ isBlock: 1 });
-userSchema.index({ isFake: 1 });
 userSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("User", userSchema);

@@ -8,7 +8,7 @@ const admin = require("../../util/privateKey");
 //mongoose
 const mongoose = require("mongoose");
 
-//get agency wise host requests
+//get host requests
 exports.fetchHostRequestsByAgency = async (req, res) => {
   try {
     if (!req.agency || !req.agency.agencyId) {
@@ -26,8 +26,8 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
 
     const [agency, totalHosts, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
-      Host.countDocuments({ agencyId: agencyId, isBlock: false, status: status }),
-      Host.find({ agencyId: agencyId, isBlock: false, status: status })
+      Host.countDocuments({ agencyId: agencyId, status: status, isBlock: false, isFake: false }),
+      Host.find({ agencyId: agencyId, status: status, isBlock: false, isFake: false })
         .select("_id name gender image impression identityProofType uniqueId isOnline isBusy isLive")
         .skip((start - 1) * limit)
         .limit(limit)
@@ -160,7 +160,7 @@ exports.manageHostRequest = async (req, res) => {
   }
 };
 
-//get agency wise host
+//get hosts
 exports.retrieveAgencyHosts = async (req, res) => {
   try {
     if (!req.agency || !req.agency.agencyId) {
@@ -174,11 +174,11 @@ exports.retrieveAgencyHosts = async (req, res) => {
 
     const [agency, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
-      Host.find({ agency: agencyId, isBlock: false, status: 2 })
+      Host.find({ agency: agencyId, status: 2, isFake: false })
         .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive")
+        .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)
-        .sort({ createdAt: -1 })
         .lean(),
     ]);
 

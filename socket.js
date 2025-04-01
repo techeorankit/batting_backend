@@ -48,6 +48,9 @@ io.on("connection", async (socket) => {
 
     if (user) {
       await User.findByIdAndUpdate(user._id, { $set: { isOnline: true } }, { new: true });
+    } else {
+      const host = await Host.findById(id).select("_id isOnline").lean();
+      await Host.findByIdAndUpdate(host._id, { $set: { isOnline: true } }, { new: true });
     }
   }
 
@@ -407,9 +410,9 @@ io.on("connection", async (socket) => {
 
   //private video call
   socket.on("callRinging", async (data) => {
-    console.log("callRinging request received:", data);
-
     const parsedData = JSON.parse(data);
+    console.log("callRinging request received:", parsedData);
+
     const { callerId, receiverId, agoraUID, channel, callType } = parsedData;
 
     const role = RtcRole.PUBLISHER;
@@ -426,12 +429,12 @@ io.on("connection", async (socket) => {
     ]);
 
     if (!caller) {
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", { message: "Caller does not found." });
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", { message: "Caller does not found." });
       return;
     }
 
     if (caller.isBlock) {
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", {
         message: "Caller is blocked.",
         isBlock: true,
       });
@@ -439,7 +442,7 @@ io.on("connection", async (socket) => {
     }
 
     if (caller.isBusy && caller.callId) {
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", {
         message: "Caller is busy with someone else.",
         isBusy: true,
       });
@@ -447,12 +450,12 @@ io.on("connection", async (socket) => {
     }
 
     if (!receiver) {
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", { message: "Receiver does not found." });
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", { message: "Receiver does not found." });
       return;
     }
 
     if (receiver.isBlock) {
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", {
         message: "Receiver is blocked.",
         isBlock: true,
       });
@@ -460,7 +463,7 @@ io.on("connection", async (socket) => {
     }
 
     if (!receiver.isOnline) {
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", {
         message: "Receiver is not online.",
         isOnline: false,
       });
@@ -468,7 +471,7 @@ io.on("connection", async (socket) => {
     }
 
     if (receiver.isBusy && receiver.callId) {
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", {
         message: "Receiver is busy with another call.",
         isBusy: true,
       });
@@ -486,8 +489,6 @@ io.on("connection", async (socket) => {
         User.updateOne(
           {
             _id: caller._id,
-            isFake: false,
-            isLive: false,
             isOnline: true,
             isBusy: false,
             callId: null,
@@ -503,9 +504,10 @@ io.on("connection", async (socket) => {
           {
             _id: receiver._id,
             isFake: false,
-            isLive: false,
+            isBlock: false,
             isOnline: true,
             isBusy: false,
+            isLive: false,
             callId: null,
           },
           {
@@ -568,7 +570,7 @@ io.on("connection", async (socket) => {
         }
 
         if (receiverVerify.modifiedCount > 0) {
-          await User.updateOne({ _id: receiverId, isBusy: true }, { $set: { isBusy: false, callId: null } });
+          await Host.updateOne({ _id: receiverId, isBusy: true }, { $set: { isBusy: false, callId: null } });
           console.log(`🔹 Receiver Status Updated: Receiver verification failed, isBusy reset`);
         }
         return;
@@ -576,7 +578,7 @@ io.on("connection", async (socket) => {
     } else {
       console.log("Condition not met - receiver not available");
 
-      io.in("globalRoom:" + caller._id.toString()).emit("callRinging", {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", {
         message: "Receiver is unavailable for a call at this moment.",
         isBusy: true,
       });
