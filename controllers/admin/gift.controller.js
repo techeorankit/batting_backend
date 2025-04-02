@@ -12,7 +12,7 @@ exports.addGift = async (req, res, next) => {
   try {
     const { type, giftCategoryId, coin } = req.body;
 
-    if (!type || !giftCategoryId) {
+    if (!type || !giftCategoryId || !coin) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({ status: false, message: "Oops! Invalid details." });
     }
@@ -27,9 +27,10 @@ exports.addGift = async (req, res, next) => {
     const giftData = {
       type,
       giftCategoryId,
-      coin: coin || 0,
+      coin: coin,
       image: req.files?.image ? req.files.image[0].path : "",
       svgaImage: type == 3 && req.files?.svgaImage ? req.files.svgaImage[0].path : "",
+      filename: req.files?.image ? req.files?.image[0].filename : "",
     };
 
     const gift = new Gift(giftData);

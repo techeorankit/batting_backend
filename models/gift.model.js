@@ -10,6 +10,7 @@ const giftSchema = new mongoose.Schema(
     svgaImage: { type: String, default: "" },
     coin: { type: Number, default: 0 },
     isDelete: { type: Boolean, default: false },
+    filename: { type: String, default: "" },
   },
   {
     timestamps: true,

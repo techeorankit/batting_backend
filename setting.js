@@ -20,11 +20,12 @@ module.exports = {
   "flutterwaveId": "FLUTTER WAVE ID",
   "loginBonus": 5000,
   "isDemoData": true,
+  "adminCommissionRate": 10,
   "minCoinsToConvert": 10000,
   "minCoinsForUserPayout": 0,
   "minCoinsForHostPayout": 0,
   "minCoinsForAgencyPayout": 0,
-  "maxFreeChatMessages": 0,
+  "maxFreeChatMessages": 10,
   "privateKey": {},
   "createdAt": "2025-03-17T09:22:56.775Z",
   "updatedAt": "2025-03-17T09:22:56.775Z"

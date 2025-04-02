@@ -14,4 +14,7 @@ const validateUserToken = require("../../middleware/validateUserToken.middleware
 //get coin history ( user )
 route.get("/getCoinTransactionRecords", checkAccessWithSecretKey(), validateUserToken, HistoryController.getCoinTransactionRecords);
 
+//get coin history ( host )
+route.get("/retrieveHostCoinHistory", checkAccessWithSecretKey(), HistoryController.retrieveHostCoinHistory);
+
 module.exports = route;

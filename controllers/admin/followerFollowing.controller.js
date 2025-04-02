@@ -22,7 +22,7 @@ exports.fetchFollowing = async (req, res) => {
     const [user, followingList] = await Promise.all([
       User.findById(userId).select("_id").lean(),
       FollowerFollowing.find({ followerId: userId })
-        .populate("followingId", "_id name image")
+        .populate("followingId", "_id name image uniqueId coin countryFlagImage country")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)
@@ -57,7 +57,7 @@ exports.fetchFollowers = async (req, res) => {
     const [host, followerList] = await Promise.all([
       Host.findById(hostId).select("_id isBlock").lean(),
       FollowerFollowing.find({ followingId: hostId })
-        .populate("followerId", "_id name image")
+        .populate("followerId", "_id name image uniqueId coin countryFlagImage country")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)

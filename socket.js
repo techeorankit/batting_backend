@@ -50,7 +50,10 @@ io.on("connection", async (socket) => {
       await User.findByIdAndUpdate(user._id, { $set: { isOnline: true } }, { new: true });
     } else {
       const host = await Host.findById(id).select("_id isOnline").lean();
-      await Host.findByIdAndUpdate(host._id, { $set: { isOnline: true } }, { new: true });
+
+      if (host) {
+        await Host.findByIdAndUpdate(host._id, { $set: { isOnline: true } }, { new: true });
+      }
     }
   }
 
@@ -164,7 +167,7 @@ io.on("connection", async (socket) => {
             }
           }
 
-          const updatePromises = [
+          await Promise.all([
             User.updateOne(
               { _id: sender._id, coin: { $gte: deductedCoins } },
               {
@@ -187,13 +190,8 @@ io.on("connection", async (socket) => {
               agencyCoin: agencyShare,
               date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
             }),
-          ];
-
-          if (agencyUpdate) {
-            updatePromises.push(agencyUpdate);
-          }
-
-          await Promise.all(updatePromises);
+            agencyUpdate,
+          ]);
 
           console.log(`💰 Coins Deducted: ${deductedCoins} | Admin: ${adminShare} | Host Earnings: ${hostEarnings}`);
         }
@@ -333,7 +331,7 @@ io.on("connection", async (socket) => {
       }
     }
 
-    const updatePromises = [
+    await Promise.all([
       User.updateOne(
         { _id: sender._id, coin: { $gte: totalGiftCost } },
         {
@@ -358,13 +356,8 @@ io.on("connection", async (socket) => {
         agencyCoin: agencyShare,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),
-    ];
-
-    if (agencyUpdate) {
-      updatePromises.push(agencyUpdate);
-    }
-
-    await Promise.all(updatePromises);
+      agencyUpdate,
+    ]);
 
     console.log(`💰 Gift Sent | Cost: ${totalGiftCost} | Admin Share: ${adminShare} | Host Earnings: ${hostEarnings}`);
 

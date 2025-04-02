@@ -585,7 +585,7 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
         ...dateFilterQuery,
         type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
         hostId: hostId,
-        userCoin: { $ne: 0 },
+        hostCoin: { $ne: 0 },
       }),
       History.aggregate([
         {
@@ -593,7 +593,7 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
             ...dateFilterQuery,
             type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
             hostId: hostId,
-            userCoin: { $ne: 0 },
+            hostCoin: { $ne: 0 },
           },
         },
         {
@@ -642,21 +642,6 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
             payoutStatus: 1,
             createdAt: 1,
             senderName: { $ifNull: ["$sender.name", ""] },
-            isIncome: {
-              $cond: {
-                if: { $in: ["$type", [1, 6, 7, 8]] },
-                then: true,
-                else: {
-                  $cond: {
-                    if: {
-                      $or: [{ $in: ["$type", [2, 3, 10, 11, 12, 13]] }, { $and: [{ $eq: ["$type", 4] }, { $eq: ["$payoutStatus", 2] }] }],
-                    },
-                    then: false,
-                    else: false,
-                  },
-                },
-              },
-            },
           },
         },
         { $sort: { createdAt: -1 } },

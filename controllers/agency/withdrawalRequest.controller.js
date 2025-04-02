@@ -1,4 +1,7 @@
 const WithdrawRequest = require("../../models/withdrawalRequest.model");
+const Agency = require("../../models/agency.model");
+
+const mongoose = require("mongoose");
 
 //get withdrawal requests ( host )
 
@@ -6,3 +9,4 @@ const WithdrawRequest = require("../../models/withdrawalRequest.model");
 
 //get withdrawal requests ( agency )
 
+//submit withdrawal request ( agency )

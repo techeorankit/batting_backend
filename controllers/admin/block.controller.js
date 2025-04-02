@@ -16,7 +16,7 @@ exports.listBlockedHostsForUser = async (req, res) => {
 
     const blockedHosts = await Block.find({ blockedBy: "user", userId })
       .select("hostId")
-      .populate("hostId", "name image countryFlagImage country")
+      .populate("hostId", "name image uniqueId coin countryFlagImage country")
       .skip((start - 1) * limit)
       .limit(limit)
       .lean();
@@ -46,7 +46,7 @@ exports.listBlockedUsersForHost = async (req, res) => {
 
     const blockedUsers = await Block.find({ blockedBy: "host", hostId })
       .select("userId")
-      .populate("userId", "name image countryFlagImage country")
+      .populate("userId", "name image uniqueId coin countryFlagImage country")
       .skip((start - 1) * limit)
       .limit(limit)
       .lean();
