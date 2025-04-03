@@ -37,7 +37,7 @@ exports.getCoinTransactionHistory = async (req, res) => {
       };
     }
 
-    const [user, total, transactionHistory] = await Promise.all([
+    const [user, total, transactionHistory, incomeStats] = await Promise.all([
       User.findOne({ _id: userId }).select("_id").lean(),
       History.countDocuments({
         ...dateFilterQuery,
@@ -125,15 +125,64 @@ exports.getCoinTransactionHistory = async (req, res) => {
         { $skip: (start - 1) * limit },
         { $limit: limit },
       ]),
+      History.aggregate([
+        {
+          $match: {
+            ...dateFilterQuery,
+            type: { $nin: [5] },
+            userId: userId,
+            userCoin: { $ne: 0 },
+          },
+        },
+        {
+          $addFields: {
+            isIncome: {
+              $cond: {
+                if: { $in: ["$type", [1, 6, 7, 8]] },
+                then: true,
+                else: {
+                  $cond: {
+                    if: {
+                      $or: [{ $in: ["$type", [2, 3, 10, 11, 12, 13]] }, { $and: [{ $eq: ["$type", 4] }, { $eq: ["$payoutStatus", 2] }] }],
+                    },
+                    then: false,
+                    else: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalIncome: {
+              $sum: {
+                $cond: [{ $eq: ["$isIncome", true] }, "$userCoin", 0],
+              },
+            },
+            totalOutgoing: {
+              $sum: {
+                $cond: [{ $eq: ["$isIncome", false] }, "$userCoin", 0],
+              },
+            },
+          },
+        },
+      ]),
     ]);
 
     if (!user) {
       return res.status(200).json({ status: false, message: "User does not found." });
     }
 
+    const totalIncome = incomeStats.length ? incomeStats[0].totalIncome : 0;
+    const totalOutgoing = incomeStats.length ? incomeStats[0].totalOutgoing : 0;
+
     return res.status(200).json({
       status: true,
       message: "Transaction history fetch successfully.",
+      totalIncome,
+      totalOutgoing,
       total: total,
       data: transactionHistory,
     });
@@ -667,7 +716,7 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
 };
 
 //get call history ( host )
-exports.fetchCallTransactionHistory = async (req, res) => {
+exports.listCallTransactions = async (req, res) => {
   try {
     if (!req.query.hostId) {
       return res.status(200).json({ status: false, message: "Invalid details." });

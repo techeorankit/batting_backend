@@ -24,6 +24,8 @@ const settingSchema = new mongoose.Schema(
     loginBonus: { type: Number, default: 0 },
     isDemoData: { type: Boolean, default: false },
 
+    isAppEnabled: { type: Boolean, default: true },
+
     currency: {
       name: { type: String, default: "" },
       symbol: { type: String, default: "" },
@@ -39,6 +41,8 @@ const settingSchema = new mongoose.Schema(
     maleRandomCallRate: { type: Number, default: 0 },
     videoPrivateCallRate: { type: Number, default: 0 },
     audioPrivateCallRate: { type: Number, default: 0 },
+
+    maxFreeChatMessages: { type: Number, default: 0 }, //maximum free messages allowed
     chatInteractionRate: { type: Number, default: 0 },
 
     adminCommissionRate: { type: Number, default: 0 }, //in %
@@ -47,8 +51,6 @@ const settingSchema = new mongoose.Schema(
     minCoinsForUserPayout: { type: Number, default: 0 }, //for user
     minCoinsForHostPayout: { type: Number, default: 0 }, //for host
     minCoinsForAgencyPayout: { type: Number, default: 0 }, //for agency
-
-    maxFreeChatMessages: { type: Number, default: 0 }, //maximum free messages allowed
   },
   {
     timestamps: true,

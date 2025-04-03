@@ -19,6 +19,9 @@ route.post("/addPaymentMethod", checkAccessWithSecretKey(), upload.single("image
 //Update Payment Method
 route.patch("/modifyPaymentMethod", checkAccessWithSecretKey(), upload.single("image"), PaymentMethodController.modifyPaymentMethod);
 
+//handle the isActive status of the payment method
+route.patch("/updatePaymentMethodStatus", checkAccessWithSecretKey(),  PaymentMethodController.updatePaymentMethodStatus);
+
 //Get All Payment Methods
 route.get("/retrievePaymentMethods", checkAccessWithSecretKey(), PaymentMethodController.retrievePaymentMethods);
 

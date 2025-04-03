@@ -6,7 +6,7 @@ const fs = require("fs");
 //Create Payment Method
 exports.addPaymentMethod = async (req, res, next) => {
   try {
-    const { name, image, details } = req.body;
+    const { name, details } = req.body;
 
     if (!name) {
       return res.status(200).json({ status: false, message: "Name is required." });
@@ -18,7 +18,7 @@ exports.addPaymentMethod = async (req, res, next) => {
 
     const method = new PaymentMethod({
       name,
-      image: image || "",
+      image: req.file ? req.file.path : "",
       details: details || [],
     });
 
@@ -69,6 +69,34 @@ exports.modifyPaymentMethod = async (req, res, next) => {
     return res.status(200).json({
       status: true,
       message: "Payment method has been updated by the admin.",
+      data: method,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+  }
+};
+
+//handle the isActive status of the payment method
+exports.updatePaymentMethodStatus = async (req, res, next) => {
+  try {
+    const { paymentMethodId } = req.query;
+
+    if (!paymentMethodId) {
+      return res.status(200).json({ status: false, message: "paymentMethodId is required." });
+    }
+
+    const method = await PaymentMethod.findById(paymentMethodId);
+    if (!method) {
+      return res.status(200).json({ status: false, message: "Payment method not found." });
+    }
+
+    method.isActive = !method.isActive;
+    await method.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "Payment method has been updated successfully.",
       data: method,
     });
   } catch (error) {

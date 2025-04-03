@@ -387,7 +387,7 @@ io.on("connection", async (socket) => {
   socket.on("chatMessageSeen", async (data) => {
     try {
       const parsedData = JSON.parse(data);
-      console.log("🔹 Data in chatMessageSeen event:", parsedData.messageId);
+      console.log("🔹 Data in chatMessageSeen event:", parsedData);
 
       const updated = await Chat.findByIdAndUpdate(parsedData.messageId, { $set: { isRead: true } }, { new: true, lean: true, select: "_id isRead" });
 

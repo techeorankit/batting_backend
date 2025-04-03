@@ -8,6 +8,33 @@ const cryptr = new Cryptr("myTotallySecretKey");
 const mongoose = require("mongoose");
 
 //agency login
+exports.loginAgency = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
+    }
+
+    const agency = await Agency.findOne({ email: email.trim() }).select("_id password").lean();
+
+    if (!agency) {
+      return res.status(200).json({ status: false, message: "Oops! Agency not found with that email." });
+    }
+
+    if (cryptr.decrypt(agency.password) !== password) {
+      return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Agency has successfully logged in.",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+  }
+};
 
 //update agency
 exports.modifyAgency = async (req, res) => {

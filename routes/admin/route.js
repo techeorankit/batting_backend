@@ -25,6 +25,7 @@ const paymentMethod = require("./paymentMethod.route");
 const history = require("./history.route");
 const dailyRewardCoin = require("./dailyRewardCoin.route");
 const liveBroadcastHistory = require("./liveBroadcastHistory.route");
+const currency = require("./currency.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
@@ -46,5 +47,6 @@ route.use("/paymentMethod", paymentMethod);
 route.use("/history", history);
 route.use("/dailyRewardCoin", dailyRewardCoin);
 route.use("/liveBroadcastHistory", liveBroadcastHistory);
+route.use("/currency", currency);
 
 module.exports = route;

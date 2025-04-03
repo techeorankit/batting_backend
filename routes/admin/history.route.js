@@ -27,7 +27,7 @@ route.get("/fetchCoinPlanTransactionHistory", checkAccessWithSecretKey(), Histor
 route.get("/fetchCoinTransactionHistory", checkAccessWithSecretKey(), HistoryController.fetchCoinTransactionHistory);
 
 //get call history ( host )
-route.get("/fetchCallTransactionHistory", checkAccessWithSecretKey(), HistoryController.fetchCallTransactionHistory);
+route.get("/listCallTransactions", checkAccessWithSecretKey(), HistoryController.listCallTransactions);
 
 //get gift history ( host )
 route.get("/fetchGiftTransactionHistory", checkAccessWithSecretKey(), HistoryController.fetchGiftTransactionHistory);

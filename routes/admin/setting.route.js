@@ -11,6 +11,9 @@ const SettingController = require("../../controllers/admin/setting.controller");
 //update setting
 route.patch("/updateSetting", checkAccessWithSecretKey(), SettingController.updateSetting);
 
+//update setting switch
+route.patch("/updateSettingToggle", checkAccessWithSecretKey(), SettingController.updateSettingToggle);
+
 //get setting
 route.get("/fetchSettings", checkAccessWithSecretKey(), SettingController.fetchSettings);
 

@@ -13,6 +13,9 @@ const multer = require("multer");
 const storage = require("../../util/multer");
 const upload = multer({ storage });
 
+//agency login
+route.post("/loginAgency", checkAccessWithSecretKey(),  AgencyController.loginAgency);
+
 //update agency
 route.patch("/modifyAgency", checkAccessWithSecretKey(), upload.single("image"), AgencyController.modifyAgency);
 

@@ -67,6 +67,47 @@ exports.updateSetting = async (req, res) => {
   }
 };
 
+//update setting switch
+exports.updateSettingToggle = async (req, res) => {
+  try {
+    if (!req.query.settingId || !req.query.type) {
+      return res.status(200).json({ status: false, message: "Oops ! Invalid details!" });
+    }
+
+    const setting = await Setting.findById(req.query.settingId);
+    if (!setting) {
+      return res.status(200).json({ status: false, message: "Setting does not found." });
+    }
+
+    const type = req.query.type.trim();
+
+    if (type === "googlePlayEnabled") {
+      setting.googlePlayEnabled = !setting.googlePlayEnabled;
+    } else if (type === "stripeEnabled") {
+      setting.stripeEnabled = !setting.stripeEnabled;
+    } else if (type === "razorpayEnabled") {
+      setting.razorpayEnabled = !setting.razorpayEnabled;
+    } else if (type === "flutterwaveEnabled") {
+      setting.flutterwaveEnabled = !setting.flutterwaveEnabled;
+    } else if (type === "isDemoData") {
+      setting.isDemoData = !setting.isDemoData;
+    } else if (type === "isAppEnabled") {
+      setting.isAppEnabled = !setting.isAppEnabled;
+    } else {
+      return res.status(200).json({ status: false, message: "type passed must be valid." });
+    }
+
+    await setting.save();
+
+    res.status(200).json({ status: true, message: "Success", data: setting });
+
+    updateSettingFile(setting);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
 //get setting
 exports.fetchSettings = async (req, res) => {
   try {
