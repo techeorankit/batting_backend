@@ -51,7 +51,7 @@ exports.modifyPaymentMethod = async (req, res, next) => {
 
     if (req.file) {
       if (method.image) {
-        const imagePath = method.image.includes("storage") ? "storage" + admin.image.split("storage")[1] : "";
+        const imagePath = method.image.includes("storage") ? "storage" + method.image.split("storage")[1] : "";
         if (imagePath && fs.existsSync(imagePath)) {
           const imageName = imagePath.split("/").pop();
           if (!["male.png", "female.png"].includes(imageName)) {

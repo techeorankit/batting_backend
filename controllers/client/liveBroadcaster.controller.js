@@ -9,7 +9,7 @@ const FollowerFollowing = require("../../models/followerFollowing.model");
 const admin = require("../../util/privateKey");
 
 //momemt
-const moment = require("moment");
+const moment = require("moment-timezone");
 
 //mongoose
 const mongoose = require("mongoose");
@@ -53,7 +53,7 @@ exports.HostStreaming = async (req, res) => {
 
     const liveHistory = new LiveBroadcastHistory({
       hostId: host._id,
-      startTime: moment().format("HH:mm:ss"),
+      startTime: moment().tz("Asia/Kolkata").format(),
     });
 
     const liveBroadcaster = new LiveBroadcaster({

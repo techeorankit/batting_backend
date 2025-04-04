@@ -22,16 +22,20 @@ const historySchema = new mongoose.Schema(
     callEndTime: { type: String, default: "" },
     duration: { type: String, default: "00:00:00" },
 
-    paymentGateway: { type: String, default: "" },
-    payoutStatus: { type: Number, default: 0, enum: WITHDRAWAL_STATUS },
-    reason: { type: String, default: "" },
-
     userCoin: { type: Number, default: 0 },
     hostCoin: { type: Number, default: 0 },
     adminCoin: { type: Number, default: 0 },
     agencyCoin: { type: Number, default: 0 }, //agency earn commission on host's earning
 
+    bonusCoins: { type: Number, default: 0 },
+    validity: { type: Number, default: 0 },
+    validityType: { type: String, default: "" },
     price: { type: Number, default: 0 },
+
+    payoutStatus: { type: Number, default: 0, enum: WITHDRAWAL_STATUS },
+    reason: { type: String, default: "" },
+
+    paymentGateway: { type: String, default: "" },
 
     date: { type: String, default: "" },
   },

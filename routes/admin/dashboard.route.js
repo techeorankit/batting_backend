@@ -11,5 +11,16 @@ const DashboardController = require("../../controllers/admin/dashboard.controlle
 //get dashboard count
 route.get("/fetchDashboardMetrics", checkAccessWithSecretKey(), DashboardController.fetchDashboardMetrics);
 
+//get chat analytic
+route.get("/retrieveChartStats", checkAccessWithSecretKey(), DashboardController.retrieveChartStats);
+
+//get top agency
+route.get("/getTopPerformingAgencies", checkAccessWithSecretKey(), DashboardController.getTopPerformingAgencies);
+
+//get top performing hosts
+route.get("/getTopPerformingHosts", checkAccessWithSecretKey(), DashboardController.getTopPerformingHosts);
+
+//get new user
+route.get("/getNewUsers", checkAccessWithSecretKey(), DashboardController.getNewUsers);
+
 module.exports = route;
-                                                                                                                                                                                                                                                    

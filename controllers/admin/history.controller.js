@@ -485,6 +485,9 @@ exports.getVIPPlanTransactionHistory = async (req, res) => {
             uniqueId: 1,
             type: 1,
             userCoin: 1,
+            validity: 1,
+            validityType: 1,
+            price: 1,
             paymentGateway: 1,
             createdAt: 1,
           },
@@ -571,6 +574,7 @@ exports.fetchCoinPlanTransactionHistory = async (req, res) => {
               $push: {
                 uniqueId: "$uniqueId",
                 coin: "$userCoin",
+                bonusCoins: "$bonusCoins",
                 price: "$price",
                 paymentGateway: "$paymentGateway",
                 date: "$date",

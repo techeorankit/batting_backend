@@ -14,10 +14,11 @@ const agencySchema = new mongoose.Schema(
     description: { type: String, default: "" },
     countryFlagImage: { type: String, default: "" },
     country: { type: String, default: "" },
+    isBlock: { type: Boolean, default: false },
     hostCoins: { type: Number, default: 0, min: 0 },
     totalEarnings: { type: Number, default: 0, min: 0 },
     totalWithdrawn: { type: Number, default: 0, min: 0 },
-    isBlock: { type: Boolean, default: false },
+    totalWithdrawnAmount: { type: Number, default: 0, min: 0 },
   },
   {
     timestamps: true,
@@ -26,6 +27,7 @@ const agencySchema = new mongoose.Schema(
 );
 
 agencySchema.index({ isBlock: 1 });
+agencySchema.index({ totalEarnings: 1 });
 agencySchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Agency", agencySchema);

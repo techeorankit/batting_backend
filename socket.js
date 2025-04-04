@@ -22,7 +22,7 @@ const admin = require("./util/privateKey");
 const mongoose = require("mongoose");
 
 //moment
-const moment = require("moment");
+const moment = require("moment-timezone");
 
 //agora-access-token
 const { RtcTokenBuilder, RtcRole } = require("agora-access-token");
@@ -476,7 +476,6 @@ io.on("connection", async (socket) => {
 
       const callHistory = new History();
       callHistory.uniqueId = callUniqueId;
-      callHistory.callId = callUniqueId;
 
       const [callerVerify, receiverVerify] = await Promise.all([
         User.updateOne(
@@ -538,7 +537,6 @@ io.on("connection", async (socket) => {
         callHistory.isPrivate = true;
         callHistory.userId = caller._id;
         callHistory.hostId = receiver._id;
-        callHistory.callStartTime = moment(new Date()).format("HH:mm:ss");
         callHistory.date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
 
         await Promise.all([
@@ -654,8 +652,11 @@ io.on("connection", async (socket) => {
           chatTopic.chatId = chat._id;
 
           callHistory.callConnect = false;
-          callHistory.callEndTime = moment().format("HH:mm:ss");
-          callHistory.duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
+          callHistory.callEndTime = moment().tz("Asia/Kolkata").format();
+
+          const start = moment.tz(callHistory.callStartTime, "Asia/Kolkata");
+          const end = moment.tz(callHistory.callEndTime, "Asia/Kolkata");
+          callHistory.duration = moment.utc(end.diff(start)).format("HH:mm:ss");
 
           await Promise.all([chat.save(), chatTopic.save(), callHistory?.save()]);
           console.log("✅ Call rejection chat & history saved.");
@@ -729,7 +730,7 @@ io.on("connection", async (socket) => {
               chatTopic?.save(),
               User.updateOne({ _id: caller._id }, { $set: { isBusy: true, callId: callId } }),
               Host.updateOne({ _id: receiver._id }, { $set: { isBusy: true, callId: callId } }),
-              History.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().format("HH:mm:ss") } }),
+              History.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().tz("Asia/Kolkata").format() } }),
             ]);
 
             console.log("✅ Caller and Receiver status updated & call history saved.");
@@ -798,8 +799,11 @@ io.on("connection", async (socket) => {
           chatTopic.chatId = chat._id;
 
           callHistory.callConnect = false;
-          callHistory.callEndTime = moment().format("HH:mm:ss");
-          callHistory.duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
+          callHistory.callEndTime = moment().tz("Asia/Kolkata").format();
+
+          const start = moment.tz(callHistory.callStartTime, "Asia/Kolkata");
+          const end = moment.tz(callHistory.callEndTime, "Asia/Kolkata");
+          callHistory.duration = moment.utc(end.diff(start)).format("HH:mm:ss");
 
           await Promise.all([chat.save(), chatTopic.save(), callHistory?.save()]);
           console.log("✅ Call rejection chat & history saved.");
@@ -872,7 +876,7 @@ io.on("connection", async (socket) => {
               chatTopic?.save(),
               User.updateOne({ _id: caller._id }, { $set: { isBusy: true, callId: callId } }),
               Host.updateOne({ _id: receiver._id }, { $set: { isBusy: true, callId: callId } }),
-              History.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().format("HH:mm:ss") } }),
+              History.updateOne({ _id: callHistory._id }, { $set: { callConnect: true, callStartTime: moment().tz("Asia/Kolkata").format() } }),
             ]);
 
             console.log("✅ Caller and Receiver status updated & call history saved.");
@@ -907,7 +911,7 @@ io.on("connection", async (socket) => {
     const [caller, receiver, callHistory] = await Promise.all([
       User.findById(callerId).select("_id name fcmToken isBlock").lean(),
       Host.findById(receiverId).select("_id name fcmToken isBlock").lean(),
-      History.findById(callId).select("_id userId callConnect duration callEndTime"),
+      History.findById(callId).select("_id userId callConnect"),
     ]);
 
     if (!caller || !receiver || !callHistory) {
@@ -944,11 +948,7 @@ io.on("connection", async (socket) => {
       console.log(`🔹 Private Call Deleted:`, randomCallDeleted);
     }
 
-    callHistory.callEndTime = moment().format("HH:mm:ss");
-    const duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
-
     callHistory.callConnect = false;
-    callHistory.duration = duration;
 
     let chatTopic;
     chatTopic = await ChatTopic.findOne({
@@ -1054,11 +1054,13 @@ io.on("connection", async (socket) => {
       console.log(`🔹 Private Call Deleted:`, randomCallDeleted);
     }
 
-    callHistory.callEndTime = moment().format("HH:mm:ss");
-    const duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
-
-    callHistory.duration = duration;
     callHistory.callConnect = false;
+    callHistory.callEndTime = moment().tz("Asia/Kolkata").format();
+
+    const start = moment.tz(callHistory.callStartTime, "Asia/Kolkata");
+    const end = moment.tz(callHistory.callEndTime, "Asia/Kolkata");
+    const duration = moment.utc(end.diff(start)).format("HH:mm:ss");
+    callHistory.duration = duration;
 
     await Promise.all([
       Chat.findOneAndUpdate(
@@ -1462,7 +1464,6 @@ io.on("connection", async (socket) => {
         callHistory.isRandom = true;
         callHistory.userId = caller._id;
         callHistory.hostId = receiver._id;
-        callHistory.callStartTime = moment(new Date()).format("HH:mm:ss");
         callHistory.date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
 
         await Promise.all([
@@ -1764,9 +1765,10 @@ io.on("connection", async (socket) => {
       }
 
       if (host.isLive) {
-        const endTime = moment().format("HH:mm:ss");
-        const startTime = moment(liveHistory.startTime, "HH:mm:ss");
-        const duration = moment.utc(moment(endTime, "HH:mm:ss").diff(startTime)).format("HH:mm:ss");
+        const endTime = moment().tz("Asia/Kolkata").format();
+        const start = moment.tz(liveHistory.callStartTime, "Asia/Kolkata");
+        const end = moment.tz(endTime, "Asia/Kolkata");
+        const duration = moment.utc(end.diff(start)).format("HH:mm:ss");
 
         await Promise.all([
           LiveBroadcastHistory.updateOne({ _id: liveHistory._id }, { $set: { endTime, duration } }),
@@ -1820,9 +1822,13 @@ io.on("connection", async (socket) => {
             ]);
 
             if (callHistory) {
-              callHistory.callEndTime = moment().format("HH:mm:ss");
-              callHistory.duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
               callHistory.callConnect = false;
+              callHistory.callEndTime = moment().tz("Asia/Kolkata").format();
+
+              const start = moment.tz(callHistory.callStartTime, "Asia/Kolkata");
+              const end = moment.tz(callHistory.callEndTime, "Asia/Kolkata");
+              const duration = moment.utc(end.diff(start)).format("HH:mm:ss");
+              callHistory.duration = duration;
 
               await Promise.all([
                 callHistory?.save(),
@@ -1830,7 +1836,7 @@ io.on("connection", async (socket) => {
                   { callId: callHistory._id },
                   {
                     $set: {
-                      callDuration: callHistory.duration,
+                      callDuration: duration,
                       callType: 1, // 1 = Received Call
                       isRead: true,
                     },
@@ -1857,9 +1863,13 @@ io.on("connection", async (socket) => {
               ]);
 
               if (callHistory) {
-                callHistory.callEndTime = moment().format("HH:mm:ss");
-                callHistory.duration = moment.utc(moment(callHistory.callEndTime, "HH:mm:ss").diff(moment(callHistory.callStartTime, "HH:mm:ss"))).format("HH:mm:ss");
                 callHistory.callConnect = false;
+                callHistory.callEndTime = moment().tz("Asia/Kolkata").format();
+
+                const start = moment.tz(callHistory.callStartTime, "Asia/Kolkata");
+                const end = moment.tz(callHistory.callEndTime, "Asia/Kolkata");
+                const duration = moment.utc(end.diff(start)).format("HH:mm:ss");
+                callHistory.duration = duration;
 
                 await Promise.all([
                   callHistory?.save(),
@@ -1867,7 +1877,7 @@ io.on("connection", async (socket) => {
                     { callId: callHistory._id },
                     {
                       $set: {
-                        callDuration: callHistory.duration,
+                        callDuration: duration,
                         callType: 1, // 1 = Received Call
                         isRead: true,
                       },

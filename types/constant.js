@@ -53,3 +53,9 @@ exports.WITHDRAWAL_STATUS = {
   ACCEPTED: 2,
   DECLINED: 3,
 };
+
+exports.WITHDRAWAL_PERSON = {
+  AGENCY: 1,
+  HOST: 2,
+  USER: 3,
+};

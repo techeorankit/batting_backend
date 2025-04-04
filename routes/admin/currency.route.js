@@ -11,7 +11,7 @@ const currencyController = require("../../controllers/admin/currency.controller"
 route.post("/createCurrency", checkAccessWithSecretKey(), currencyController.createCurrency);
 
 //update currency
-route.put("/updateCurrency", checkAccessWithSecretKey(), currencyController.updateCurrency);
+route.patch("/updateCurrency", checkAccessWithSecretKey(), currencyController.updateCurrency);
 
 //get currencies
 route.get("/fetchCurrencyData", checkAccessWithSecretKey(), currencyController.fetchCurrencyData);
@@ -20,7 +20,7 @@ route.get("/fetchCurrencyData", checkAccessWithSecretKey(), currencyController.f
 route.delete("/destroyCurrency", checkAccessWithSecretKey(), currencyController.destroyCurrency);
 
 //set default currency
-route.put("/setdefaultCurrency", checkAccessWithSecretKey(), currencyController.setdefaultCurrency);
+route.patch("/setdefaultCurrency", checkAccessWithSecretKey(), currencyController.setdefaultCurrency);
 
 //get default currency
 route.get("/getDefaultCurrency", checkAccessWithSecretKey(), currencyController.getDefaultCurrency);

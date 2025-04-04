@@ -110,26 +110,30 @@ exports.setdefaultCurrency = async (req, res) => {
   try {
     const currencyId = req.query.currencyId;
     if (!currencyId) {
-      return res.status(200).json({ status: false, message: "Oops ! Invalid details." });
+      return res.status(200).json({ status: false, message: "Oops! Invalid details." });
     }
 
-    const [defaultCurrencyCount, currency, setting, updateCurrencies] = await Promise.all([
+    const [defaultCurrencyCount, currency, setting, currencyCount] = await Promise.all([
       Currency.countDocuments({ isDefault: true }),
       Currency.findById(currencyId),
       Setting.findOne().sort({ createdAt: -1 }),
-      Currency.updateMany({ isDefault: false }),
+      Currency.countDocuments(),
     ]);
 
     if (!currency) {
-      return res.status(200).json({ status: false, message: "Currency does not found." });
+      return res.status(200).json({ status: false, message: "Currency not found." });
     }
 
     if (!setting) {
-      return res.status(200).json({ status: false, message: "setting does not found." });
+      return res.status(200).json({ status: false, message: "Setting not found." });
     }
 
     if (defaultCurrencyCount === 1 && currency.isDefault) {
       return res.status(200).json({ status: false, message: "At least one currency must be set as default." });
+    }
+
+    if (currencyCount > 1) {
+      await Currency.updateMany({ _id: { $ne: currencyId } }, { isDefault: false });
     }
 
     currency.isDefault = true;
@@ -147,7 +151,7 @@ exports.setdefaultCurrency = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: "Default Currency updated Successfully",
+      message: "Default currency updated successfully.",
       data: allCurrency,
     });
 

@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const vipPlanSchema = new mongoose.Schema(
   {
     validity: { type: Number, default: 0 },
-    validityType: { type: String, default: "" },
+    validityType: { type: String, trim: true, lowercase: true, default: "" },
     coin: { type: Number, default: 0 },
     price: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
