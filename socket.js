@@ -578,11 +578,10 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("callResponseHandled", async (data) => {
-    console.log("🟢 [callResponseHandled] Event received:", data);
-
     try {
       const parsedData = JSON.parse(data);
       const { callerId, receiverId, callId, isAccept, callType, callMode } = parsedData;
+      console.log("🟢 [callResponseHandled] Event received:", parsedData);
 
       const callerRoom = `globalRoom:${callerId}`;
       const receiverRoom = `globalRoom:${receiverId}`;
@@ -901,10 +900,9 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("callCancelled", async (data) => {
-    console.log("🟢 [callCancelled] Event received:", data);
-
     const parseData = JSON.parse(data);
     const { callerId, receiverId, callId, callType, callMode } = parseData;
+    console.log("🟢 [callCancelled] Event received:", parseData);
 
     console.log(`🔄 Fetching call details for callId: ${callId}`);
 
@@ -1009,10 +1007,9 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("callDisconnected", async (data) => {
-    console.log("[endCallSession]", "data in callDisconnected:", data);
-
     const parseData = JSON.parse(data);
     const { callerId, receiverId, callId, callType, callMode } = parseData;
+    console.log("[endCallSession]", "data in callDisconnected:", parseData);
 
     const [caller, receiver, callHistory] = await Promise.all([
       User.findById(callerId).select("_id name").lean(),

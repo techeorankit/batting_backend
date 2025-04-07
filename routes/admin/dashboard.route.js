@@ -14,13 +14,16 @@ route.get("/fetchDashboardMetrics", checkAccessWithSecretKey(), DashboardControl
 //get chat analytic
 route.get("/retrieveChartStats", checkAccessWithSecretKey(), DashboardController.retrieveChartStats);
 
+//get new user
+route.get("/getNewUsers", checkAccessWithSecretKey(), DashboardController.getNewUsers);
+
 //get top agency
 route.get("/getTopPerformingAgencies", checkAccessWithSecretKey(), DashboardController.getTopPerformingAgencies);
 
 //get top performing hosts
 route.get("/getTopPerformingHosts", checkAccessWithSecretKey(), DashboardController.getTopPerformingHosts);
 
-//get new user
-route.get("/getNewUsers", checkAccessWithSecretKey(), DashboardController.getNewUsers);
+//get top spenders
+route.get("/fetchTopSpenders", checkAccessWithSecretKey(), DashboardController.fetchTopSpenders);
 
 module.exports = route;

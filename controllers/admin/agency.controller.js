@@ -1,5 +1,6 @@
 const Agency = require("../../models/agency.model");
 
+//generateAgencyCode
 const generateAgencyCode = require("../../util/generateAgencyCode");
 
 //Cryptr
