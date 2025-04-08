@@ -36,7 +36,7 @@ route.use("/giftCategory", validateAdminToken, giftCategory);
 route.use("/gift", validateAdminToken, gift);
 route.use("/vipPlanPrivilege", validateAdminToken, vipPlanPrivilege);
 route.use("/host", validateAdminToken, host);
-route.use("/dashboard", dashboard);
+route.use("/dashboard", validateAdminToken, dashboard);
 route.use("/agency", validateAdminToken, agency);
 route.use("/block", validateAdminToken, block);
 route.use("/user", validateAdminToken, user);

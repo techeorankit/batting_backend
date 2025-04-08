@@ -183,7 +183,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
     ]);
 
     if (!agency) {
-      return res.status(200).json({ status: false, message: "Request not found for that agency!" });
+      return res.status(200).json({ status: false, message: "Agency not found!" });
     }
 
     return res.status(200).json({

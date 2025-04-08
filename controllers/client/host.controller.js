@@ -329,7 +329,42 @@ exports.fetchHostInfo = async (req, res) => {
 //get random free host ( random video call )
 exports.retrieveAvailableHost = async (req, res) => {
   try {
-    const [randomHost] = await Promise.all([
+    const { gender } = req.query;
+
+    const validGenders = ["male", "female", "both"];
+    if (!gender || !validGenders.includes(gender.trim().toLowerCase())) {
+      return res.status(200).json({ status: false, message: "Gender is required and must be one of: male, female, or both." });
+    }
+
+    const normalizedGender = gender.trim().toLowerCase();
+
+    if (normalizedGender !== "both") {
+      const [genderMatchedHost] = await Promise.all([
+        Host.aggregate([
+          {
+            $match: {
+              isOnline: true,
+              isBusy: false,
+              isFake: false,
+              isLive: false,
+              callId: null,
+              gender: normalizedGender,
+            },
+          },
+          { $sample: { size: 1 } },
+        ]),
+      ]);
+
+      if (genderMatchedHost.length) {
+        return res.status(200).json({
+          status: true,
+          message: "Matched host found based on gender!",
+          data: genderMatchedHost[0],
+        });
+      }
+    }
+
+    const [anyAvailableHost] = await Promise.all([
       Host.aggregate([
         {
           $match: {
@@ -344,14 +379,17 @@ exports.retrieveAvailableHost = async (req, res) => {
       ]),
     ]);
 
-    if (!randomHost.length) {
-      return res.status(200).json({ status: false, message: "No available hosts found!" });
+    if (anyAvailableHost.length) {
+      return res.status(200).json({
+        status: true,
+        message: "No gender match found, but available host retrieved!",
+        data: anyAvailableHost[0],
+      });
     }
 
     return res.status(200).json({
-      status: true,
-      message: "Random host found!",
-      data: randomHost[0],
+      status: false,
+      message: "No available hosts found!",
     });
   } catch (error) {
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });

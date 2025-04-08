@@ -1,4 +1,6 @@
 const Setting = require("../../models/setting.model");
+
+//import model
 const Host = require("../../models/host.model");
 
 //update setting
@@ -15,13 +17,15 @@ exports.updateSetting = async (req, res) => {
 
     // const setting = new Setting();
 
-    setting.privacyPolicyLink = req.body.privacyPolicyLink ? req.body.privacyPolicyLink : setting.privacyPolicyLink;
-    setting.termsOfUsePolicyLink = req.body.termsOfUsePolicyLink ? req.body.termsOfUsePolicyLink : setting.termsOfUsePolicyLink;
-    setting.stripePublishableKey = req.body.stripePublishableKey ? req.body.stripePublishableKey : setting.stripePublishableKey;
-    setting.stripeSecretKey = req.body.stripeSecretKey ? req.body.stripeSecretKey : setting.stripeSecretKey;
-    setting.razorpayId = req.body.razorpayId ? req.body.razorpayId : setting.razorpayId;
-    setting.razorpaySecretKey = req.body.razorpaySecretKey ? req.body.razorpaySecretKey : setting.razorpaySecretKey;
-    setting.flutterwaveId = req.body.flutterwaveId ? req.body.flutterwaveId : setting.flutterwaveId;
+    setting.agoraAppId = req.body.agoraAppId ? req.body.agoraAppId.trim() : setting.agoraAppId;
+    setting.agoraAppCertificate = req.body.agoraAppCertificate ? req.body.agoraAppCertificate.trim() : setting.agoraAppCertificate;
+    setting.privacyPolicyLink = req.body.privacyPolicyLink ? req.body.privacyPolicyLink.trim() : setting.privacyPolicyLink;
+    setting.termsOfUsePolicyLink = req.body.termsOfUsePolicyLink ? req.body.termsOfUsePolicyLink.trim() : setting.termsOfUsePolicyLink;
+    setting.stripePublishableKey = req.body.stripePublishableKey ? req.body.stripePublishableKey.trim() : setting.stripePublishableKey;
+    setting.stripeSecretKey = req.body.stripeSecretKey ? req.body.stripeSecretKey.trim() : setting.stripeSecretKey;
+    setting.razorpayId = req.body.razorpayId ? req.body.razorpayId.trim() : setting.razorpayId;
+    setting.razorpaySecretKey = req.body.razorpaySecretKey ? req.body.razorpaySecretKey.trim() : setting.razorpaySecretKey;
+    setting.flutterwaveId = req.body.flutterwaveId ? req.body.flutterwaveId.trim() : setting.flutterwaveId;
     setting.loginBonus = req.body.loginBonus ? Number(req.body.loginBonus) : setting.loginBonus;
     setting.adminCommissionRate = req.body.adminCommissionRate ? Number(req.body.adminCommissionRate) : setting.adminCommissionRate;
     setting.minCoinsToConvert = req.body.minCoinsToConvert ? Number(req.body.minCoinsToConvert) : setting.minCoinsToConvert;

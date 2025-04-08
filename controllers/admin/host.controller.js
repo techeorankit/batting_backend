@@ -208,7 +208,7 @@ exports.assignHostToAgency = async (req, res) => {
   }
 };
 
-//get agency wise hosts
+//get agency's hosts
 exports.listAgencyHosts = async (req, res) => {
   try {
     if (!req.query.agencyId) {
@@ -264,7 +264,7 @@ exports.listAgencyHosts = async (req, res) => {
     ]);
 
     if (!agency) {
-      return res.status(200).json({ status: false, message: "Request not found for that agency!" });
+      return res.status(200).json({ status: false, message: "Agency not found!" });
     }
 
     return res.status(200).json({

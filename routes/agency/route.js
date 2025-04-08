@@ -3,7 +3,7 @@ const express = require("express");
 const route = express.Router();
 
 //validate agency's access token
-// const validateAgencyToken = require("");
+const validateAgencyToken = require("../../middleware/validateAgencyToken.middleware");
 
 //require agency's route.js
 const agency = require("./agency.route");

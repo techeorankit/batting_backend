@@ -22,7 +22,7 @@ route.patch("/handleHostRequest", checkAccessWithSecretKey(), HostController.han
 //assign host under agency
 route.patch("/assignHostToAgency", checkAccessWithSecretKey(), HostController.assignHostToAgency);
 
-//get agency wise hosts
+//get agency's hosts
 route.get("/listAgencyHosts", checkAccessWithSecretKey(), HostController.listAgencyHosts);
 
 //create host

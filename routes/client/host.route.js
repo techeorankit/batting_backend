@@ -26,7 +26,7 @@ route.post(
   checkAccessWithSecretKey(),
   upload.fields([
     { name: "image", maxCount: 1 },
-    { name: "identityProof", maxCount: 1 },
+    { name: "identityProof", maxCount: 2 },
     { name: "photoGallery", maxCount: 10 },
   ]),
   HostController.initiateHostRequest
