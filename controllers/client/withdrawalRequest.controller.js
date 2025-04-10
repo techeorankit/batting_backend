@@ -4,6 +4,10 @@ const History = require("../../models/history.model");
 
 const mongoose = require("mongoose");
 
+const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
+
+const admin = require("../../util/privateKey");
+
 //withdrawal request ( user )
 exports.submitWithdrawalRequest = async (req, res) => {
   try {
@@ -59,9 +63,12 @@ exports.submitWithdrawalRequest = async (req, res) => {
       coin: requestedCoins,
       amount: requestAmount,
       paymentGateway: formattedGateway,
-      paymentDetails: paymentDetails.map((detail) => detail.replace("[", "").replace("]", "")),
+      paymentDetails: Array.isArray(paymentDetails) ? paymentDetails.map((detail) => detail.replace("[", "").replace("]", "")) : [String(paymentDetails).replace("[", "").replace("]", "")],
       requestDate: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     };
+
+    console.log("paymentDetails type:", typeof paymentDetails);
+    console.log("paymentDetails value:", paymentDetails);
 
     const historyData = {
       uniqueId,

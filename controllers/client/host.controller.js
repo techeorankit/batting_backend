@@ -162,9 +162,9 @@ exports.retrieveHosts = async (req, res) => {
     const isGlobal = country === "global";
 
     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false } : { country: country, isFake: true, isBlock: false };
-    const matchQuery = isGlobal ? { isFake: false, isBlock: false } : { country: country, isFake: false, isBlock: false };
+    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2 } : { country: country, isFake: false, isBlock: false, status: 2 };
 
-    const followedHostQuery = { isFake: false, isBlock: false };
+    const followedHostQuery = { isFake: false, isBlock: false, status: 2 };
 
     const [fakeHost, host, followedHost] = await Promise.all([
       Host.find(fakeMatchQuery).select("_id name countryFlagImage country image privateCallRate isFake").lean(),
@@ -294,20 +294,10 @@ exports.fetchHostInfo = async (req, res) => {
           },
         },
         {
-          $lookup: {
-            from: "gifts",
-            localField: "_id",
-            foreignField: "_id",
-            as: "giftDetails",
-          },
-        },
-        { $unwind: "$giftDetails" },
-        {
           $project: {
             giftId: "$_id",
-            giftType: "$giftDetails.type",
-            giftImage: "$giftDetails.image",
-            giftCoin: "$giftDetails.coin",
+            giftCoin: "$hostCoin",
+            giftImage: 1,
             totalReceived: 1,
             lastReceivedAt: 1,
           },
@@ -347,6 +337,7 @@ exports.retrieveAvailableHost = async (req, res) => {
               isBusy: false,
               isFake: false,
               isLive: false,
+              status: 2,
               callId: null,
               gender: normalizedGender,
             },
@@ -372,6 +363,7 @@ exports.retrieveAvailableHost = async (req, res) => {
             isBusy: false,
             isFake: false,
             isLive: false,
+            status: 2,
             callId: null,
           },
         },

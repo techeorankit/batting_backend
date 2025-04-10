@@ -349,6 +349,7 @@ io.on("connection", async (socket) => {
         hostId: receiver._id,
         agencyId: receiver?.agencyId,
         giftId: gift._id,
+        giftImage: gift.image || "",
         giftCount: giftCount,
         userCoin: totalGiftCost,
         hostCoin: hostEarnings,
@@ -1405,8 +1406,6 @@ io.on("connection", async (socket) => {
         User.updateOne(
           {
             _id: caller._id,
-            isFake: false,
-            isLive: false,
             isOnline: true,
             isBusy: false,
             callId: null,
@@ -1422,9 +1421,10 @@ io.on("connection", async (socket) => {
           {
             _id: receiver._id,
             isFake: false,
-            isLive: false,
+            isBlock: false,
             isOnline: true,
             isBusy: false,
+            isLive: false,
             callId: null,
           },
           {
@@ -1663,10 +1663,10 @@ io.on("connection", async (socket) => {
     }
 
     try {
-      const [uniqueId, senderUser, receiverUser, gift] = await Promise.all([
+      const [uniqueId, senderUser, receiver, gift] = await Promise.all([
         generateHistoryUniqueId(),
-        User.findById(giftData.senderUserId).lean().select("_id coin"),
-        Host.findById(giftData.receiverUserId).lean().select("_id coin totalGifts agencyId"),
+        User.findById(giftData.senderId).lean().select("_id coin"),
+        Host.findById(giftData.receiverId).lean().select("_id coin totalGifts agencyId"),
         Gift.findById(giftData.giftId).lean().select("_id coin"),
       ]);
 
@@ -1676,9 +1676,9 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      if (!receiverUser) {
+      if (!receiver) {
         console.log("Receiver user not found");
-        io.in(`globalRoom:${giftData.receiverUserId}`).emit("liveGiftReceived", { error: "Receiver user not found" });
+        io.in(`globalRoom:${giftData.receiverId}`).emit("liveGiftReceived", { error: "Receiver user not found" });
         return;
       }
 
@@ -1700,20 +1700,62 @@ io.on("connection", async (socket) => {
 
       io.in(giftData.liveHistoryId).emit("liveGiftReceived", giftData);
 
+      let adminShare = (totalGiftCost * adminCommissionRate) / 100;
+      let hostEarnings = totalGiftCost - adminShare;
+      let agencyShare = 0;
+
+      let agencyUpdate = null;
+      if (receiver.agencyId) {
+        const agency = await Agency.findById(receiver.agencyId).lean().select("_id commissionType commission");
+
+        if (agency) {
+          if (agency.commissionType === 1) {
+            // Percentage commission
+            agencyShare = (hostEarnings * agency.commission) / 100;
+          } else {
+            // Fixed salary, ignore earnings share
+            agencyShare = 0;
+          }
+
+          agencyUpdate = Agency.updateOne(
+            { _id: agency._id },
+            {
+              $inc: {
+                hostCoins: hostEarnings,
+                totalEarnings: Math.floor(agencyShare),
+              },
+            }
+          );
+        }
+      }
+
       await Promise.all([
-        User.findByIdAndUpdate(senderUser._id, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }, { new: true, select: "_id coin spentCoins" }),
-        Host.findByIdAndUpdate(receiverUser._id, { $inc: { coin: totalCoin, totalGifts: giftCount } }, { new: true, select: "_id coin totalGifts" }),
+        User.updateOne(
+          { _id: senderUser._id, coin: { $gte: totalCoin } },
+          {
+            $inc: {
+              coin: -totalCoin,
+              spentCoins: totalCoin,
+            },
+          }
+        ),
+        Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings, totalGifts: 1 } }),
         History.create({
           uniqueId: uniqueId,
           type: 2,
           userId: senderUser._id,
-          otherUserId: receiverUser._id,
-          agencyId: receiverUser?.agencyId,
+          otherUserId: receiver._id,
+          agencyId: receiver?.agencyId,
           giftId: giftData.giftId,
-          giftReceivedCount: giftCount,
+          giftImage: gift.image || "",
+          giftCount: giftCount,
           userCoin: totalCoin,
+          hostCoin: hostEarnings,
+          adminCoin: adminShare,
+          agencyCoin: agencyShare,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
+        agencyUpdate,
         LiveBroadcastHistory.findByIdAndUpdate(
           giftData.liveHistoryId,
           {

@@ -13,7 +13,8 @@ const historySchema = new mongoose.Schema(
 
     giftId: { type: mongoose.Schema.Types.ObjectId, ref: "Gift", default: null },
     giftCount: { type: Number, default: 0 },
-
+    giftImage: { type: String, default: "" },
+    
     callType: { type: String, default: "" }, //1.audio 2.video
     isRandom: { type: Boolean, default: false },
     isPrivate: { type: Boolean, default: false },

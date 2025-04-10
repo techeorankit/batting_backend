@@ -1,4 +1,5 @@
 const GiftCategory = require("../../models/giftCategory.model");
+const Gift = require("../../models/gift.model");
 
 //create giftCategory
 exports.createGiftCategory = async (req, res) => {
@@ -99,16 +100,19 @@ exports.deleteGiftCategory = async (req, res) => {
       return res.status(200).json({ status: false, message: "Category ID is required." });
     }
 
-    const updatedCategory = await GiftCategory.findByIdAndUpdate(categoryId, { isDelete: true }, { new: true, select: "_id" }).lean();
+    const updatedCategory = await GiftCategory.findById(categoryId).select("_id").lean();
 
     if (!updatedCategory) {
       return res.status(200).json({ status: false, message: "Gift category not found." });
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       status: true,
       message: "Gift category marked as deleted successfully.",
     });
+
+    //await Promise.all([GiftCategory.findByIdAndUpdate(categoryId, { isDelete: true }), Gift.updateMany({ giftCategoryId: categoryId }, { $set: { isDelete: true } })]);
+    await Promise.all([GiftCategory.findByIdAndDelete(categoryId), Gift.deleteMany({ giftCategoryId: categoryId })]);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });

@@ -177,7 +177,8 @@ exports.discardGift = async (req, res, next) => {
 
     res.status(200).json({ status: true, message: "Gift has been marked as deleted by the admin." });
 
-    await Gift.findByIdAndUpdate(giftId, { isDelete: true });
+    //await Gift.findByIdAndUpdate(giftId, { isDelete: true });
+    await Gift.findByIdAndDelete(giftId);
   } catch (error) {
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }

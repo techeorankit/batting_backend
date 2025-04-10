@@ -19,8 +19,9 @@ exports.fetchFollowing = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.query.userId);
 
-    const [user, followingList] = await Promise.all([
+    const [user, total, followingList] = await Promise.all([
       User.findById(userId).select("_id").lean(),
+      FollowerFollowing.countDocuments({ followerId: userId }),
       FollowerFollowing.find({ followerId: userId })
         .populate("followingId", "_id name image uniqueId coin countryFlagImage country")
         .sort({ createdAt: -1 })
@@ -34,6 +35,7 @@ exports.fetchFollowing = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: `Retrieved following users successfully.`,
+      total,
       followingList,
     });
   } catch (error) {
@@ -54,8 +56,9 @@ exports.fetchFollowers = async (req, res) => {
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [host, followerList] = await Promise.all([
+    const [host, total, followerList] = await Promise.all([
       Host.findById(hostId).select("_id isBlock").lean(),
+      FollowerFollowing.countDocuments({ followingId: hostId }),
       FollowerFollowing.find({ followingId: hostId })
         .populate("followerId", "_id name image uniqueId coin countryFlagImage country")
         .sort({ createdAt: -1 })
@@ -69,6 +72,7 @@ exports.fetchFollowers = async (req, res) => {
     res.status(200).json({
       status: true,
       message: `Retrieved followers successfully.`,
+      total,
       followerList,
     });
   } catch (error) {

@@ -8,6 +8,12 @@ const admin = require("../../util/privateKey");
 //mongoose
 const mongoose = require("mongoose");
 
+//deletefile
+const { deleteFiles } = require("../../util/deletefile");
+
+//generateUniqueId
+const generateUniqueId = require("../../util/generateUniqueId");
+
 //retrive host requests
 exports.fetchHostRequest = async (req, res) => {
   try {
@@ -492,6 +498,7 @@ exports.fetchHostList = async (req, res) => {
     let filter = {
       ...dateFilterQuery,
       ...searchQuery,
+      status: 2,
       isFake: hostType == 1 ? false : true,
     };
 
@@ -499,7 +506,7 @@ exports.fetchHostList = async (req, res) => {
       Host.countDocuments(filter),
       Host.find(filter)
         .populate("agencyId", "name agencyCode")
-        .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive")
+        .select("name gender image impression identityProofType uniqueId isBlock isOnline isBusy isLive ")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)

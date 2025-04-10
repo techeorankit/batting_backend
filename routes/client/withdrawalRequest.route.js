@@ -8,7 +8,10 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 //controller
 const WithdrawalRequestController = require("../../controllers/client/withdrawalRequest.controller");
 
+//validate user's access token
+const validateUserToken = require("../../middleware/validateUserToken.middleware");
+
 //withdrawal request ( user )
-route.post("/submitWithdrawalRequest", checkAccessWithSecretKey(), WithdrawalRequestController.submitWithdrawalRequest);
+route.post("/submitWithdrawalRequest", validateUserToken, checkAccessWithSecretKey(), WithdrawalRequestController.submitWithdrawalRequest);
 
 module.exports = route;
