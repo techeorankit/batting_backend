@@ -1,5 +1,5 @@
 const WithdrawalRequest = require("../../models/withdrawalRequest.model");
-const User = require("../../models/user.model");
+const Host = require("../../models/host.model");
 const History = require("../../models/history.model");
 
 const mongoose = require("mongoose");
@@ -8,15 +8,15 @@ const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
 const admin = require("../../util/privateKey");
 
-//withdrawal request ( user )
+//withdrawal request ( host )
 exports.submitWithdrawalRequest = async (req, res) => {
   try {
     if (!settingJSON) {
       return res.status(200).json({ status: false, message: "Withdrawal settings not found." });
     }
 
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ status: false, message: "Unauthorized access. Token missing or invalid." });
+    if (!req.query.hostId) {
+      return res.status(200).json({ status: false, message: "hostId missing or invalid." });
     }
 
     const { paymentGateway, paymentDetails, coin } = req.body;
@@ -25,28 +25,28 @@ exports.submitWithdrawalRequest = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid request. Please provide all required fields." });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.user.userId);
+    const hostId = new mongoose.Types.ObjectId(req.query.hostId);
     const formattedGateway = paymentGateway.trim();
     const requestedCoins = Number(coin);
     const requestAmount = parseFloat(requestedCoins / settingJSON.minCoinsToConvert).toFixed(2);
 
-    const [uniqueId, user, pendingRequest, declinedRequest] = await Promise.all([
+    const [uniqueId, host, pendingRequest, declinedRequest] = await Promise.all([
       generateHistoryUniqueId(),
-      User.findOne({ _id: userId }).select("_id coin fcmToken").lean(),
-      WithdrawalRequest.findOne({ userId, status: 1 }).select("_id").lean(), // status 1: pending
-      WithdrawalRequest.findOne({ userId, status: 3 }).select("_id").lean(), // status 3: declined
+      Host.findOne({ _id: hostId }).select("_id coin fcmToken").lean(),
+      WithdrawalRequest.findOne({ hostId, status: 1 }).select("_id").lean(), // status 1: pending
+      WithdrawalRequest.findOne({ hostId, status: 3 }).select("_id").lean(), // status 3: declined
     ]);
 
-    if (!user) {
-      return res.status(200).json({ status: false, message: "User account not found." });
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host account not found." });
     }
 
-    if (requestedCoins > user.coin) {
+    if (requestedCoins > host.coin) {
       return res.status(200).json({ status: false, message: "Insufficient balance to request withdrawal." });
     }
 
-    if (requestedCoins < settingJSON.minCoinsForUserPayout) {
-      return res.status(200).json({ status: false, message: `Minimum withdrawal amount is ${settingJSON.minCoinsForUserPayout} coins.` });
+    if (requestedCoins < settingJSON.minCoinsForHostPayout) {
+      return res.status(200).json({ status: false, message: `Minimum withdrawal amount is ${settingJSON.minCoinsForHostPayout} coins.` });
     }
 
     if (pendingRequest) {
@@ -59,7 +59,7 @@ exports.submitWithdrawalRequest = async (req, res) => {
     const withdrawalData = {
       uniqueId,
       person: 3,
-      userId: user._id,
+      hostId: host._id,
       coin: requestedCoins,
       amount: requestAmount,
       paymentGateway: formattedGateway,
@@ -72,7 +72,7 @@ exports.submitWithdrawalRequest = async (req, res) => {
 
     const historyData = {
       uniqueId,
-      userId: user._id,
+      hostId: host._id,
       coin: requestedCoins,
       payoutStatus: 1,
       type: 4,
@@ -96,10 +96,10 @@ exports.submitWithdrawalRequest = async (req, res) => {
       await Promise.all([WithdrawalRequest.create(withdrawalData), History.create(historyData)]);
     }
 
-    if (user.fcmToken) {
+    if (host.fcmToken) {
       const adminApp = await admin;
       const notificationPayload = {
-        token: user.fcmToken,
+        token: host.fcmToken,
         notification: {
           title: "🔔 Withdrawal Request Submitted",
           body: "We have received your withdrawal request. It will be processed shortly.",
@@ -124,5 +124,3 @@ exports.submitWithdrawalRequest = async (req, res) => {
     return res.status(500).json({ status: false, message: "Internal server error. Please try again later." });
   }
 };
-
-//withdrawal request ( host )

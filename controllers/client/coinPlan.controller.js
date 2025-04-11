@@ -72,7 +72,7 @@ exports.recordCoinPlanPurchase = async (req, res) => {
         type: 7,
         userId: user._id,
         userCoin: totalCoins,
-        bonusCoins: coinPlan?.bonusCoins,
+        bonusCoins: user.isVip ? coinPlan.bonusCoins : 0,
         price: coinPlan?.price,
         paymentGateway: trimmedPaymentGateway,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),

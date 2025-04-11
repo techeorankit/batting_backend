@@ -7,6 +7,9 @@ const History = require("../../models/history.model");
 //mongoose
 const mongoose = require("mongoose");
 
+//moment
+const moment = require("moment");
+
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
@@ -55,27 +58,27 @@ exports.purchaseVipPlan = async (req, res) => {
       return res.status(200).json({ status: false, message: "VIP plan not found." });
     }
 
-    res.status(200).json({
-      status: true,
-      message: "VIP plan purchased successfully.",
-    });
-
     const vipPlanStartDate = moment().toISOString();
     let planEndDate = moment(vipPlanStartDate);
 
     switch (vipPlan.validityType.toLowerCase()) {
-      case "day":
+      case "days":
         planEndDate.add(vipPlan.validity, "days");
         break;
-      case "month":
+      case "months":
         planEndDate.add(vipPlan.validity, "months");
         break;
-      case "year":
+      case "years":
         planEndDate.add(vipPlan.validity, "years");
         break;
       default:
         return res.status(200).json({ status: false, message: "Invalid validity type in VIP plan." });
     }
+
+    res.status(200).json({
+      status: true,
+      message: "VIP plan purchased successfully.",
+    });
 
     await Promise.all([
       User.updateOne(

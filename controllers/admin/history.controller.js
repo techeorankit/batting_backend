@@ -76,7 +76,6 @@ exports.getCoinTransactionHistory = async (req, res) => {
                   { case: { $eq: ["$type", 1] }, then: "🎉 Login Bonus" },
                   { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
                   { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 4] }, then: "🏧 Withdrawal by User" },
                   { case: { $eq: ["$type", 6] }, then: "📅 Daily Check-in Reward" },
                   { case: { $eq: ["$type", 7] }, then: "💳 Purchased Coin Plan" },
                   { case: { $eq: ["$type", 8] }, then: "👑 VIP Plan Purchase" },
@@ -111,7 +110,7 @@ exports.getCoinTransactionHistory = async (req, res) => {
                 else: {
                   $cond: {
                     if: {
-                      $or: [{ $in: ["$type", [2, 3, 10, 11, 12, 13]] }, { $and: [{ $eq: ["$type", 4] }, { $eq: ["$payoutStatus", 2] }] }],
+                      $in: ["$type", [2, 3, 10, 11, 12, 13]],
                     },
                     then: false,
                     else: false,
@@ -566,7 +565,7 @@ exports.fetchCoinPlanTransactionHistory = async (req, res) => {
           $group: {
             _id: "$userDetails._id",
             name: { $first: "$userDetails.name" },
-            userName: { $first: "$userDetails.userName" },
+            isVip: { $first: "$userDetails.isVip" },
             image: { $first: "$userDetails.image" },
             totalPlansPurchased: { $sum: 1 },
             totalPriceSpent: { $sum: "$price" },
@@ -695,6 +694,21 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
             payoutStatus: 1,
             createdAt: 1,
             senderName: { $ifNull: ["$sender.name", ""] },
+            isIncome: {
+              $cond: {
+                if: { $in: ["$type", [2, 3, 9, 10, 11, 12, 13]] },
+                then: true,
+                else: {
+                  $cond: {
+                    if: {
+                      $and: [{ $eq: ["$type", 5] }, { $eq: ["$payoutStatus", 2] }],
+                    },
+                    then: false,
+                    else: false,
+                  },
+                },
+              },
+            },
           },
         },
         { $sort: { createdAt: -1 } },

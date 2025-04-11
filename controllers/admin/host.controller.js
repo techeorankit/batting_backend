@@ -8,6 +8,9 @@ const admin = require("../../util/privateKey");
 //mongoose
 const mongoose = require("mongoose");
 
+//fs
+const fs = require("fs");
+
 //deletefile
 const { deleteFiles } = require("../../util/deletefile");
 
@@ -506,7 +509,9 @@ exports.fetchHostList = async (req, res) => {
       Host.countDocuments(filter),
       Host.find(filter)
         .populate("agencyId", "name agencyCode")
-        .select("name gender image impression identityProofType uniqueId isBlock isOnline isBusy isLive ")
+        .select(
+          "name gender bio age dob email image impression identityProofType uniqueId isBlock isOnline isBusy isLive countryFlagImage country photoGallery uniqueId randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin totalGifts language"
+        )
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)

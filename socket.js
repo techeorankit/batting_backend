@@ -11,6 +11,7 @@ const Randomcall = require("./models/randomcall.model");
 const LiveBroadcaster = require("./models/liveBroadcaster.model");
 const LiveBroadcastView = require("./models/liveBroadcastView.model");
 const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
+const VipPlanPrivilege = require("./models/vipPlanPrivilege.model");
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("./util/generateHistoryUniqueId");
@@ -65,7 +66,7 @@ io.on("connection", async (socket) => {
     let senderPromise, receiverPromise;
 
     if (parseData?.senderRole === "user") {
-      senderPromise = User.findById(parseData?.senderId).lean().select("_id name coin");
+      senderPromise = User.findById(parseData?.senderId).lean().select("_id name coin isVip");
     } else if (parseData?.senderRole === "host") {
       senderPromise = Host.findById(parseData?.senderId).lean().select("_id name coin");
     }
@@ -76,7 +77,7 @@ io.on("connection", async (socket) => {
       receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
     }
 
-    const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId freeMessageCount");
+    const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId messageCount");
 
     const [uniqueId, sender, receiver, chatTopic] = await Promise.all([generateHistoryUniqueId(), senderPromise, receiverPromise, chatTopicPromise]);
 
@@ -87,8 +88,17 @@ io.on("connection", async (socket) => {
 
     if (parseData?.messageType == 1) {
       if (parseData.senderRole === "user" && parseData.receiverRole === "host") {
-        const maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
-        const isWithinFreeLimit = chatTopic.freeMessageCount < maxFreeChatMessages;
+        let maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
+
+        //Check if sender is VIP
+        if (sender?.isVip) {
+          const vipPrivilege = await VipPlanPrivilege.findOne().select("freeMessages").lean();
+          if (vipPrivilege?.freeMessages) {
+            maxFreeChatMessages = vipPrivilege.freeMessages;
+          }
+        }
+
+        const isWithinFreeLimit = chatTopic.messageCount < maxFreeChatMessages;
         const chatRate = receiver.chatRate || 10;
 
         if (!isWithinFreeLimit && sender?.coin < chatRate) {
@@ -113,7 +123,7 @@ io.on("connection", async (socket) => {
           { _id: chatTopic._id },
           {
             $set: { chatId: chat._id },
-            $inc: { freeMessageCount: 1 },
+            $inc: { messageCount: 1 },
           }
         ),
       ]);
@@ -129,7 +139,7 @@ io.on("connection", async (socket) => {
       if (parseData.senderRole === "user" && parseData.receiverRole === "host") {
         const maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
         const adminCommissionRate = settingJSON.adminCommissionRate || 10;
-        const isWithinFreeLimit = chatTopic.freeMessageCount < maxFreeChatMessages;
+        const isWithinFreeLimit = chatTopic.messageCount < maxFreeChatMessages;
         const chatRate = receiver.chatRate || 10;
 
         let deductedCoins = 0;
@@ -1087,10 +1097,11 @@ io.on("connection", async (socket) => {
 
       const { callerId, receiverId, callId, callMode, gender } = parsedData;
 
-      const [caller, receiver, callHistory] = await Promise.all([
+      const [caller, receiver, callHistory, vipPrivilege] = await Promise.all([
         User.findById(callerId).select("_id coin").lean(),
         Host.findById(receiverId).select("_id coin privateCallRate audioCallRate randomCallRate randomCallFemaleRate randomCallMaleRate agencyId").lean(),
         History.findById(callId).select("_id callType isPrivate").lean(),
+        VipPlanPrivilege.findOne().select("audioCallDiscount privateCallDiscount").lean(),
       ]);
 
       if (!caller || !receiver || !callHistory) {
@@ -1099,8 +1110,17 @@ io.on("connection", async (socket) => {
       }
 
       if (callMode === "private" && callHistory.callType === "audio") {
-        const audioCallCharge = Math.abs(receiver.audioCallRate) || 100;
         const adminCommissionRate = settingJSON?.adminCommissionRate || 10;
+        let audioCallCharge = Math.abs(receiver.audioCallRate) || 100;
+        let audioCallDiscount = 0;
+
+        // Check if user is VIP and apply discount
+        if (caller.isVip && caller.vipPrivilege) {
+          audioCallDiscount = Math.min(Math.max(vipPrivilege.audioCallDiscount || 0, 0), 100);
+
+          const discountAmount = Math.floor((audioCallCharge * audioCallDiscount) / 100);
+          audioCallCharge = audioCallCharge - discountAmount;
+        }
 
         const adminShare = Math.floor((audioCallCharge * adminCommissionRate) / 100);
         const hostEarnings = audioCallCharge - adminShare;
@@ -1170,8 +1190,17 @@ io.on("connection", async (socket) => {
       }
 
       if (callMode === "private" && callHistory.callType === "video" && callHistory.isPrivate) {
-        const privateCallCharge = Math.abs(receiver.privateCallRate) || 100;
         const adminCommissionRate = settingJSON?.adminCommissionRate || 10;
+        let privateCallCharge = Math.abs(receiver.privateCallRate) || 100;
+        let privateCallDiscount = 0;
+
+        // Check if user is VIP and apply discount
+        if (caller.isVip && vipPrivilege) {
+          privateCallDiscount = Math.min(Math.max(vipPrivilege.privateCallDiscount || 0, 0), 100);
+
+          const discountAmount = Math.floor((privateCallCharge * privateCallDiscount) / 100);
+          privateCallCharge = privateCallCharge - discountAmount;
+        }
 
         const adminShare = Math.floor((privateCallCharge * adminCommissionRate) / 100);
         const hostEarnings = privateCallCharge - adminShare;
@@ -1250,6 +1279,15 @@ io.on("connection", async (socket) => {
           randomCallCharge = Math.abs(receiver.randomCallMaleRate) || 100;
         } else {
           randomCallCharge = Math.abs(receiver.randomCallRate) || 100;
+        }
+
+        // Check if user is VIP and apply discount
+        let randomCallDiscount = 0;
+        if (caller.isVip && vipPrivilege) {
+          randomCallDiscount = Math.min(Math.max(vipPrivilege.randomMatchCallDiscount || 0, 0), 100);
+
+          const discountAmount = Math.floor((randomCallCharge * randomCallDiscount) / 100);
+          randomCallCharge = randomCallCharge - discountAmount;
         }
 
         const adminCommissionRate = settingJSON?.adminCommissionRate || 10;

@@ -15,6 +15,6 @@ const validateUserToken = require("../../middleware/validateUserToken.middleware
 route.get("/fetchVipPlans", checkAccessWithSecretKey(), VipPlanController.fetchVipPlans);
 
 //purchase vipPlan ( vipPlan history )
-route.post("/purchaseVipPlan", checkAccessWithSecretKey(), VipPlanController.purchaseVipPlan);
+route.post("/purchaseVipPlan", validateUserToken, checkAccessWithSecretKey(), VipPlanController.purchaseVipPlan);
 
 module.exports = route;

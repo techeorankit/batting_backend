@@ -48,7 +48,6 @@ const settingSchema = new mongoose.Schema(
     adminCommissionRate: { type: Number, default: 0 }, //in %
     minCoinsToConvert: { type: Number, default: 0 }, //min coin requried for convert coin to default currency i.e., 1000 coin = 1 $
 
-    minCoinsForUserPayout: { type: Number, default: 0 }, //for user
     minCoinsForHostPayout: { type: Number, default: 0 }, //for host
     minCoinsForAgencyPayout: { type: Number, default: 0 }, //for agency
   },

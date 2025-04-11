@@ -39,7 +39,7 @@ exports.pushChatMessage = async (req, res) => {
       generateHistoryUniqueId(),
       User.findById(senderId).lean().select("name coin"),
       Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name fcmToken chatRate agencyId"),
-      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId freeMessageCount"),
+      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId messageCount"),
     ]);
 
     if (!sender) {
@@ -59,7 +59,7 @@ exports.pushChatMessage = async (req, res) => {
 
     const maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
     const adminCommissionRate = settingJSON.adminCommissionRate || 10; // 10% commission
-    const isWithinFreeLimit = chatTopic.freeMessageCount < maxFreeChatMessages;
+    const isWithinFreeLimit = chatTopic.messageCount < maxFreeChatMessages;
     const chatRate = receiver.chatRate || 10;
 
     let deductedCoins = 0;
@@ -96,7 +96,7 @@ exports.pushChatMessage = async (req, res) => {
         { _id: chatTopic._id },
         {
           $set: { chatId: chat._id },
-          $inc: { freeMessageCount: 1 },
+          $inc: { messageCount: 1 },
         }
       ),
     ]);

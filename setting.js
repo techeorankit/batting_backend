@@ -27,7 +27,7 @@ module.exports = {
   "maxFreeChatMessages": 1,
   "privateKey": {},
   "createdAt": "2025-03-17T09:22:56.775Z",
-  "updatedAt": "2025-04-10T07:05:06.322Z",
+  "updatedAt": "2025-04-11T12:20:35.445Z",
   "adminCommissionRate": 1,
   "agoraAppCertificate": "AGORA APP CERTIFICATE",
   "agoraAppId": "AGORA APP ID",

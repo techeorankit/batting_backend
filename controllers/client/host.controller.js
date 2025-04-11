@@ -283,7 +283,9 @@ exports.fetchHostInfo = async (req, res) => {
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
     const [host, receivedGifts] = await Promise.all([
-      Host.findOne({ _id: hostId, isBlock: false }).select("name email bio countryFlagImage country impression language image photoGallery privateCallRate randomCallRate chatRate coin").lean(),
+      Host.findOne({ _id: hostId, isBlock: false })
+        .select("name email bio countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin")
+        .lean(),
       History.aggregate([
         { $match: { hostId: hostId, giftId: { $ne: null } } },
         {
@@ -316,7 +318,7 @@ exports.fetchHostInfo = async (req, res) => {
   }
 };
 
-//get random free host ( random video call )
+//get random free host ( random video call ) ( user )
 exports.retrieveAvailableHost = async (req, res) => {
   try {
     const { gender } = req.query;
@@ -385,5 +387,113 @@ exports.retrieveAvailableHost = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+  }
+};
+
+//update host's info
+exports.modifyHostDetails = async (req, res) => {
+  try {
+    const {
+      hostId,
+      name,
+      bio,
+      dob,
+      gender,
+      countryFlagImage,
+      country,
+      language,
+      impression,
+      email,
+      randomCallRate,
+      randomCallFemaleRate,
+      randomCallMaleRate,
+      privateCallRate,
+      audioCallRate,
+      chatRate,
+    } = req.body;
+
+    if (!hostId) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "Missing or invalid host details. Please check and try again." });
+    }
+
+    const [host, existingHost] = await Promise.all([Host.findOne({ _id: hostId }), email ? Host.findOne({ email: email?.trim() }).select("_id").lean() : null]);
+
+    if (!host) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
+
+    if (existingHost) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "A host profile with this email already exists." });
+    }
+
+    host.name = name || host.name;
+    host.email = email || host.email;
+    host.bio = bio || host.bio;
+    host.dob = dob || host.dob;
+    host.gender = gender || host.gender;
+    host.countryFlagImage = countryFlagImage || host.countryFlagImage;
+    host.country = country || host.country;
+    host.countryFlagImage = countryFlagImage || host.countryFlagImage;
+    host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host.impression;
+    host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host.language;
+    host.randomCallRate = randomCallRate || host.randomCallRate;
+    host.randomCallFemaleRate = randomCallFemaleRate || host.randomCallFemaleRate;
+    host.randomCallMaleRate = randomCallMaleRate || host.randomCallMaleRate;
+    host.privateCallRate = privateCallRate || host.privateCallRate;
+    host.audioCallRate = audioCallRate || host.audioCallRate;
+    host.chatRate = chatRate || host.chatRate;
+
+    if (req.files.image) {
+      if (host.image) {
+        const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
+        if (imagePath && fs.existsSync(imagePath)) {
+          const imageName = imagePath.split("/").pop();
+          if (!["male.png", "female.png"].includes(imageName)) {
+            fs.unlinkSync(imagePath);
+          }
+        }
+      }
+
+      host.image = req.files.image[0].path;
+    }
+
+    if (req.files.photoGallery) {
+      if (host.photoGallery.length > 0) {
+        for (const photo of host.photoGallery) {
+          const photoGalleryPath = photo?.url?.split("storage");
+          if (photoGalleryPath?.[1]) {
+            const filePath = "storage" + photoGalleryPath[1];
+            if (fs.existsSync(filePath)) {
+              try {
+                fs.unlinkSync(filePath);
+              } catch (error) {
+                console.error(`Error deleting file: ${filePath}`, error);
+              }
+            }
+          }
+        }
+      }
+
+      let updatedPhotoGallery = req.files.photoGallery.map((file) => ({ url: file.path }));
+      host.photoGallery = updatedPhotoGallery;
+    }
+
+    await host.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "Host profile updated successfully.",
+      host,
+    });
+  } catch (error) {
+    if (req.files) deleteFiles(req.files);
+    console.error("Update Host Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Failed to Update host profile due to server error.",
+    });
   }
 };

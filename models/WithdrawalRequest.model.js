@@ -4,10 +4,9 @@ const { WITHDRAWAL_STATUS, WITHDRAWAL_PERSON } = require("../types/constant");
 
 const withdrawalRequestSchema = new mongoose.Schema(
   {
-    person: { type: Number, enum: WITHDRAWAL_PERSON }, //1.agency 2.host 3.user
+    person: { type: Number, enum: WITHDRAWAL_PERSON }, //1.agency 2.host
     agencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", default: null },
     hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     uniqueId: { type: String, default: "" },
     status: { type: Number, default: 1, enum: WITHDRAWAL_STATUS },
     coin: { type: Number, default: 0 },
