@@ -17,6 +17,9 @@ route.patch("/updateImpression", checkAccessWithSecretKey(), ImpressionControlle
 //get all Impressions
 route.get("/getImpressions", checkAccessWithSecretKey(), ImpressionController.getImpressions);
 
+//get all Impressions ( drop - down )
+route.get("/fetchAdImpressionMetrics", checkAccessWithSecretKey(), ImpressionController.fetchAdImpressionMetrics);
+
 //delete Impression
 route.delete("/deleteImpression", checkAccessWithSecretKey(), ImpressionController.deleteImpression);
 

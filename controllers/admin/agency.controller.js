@@ -184,6 +184,8 @@ exports.getAgencies = async (req, res) => {
             totalHosts: 1,
             name: 1,
             email: 1,
+            description: 1,
+            password: 1,
             commissionType: 1,
             commission: 1,
             agencyCode: 1,
@@ -202,6 +204,16 @@ exports.getAgencies = async (req, res) => {
         { $limit: limit },
       ]),
     ]);
+
+    for (let i = 0; i < agencies.length; i++) {
+      try {
+        if (agencies[i].password && agencies[i].password.trim() !== "") {
+          agencies[i].password = cryptr.decrypt(agencies[i].password);
+        }
+      } catch (err) {
+        agencies[i].password = "Decryption Failed";
+      }
+    }
 
     return res.status(200).json({
       status: true,

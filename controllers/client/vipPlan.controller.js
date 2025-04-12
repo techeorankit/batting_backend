@@ -101,6 +101,7 @@ exports.purchaseVipPlan = async (req, res) => {
         userCoin: vipPlan.coin,
         validity: vipPlan.validity,
         validityType: vipPlan.validityType,
+        price: vipPlan.price,
         paymentGateway: paymentGateway.trim(),
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),

@@ -22,6 +22,7 @@ const hostSchema = new mongoose.Schema(
     identityProof: { type: Array, default: [] },
     image: { type: String, default: "" },
     photoGallery: { type: Array, default: [] },
+    video: { type: String, default: "" },
 
     ipAddress: { type: String, default: "" },
     identity: { type: String, default: "" },
@@ -41,8 +42,8 @@ const hostSchema = new mongoose.Schema(
     coin: { type: Number, default: 0 },
     totalGifts: { type: Number, default: 0 },
 
-    totalWithdrawalCoin: { type: Number, default: 0 },
-    totalWithdrawalAmount: { type: Number, default: 0 },
+    redeemedCoins: { type: Number, default: 0 },
+    redeemedAmount: { type: Number, default: 0 },
 
     isBlock: { type: Boolean, default: false },
     isFake: { type: Boolean, default: false },

@@ -150,6 +150,10 @@ exports.verifyHostRequestStatus = async (req, res) => {
 //get host thumblist ( user )
 exports.retrieveHosts = async (req, res) => {
   try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    }
+
     if (!settingJSON) {
       return res.status(200).json({ status: false, message: "Configuration settings not found." });
     }
@@ -158,16 +162,59 @@ exports.retrieveHosts = async (req, res) => {
       return res.status(200).json({ status: false, message: "Please provide a country name." });
     }
 
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
 
-    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false } : { country: country, isFake: true, isBlock: false };
-    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2 } : { country: country, isFake: false, isBlock: false, status: 2 };
-
-    const followedHostQuery = { isFake: false, isBlock: false, status: 2 };
+    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
+    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
 
     const [fakeHost, host, followedHost] = await Promise.all([
-      Host.find(fakeMatchQuery).select("_id name countryFlagImage country image privateCallRate isFake").lean(),
+      Host.aggregate([
+        { $match: fakeMatchQuery },
+        {
+          $addFields: {
+            status: {
+              $switch: {
+                branches: [
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }],
+                    },
+                    then: "Online",
+                  },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Live",
+                  },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Busy",
+                  },
+                ],
+                default: "Offline",
+              },
+            },
+            privateCallRate: 0,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            countryFlagImage: 1,
+            country: 1,
+            image: 1,
+            privateCallRate: 1,
+            isFake: 1,
+            status: 1,
+          },
+        },
+      ]),
       Host.aggregate([
         { $match: matchQuery },
         {
@@ -213,9 +260,34 @@ exports.retrieveHosts = async (req, res) => {
         },
       ]),
       Host.aggregate([
-        { $match: followedHostQuery },
+        {
+          $lookup: {
+            from: "followerfollowings",
+            let: { hostId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [{ $eq: ["$followerId", userId] }, { $eq: ["$followingId", "$$hostId"] }],
+                  },
+                },
+              },
+            ],
+            as: "followInfo",
+          },
+        },
+        {
+          $match: {
+            followInfo: { $ne: [] },
+            isFake: false,
+            isBlock: false,
+            status: 2,
+            userId: { $ne: userId },
+          },
+        },
         {
           $addFields: {
+            isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
             status: {
               $switch: {
                 branches: [

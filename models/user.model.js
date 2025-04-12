@@ -26,9 +26,6 @@ const userSchema = new mongoose.Schema(
     spentCoins: { type: Number, default: 0 },
     rechargedCoins: { type: Number, default: 0 }, //totalTopUp (Total coins the user has topped up)
 
-    redeemedCoins: { type: Number, default: 0 },
-    redeemedAmount: { type: Number, default: 0 },
-
     isVip: { type: Boolean, default: false },
     vipPlanStartDate: { type: String, default: null },
     vipPlanEndDate: { type: String, default: null },

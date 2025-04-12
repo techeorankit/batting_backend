@@ -25,7 +25,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
     const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
 
     const [agency, totalHosts, hosts] = await Promise.all([
-      Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
+      Agency.findOne({ _id: agencyId }).lean(),
       Host.countDocuments({ agencyId: agencyId, status: status, isBlock: false, isFake: false }),
       Host.find({ agencyId: agencyId, status: status, isBlock: false, isFake: false })
         .select("_id name gender image impression identityProofType uniqueId isOnline isBusy isLive")
@@ -36,7 +36,11 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
     ]);
 
     if (!agency) {
-      return res.status(200).json({ status: false, message: "Request not found for that agency!" });
+      return res.status(200).json({ status: false, message: "Agency not found!" });
+    }
+
+    if (agency.isBlock) {
+      return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
     }
 
     return res.status(200).json({
@@ -73,7 +77,15 @@ exports.manageHostRequest = async (req, res) => {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const statusNumber = Number(status);
 
-    const host = await Host.findOne({ _id: hostObjectId, agencyId: agencyObjectId });
+    const [agency, host] = await Promise.all([Agency.findOne({ _id: agencyObjectId }).select("_id").lean(), Host.findOne({ _id: hostObjectId, agencyId: agencyObjectId })]);
+
+    if (!agency) {
+      return res.status(200).json({ status: false, message: "Agency not found!" });
+    }
+
+    if (agency.isBlock) {
+      return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
+    }
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host request not found." });
@@ -173,7 +185,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
     const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
 
     const [agency, hosts] = await Promise.all([
-      Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
+      Agency.findOne({ _id: agencyId }).select("_id").lean(),
       Host.find({ agency: agencyId, status: 2, isFake: false })
         .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive")
         .sort({ createdAt: -1 })
@@ -184,6 +196,10 @@ exports.retrieveAgencyHosts = async (req, res) => {
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found!" });
+    }
+
+    if (agency.isBlock) {
+      return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
     }
 
     return res.status(200).json({
@@ -200,6 +216,10 @@ exports.retrieveAgencyHosts = async (req, res) => {
 //handle block or not the host
 exports.modifyHostBlockStatus = async (req, res) => {
   try {
+    if (!req.agency || !req.agency.agencyId) {
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    }
+
     const { hostId } = req.query;
 
     if (!hostId) {
@@ -210,7 +230,18 @@ exports.modifyHostBlockStatus = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid hostId format." });
     }
 
-    const host = await Host.findOne({ _id: hostId });
+    const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
+
+    const [agency, host] = await Promise.all([Agency.findOne({ _id: agencyId }).select("_id").lean(), Host.findOne({ _id: hostId, agencyId: agencyId })]);
+
+    if (!agency) {
+      return res.status(200).json({ status: false, message: "Agency not found!" });
+    }
+
+    if (agency.isBlock) {
+      return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
+    }
+
     if (!host) {
       return res.status(200).json({ status: false, message: "Host not found." });
     }

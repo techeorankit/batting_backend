@@ -32,6 +32,7 @@ route.post(
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "photoGallery", maxCount: 10 },
+    { name: "video", maxCount: 1 },
   ]),
   HostController.createHost
 );
@@ -43,12 +44,13 @@ route.patch(
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "photoGallery", maxCount: 10 },
+    { name: "video", maxCount: 1 },
   ]),
   HostController.updateHost
 );
 
-//handle block or not the host
-route.patch("/toggleHostBlockStatus", checkAccessWithSecretKey(), HostController.toggleHostBlockStatus);
+//toggle host status
+route.patch("/toggleHostStatusByType", checkAccessWithSecretKey(), HostController.toggleHostStatusByType);
 
 //get hosts
 route.get("/fetchHostList", checkAccessWithSecretKey(), HostController.fetchHostList);

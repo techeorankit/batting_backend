@@ -3,6 +3,9 @@ const VipPlanPrivilege = require("../../models/vipPlanPrivilege.model");
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
+//fs
+const fs = require("fs");
+
 //update VIP Plan Privilege
 exports.modifyVipPrivilege = async (req, res) => {
   try {

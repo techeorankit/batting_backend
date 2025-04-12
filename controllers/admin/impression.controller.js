@@ -73,6 +73,22 @@ exports.getImpressions = async (req, res) => {
   }
 };
 
+//get all Impressions ( drop - down )
+exports.fetchAdImpressionMetrics = async (req, res) => {
+  try {
+    const [impressions] = await Promise.all([Impression.find().lean()]);
+
+    return res.status(200).json({
+      status: true,
+      message: "Impressions retrieved successfully!",
+      data: impressions,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ status: false, message: error.message || "Internal server error." });
+  }
+};
+
 //delete Impression
 exports.deleteImpression = async (req, res) => {
   try {

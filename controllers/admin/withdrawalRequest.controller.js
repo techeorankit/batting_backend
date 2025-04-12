@@ -2,7 +2,6 @@ const WithdrawalRequest = require("../../models/withdrawalRequest.model");
 
 //import model
 const History = require("../../models/history.model");
-const User = require("../../models/user.model");
 const Agency = require("../../models/agency.model");
 
 //private key
@@ -11,7 +10,7 @@ const admin = require("../../util/privateKey");
 //mongoose
 const mongoose = require("mongoose");
 
-//get withdrawal requests ( users / hosts / agency )
+//get withdrawal requests ( hosts / agency )
 exports.retrievePayoutRequests = async (req, res) => {
   try {
     const { status, person } = req.query;
@@ -54,8 +53,6 @@ exports.retrievePayoutRequests = async (req, res) => {
         personQuery.agencyId = { $ne: null };
       } else if (personValue === 2) {
         personQuery.hostId = { $ne: null };
-      } else if (personValue === 3) {
-        personQuery.userId = { $ne: null };
       }
     }
 
@@ -64,7 +61,6 @@ exports.retrievePayoutRequests = async (req, res) => {
       WithdrawalRequest.find({ ...personQuery, ...statusQuery, ...dateFilterQuery })
         .populate("agencyId", "uniqueId name image")
         .populate("hostId", "uniqueId name image")
-        .populate("userId", "agencyCode name image")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit),
@@ -79,147 +75,6 @@ exports.retrievePayoutRequests = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
-  }
-};
-
-//accept or decline withdrawal requests ( user )
-exports.modifyWithdrawalStatus = async (req, res) => {
-  try {
-    const { requestId, userId, type, reason } = req.query;
-
-    if (!requestId || !userId || !type) {
-      return res.status(200).json({ status: false, message: "Missing required parameters." });
-    }
-
-    const actionType = type.trim().toLowerCase();
-    const dateNow = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-
-    const [request, user] = await Promise.all([
-      WithdrawalRequest.findById(requestId).lean().select("_id userId coin amount status uniqueId"),
-      User.findById(userId).lean().select("_id isBlock fcmToken"),
-    ]);
-
-    if (!request) return res.status(200).json({ status: false, message: "Withdrawal request not found." });
-    if (!user) return res.status(200).json({ status: false, message: "User not found." });
-    if (user.isBlock) return res.status(403).json({ status: false, message: "User is blocked by admin." });
-
-    if (request.status === 2) return res.status(200).json({ status: false, message: "Request already approved." });
-    if (request.status === 3) return res.status(200).json({ status: false, message: "Request already declined." });
-
-    if (actionType === "approve") {
-      const [updateRequest, updateUser, updateHistory] = await Promise.all([
-        WithdrawalRequest.updateOne(
-          { _id: request._id, person: 3, userId: userId },
-          {
-            $set: {
-              status: 2,
-              acceptOrDeclineDate: dateNow,
-            },
-          }
-        ),
-        User.updateOne(
-          { _id: request.userId, coin: { $gt: 0 } },
-          {
-            $inc: {
-              coin: -request.coin,
-              redeemedCoins: request.coin,
-              redeemedAmount: request.amount,
-            },
-          }
-        ),
-        History.updateOne(
-          { uniqueId: request.uniqueId, type: 4, userId: userId },
-          {
-            $set: {
-              payoutStatus: 2,
-              date: dateNow,
-            },
-          }
-        ),
-      ]);
-
-      res.status(200).json({
-        status: true,
-        message: "Withdrawal request approved successfully.",
-        data: updateRequest,
-      });
-
-      if (user.fcmToken) {
-        const payload = {
-          token: user.fcmToken,
-          notification: {
-            title: "🔔 Withdrawal Request Accepted!",
-            body: "Your withdrawal request has been approved and processed. 🎉",
-          },
-          data: { type: "WITHDRAWREQUEST" },
-        };
-
-        const adminInstance = await admin;
-        adminInstance
-          .messaging()
-          .send(payload)
-          .catch((err) => {
-            console.error("FCM error:", err.message);
-          });
-      }
-    } else if (actionType === "reject") {
-      if (!reason) {
-        return res.status(200).json({ status: false, message: "Rejection reason is required." });
-      }
-
-      const [updateRequest, updateHistory] = await Promise.all([
-        WithdrawalRequest.updateOne(
-          { id: request._id, person: 3, userId: userId },
-          {
-            $set: {
-              status: 3,
-              reason: reason.trim(),
-              acceptOrDeclineDate: dateNow,
-            },
-          }
-        ),
-        History.updateOne(
-          { uniqueId: request.uniqueId, type: 4, userId: userId },
-          {
-            $set: {
-              payoutStatus: 3,
-              reason,
-              date: dateNow,
-            },
-          }
-        ),
-      ]);
-
-      res.status(200).json({
-        status: true,
-        message: "Withdrawal request declined.",
-        data: updateRequest,
-      });
-
-      if (user.fcmToken) {
-        const payload = {
-          token: user.fcmToken,
-          notification: {
-            title: "🔔 Withdrawal Request Declined!",
-            body: "Your withdrawal request has been declined. Please contact support.",
-          },
-          data: { type: "WITHDRAWREQUEST" },
-        };
-
-        const adminInstance = await admin;
-        adminInstance
-          .messaging()
-          .send(payload)
-          .catch((err) => {
-            console.error("FCM error:", err.message);
-          });
-      }
-    } else {
-      return res.status(200).json({ status: false, message: "Invalid type. Must be 'approve' or 'reject'." });
-    }
-  } catch (error) {
-    console.error("Error in withdrawal request handler:", error);
-    res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
 

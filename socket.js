@@ -427,7 +427,7 @@ io.on("connection", async (socket) => {
 
     const [callUniqueId, token, caller, receiver] = await Promise.all([
       generateHistoryUniqueId(),
-      RtcTokenBuilder.buildTokenWithUid("6eb91188adba4d819d61f4af0ffcec8b", "1fe5878a76fe439d94fabe415c64e20c", channel, uid, role, privilegeExpiredTs),
+      RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
       User.findById(callerId).select("_id name image isBlock isBusy callId isOnline").lean(),
       Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline").lean(),
     ]);
@@ -591,6 +591,7 @@ io.on("connection", async (socket) => {
   socket.on("callResponseHandled", async (data) => {
     try {
       const parsedData = JSON.parse(data);
+
       const { callerId, receiverId, callId, isAccept, callType, callMode } = parsedData;
       console.log("🟢 [callResponseHandled] Event received:", parsedData);
 
@@ -617,6 +618,7 @@ io.on("connection", async (socket) => {
           console.log(`📵 [callResponseHandled] Call rejected by receiver ${receiver.name}`);
 
           io.to(callerRoom).emit("callRejected", data);
+          io.to(receiverRoom).emit("callRejected", data);
 
           const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
             User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
@@ -764,6 +766,7 @@ io.on("connection", async (socket) => {
           console.log(`📵 [callResponseHandled] Call rejected by receiver ${receiver.name}`);
 
           io.to(callerRoom).emit("callRejected", data);
+          io.to(receiverRoom).emit("callRejected", data);
 
           const [callerUpdate, receiverUpdate, randomCallDeleted] = await Promise.all([
             User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
@@ -1089,8 +1092,6 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("callCoinCharged", async (data) => {
-    console.log("[callCoinCharged] Event Received:", data);
-
     try {
       const parsedData = JSON.parse(data);
       console.log("[callCoinCharged] Parsed Data:", parsedData);
@@ -1124,11 +1125,9 @@ io.on("connection", async (socket) => {
 
         const adminShare = Math.floor((audioCallCharge * adminCommissionRate) / 100);
         const hostEarnings = audioCallCharge - adminShare;
-        const agencyShare = 0;
+        let agencyShare = 0;
 
         if (caller.coin >= audioCallCharge) {
-          console.log(`[callCoinCharged] Deducting ${audioCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
-
           let agencyUpdate = null;
           if (receiver.agencyId) {
             const agency = await Agency.findById(receiver.agencyId).lean().select("_id commissionType commission");
@@ -1153,6 +1152,8 @@ io.on("connection", async (socket) => {
               );
             }
           }
+
+          console.log(`[callCoinCharged] Deducting ${audioCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
 
           await Promise.all([
             User.updateOne(
@@ -1204,11 +1205,9 @@ io.on("connection", async (socket) => {
 
         const adminShare = Math.floor((privateCallCharge * adminCommissionRate) / 100);
         const hostEarnings = privateCallCharge - adminShare;
-        const agencyShare = 0;
+        let agencyShare = 0;
 
         if (caller.coin >= privateCallCharge) {
-          console.log(`[callCoinCharged] Deducting ${privateCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
-
           let agencyUpdate = null;
           if (receiver.agencyId) {
             const agency = await Agency.findById(receiver.agencyId).lean().select("_id commissionType commission");
@@ -1233,6 +1232,8 @@ io.on("connection", async (socket) => {
               );
             }
           }
+
+          console.log(`[callCoinCharged] Deducting ${privateCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
 
           await Promise.all([
             User.updateOne(
@@ -1294,11 +1295,9 @@ io.on("connection", async (socket) => {
 
         const adminShare = Math.floor((randomCallCharge * adminCommissionRate) / 100);
         const hostEarnings = randomCallCharge - adminShare;
-        const agencyShare = 0;
+        let agencyShare = 0;
 
         if (caller.coin >= randomCallCharge) {
-          console.log(`[callCoinCharged] Deducting ${randomCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
-
           let agencyUpdate = null;
           if (receiver.agencyId) {
             const agency = await Agency.findById(receiver.agencyId).lean().select("_id commissionType commission");
@@ -1323,6 +1322,8 @@ io.on("connection", async (socket) => {
               );
             }
           }
+
+          console.log(`[callCoinCharged] Deducting ${randomCallCharge} coins from Caller: ${caller._id}, Admin Share: ${adminShare}, Host Earnings: ${hostEarnings}`);
 
           await Promise.all([
             User.updateOne(
@@ -1378,7 +1379,7 @@ io.on("connection", async (socket) => {
 
     const [callUniqueId, token, caller, receiver] = await Promise.all([
       generateHistoryUniqueId(),
-      RtcTokenBuilder.buildTokenWithUid("6eb91188adba4d819d61f4af0ffcec8b", "1fe5878a76fe439d94fabe415c64e20c", channel, uid, role, privilegeExpiredTs),
+      RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
       User.findById(callerId).select("_id name image isBlock isBusy callId isOnline").lean(),
       Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline").lean(),
     ]);

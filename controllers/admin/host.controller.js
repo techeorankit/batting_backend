@@ -322,6 +322,7 @@ exports.createHost = async (req, res) => {
       impression,
       image: req.files.image ? req.files.image[0].path : "",
       photoGallery: req.files.photoGallery?.map((file) => file.path) || [],
+      video: req.files.video ? req.files.video[0].path : "",
       uniqueId,
       status: 2,
       isFake: true,
@@ -413,6 +414,20 @@ exports.updateHost = async (req, res) => {
       host.photoGallery = updatedPhotoGallery;
     }
 
+    if (req.files.video) {
+      if (host.video) {
+        const videoPath = host.video.includes("storage") ? "storage" + host.video.split("storage")[1] : "";
+        if (videoPath && fs.existsSync(videoPath)) {
+          const videoName = videoPath.split("/").pop();
+          if (!["male.png", "female.png"].includes(videoName)) {
+            fs.unlinkSync(videoPath);
+          }
+        }
+      }
+
+      host.video = req.files.video[0].path;
+    }
+
     await host.save();
 
     return res.status(200).json({
@@ -423,24 +438,26 @@ exports.updateHost = async (req, res) => {
   } catch (error) {
     if (req.files) deleteFiles(req.files);
     console.error("Update Host Error:", error);
-    return res.status(500).json({
-      status: false,
-      message: error.message || "Failed to Update host profile due to server error.",
-    });
+    return res.status(500).json({ status: false, message: error.message || "Failed to Update host profile due to server error." });
   }
 };
 
-//handle block or not the host
-exports.toggleHostBlockStatus = async (req, res) => {
+//toggle host status
+exports.toggleHostStatusByType = async (req, res) => {
   try {
-    const { hostId } = req.query;
+    const { hostId, type } = req.query;
 
-    if (!hostId) {
-      return res.status(200).json({ status: false, message: "Host ID is required!" });
+    if (!hostId || !type) {
+      return res.status(200).json({ status: false, message: "Host ID and type are required!" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(hostId)) {
       return res.status(200).json({ status: false, message: "Invalid hostId format." });
+    }
+
+    const validTypes = ["isBlock", "isBusy", "isLive"];
+    if (!validTypes.includes(type)) {
+      return res.status(200).json({ status: false, message: `Invalid type. Valid types: ${validTypes.join(", ")}` });
     }
 
     const host = await Host.findOne({ _id: hostId });
@@ -448,12 +465,12 @@ exports.toggleHostBlockStatus = async (req, res) => {
       return res.status(200).json({ status: false, message: "Host not found." });
     }
 
-    host.isBlock = !host.isBlock;
+    host[type] = !host[type];
     await host.save();
 
     return res.status(200).json({
       status: true,
-      message: `Host has been ${host.isBlock ? "blocked" : "unblocked"} successfully.`,
+      message: `Host ${type} status has been ${host[type] ? "enabled" : "disabled"} successfully.`,
       data: host,
     });
   } catch (error) {
@@ -510,7 +527,7 @@ exports.fetchHostList = async (req, res) => {
       Host.find(filter)
         .populate("agencyId", "name agencyCode")
         .select(
-          "name gender bio age dob email image impression identityProofType uniqueId isBlock isOnline isBusy isLive countryFlagImage country photoGallery uniqueId randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin totalGifts language"
+          "name gender bio age dob email image video impression identityProofType uniqueId isBlock isOnline isBusy isLive countryFlagImage country photoGallery uniqueId randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin totalGifts language"
         )
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
