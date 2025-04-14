@@ -1167,7 +1167,7 @@ io.on("connection", async (socket) => {
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.updateOne(
-              { userId: caller._id, hostId: receiver._id, callId: callHistory._id },
+              { _id: callHistory._id, userId: caller._id, hostId: receiver._id },
               {
                 $set: {
                   date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
@@ -1247,7 +1247,7 @@ io.on("connection", async (socket) => {
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.updateOne(
-              { userId: caller._id, hostId: receiver._id, callId: callHistory._id },
+              { _id: callHistory._id, userId: caller._id, hostId: receiver._id },
               {
                 $set: {
                   date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
@@ -1337,7 +1337,7 @@ io.on("connection", async (socket) => {
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.updateOne(
-              { userId: caller._id, hostId: receiver._id, callId: callHistory._id },
+              { _id: callHistory._id, userId: caller._id, hostId: receiver._id },
               {
                 $set: {
                   date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
@@ -1366,10 +1366,9 @@ io.on("connection", async (socket) => {
 
   //random video call
   socket.on("ringingStarted", async (data) => {
-    console.log("ringingStarted request received:", data);
-
     const parsedData = JSON.parse(data);
-    const { callerId, receiverId, agoraUID, channel } = parsedData;
+    const { callerId, receiverId, agoraUID, channel, gender } = parsedData;
+    console.log("ringingStarted request received:", parsedData);
 
     const role = RtcRole.PUBLISHER;
     const uid = agoraUID ? agoraUID : 0;
@@ -1488,6 +1487,7 @@ io.on("connection", async (socket) => {
           callMode: "random",
           token,
           channel,
+          gender: gender.trim().toLowerCase(),
         };
 
         io.in("globalRoom:" + receiver._id.toString()).emit("callIncoming", dataOfVideoCall); // Notify receiver

@@ -1,5 +1,6 @@
 const History = require("../../models/history.model");
 const Host = require("../../models/host.model");
+const User = require("../../models/user.model");
 
 const mongoose = require("mongoose");
 
@@ -28,7 +29,8 @@ exports.getCoinTransactionRecords = async (req, res) => {
       };
     }
 
-    const [transactionHistory] = await Promise.all([
+    const [user, transactionHistory] = await Promise.all([
+      User.findOne({ _id: userId }).select("coin").lean(),
       History.aggregate([
         {
           $match: {
@@ -109,6 +111,7 @@ exports.getCoinTransactionRecords = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Transaction history fetch successfully.",
+      userCoin: user?.coin || 0,
       data: transactionHistory,
     });
   } catch (error) {

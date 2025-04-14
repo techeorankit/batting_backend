@@ -7,12 +7,15 @@ const generateAgencyCode = require("../../util/generateAgencyCode");
 const Cryptr = require("cryptr");
 const cryptr = new Cryptr("myTotallySecretKey");
 
+//fs
+const fs = require("fs");
+
 //create agency
 exports.createAgency = async (req, res) => {
   try {
-    const { name, email, commissionType, commission, password, mobileNumber, description, countryFlagImage, country } = req.body;
+    const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country } = req.body;
 
-    if (!name || !email || !commissionType || !commission || !password || !mobileNumber || !req.file || !description || !countryFlagImage || !country) {
+    if (!name || !email || !commissionType || !commission || !password || !countryCode || !mobileNumber || !req.file || !description || !countryFlagImage || !country) {
       return res.status(200).json({ status: false, message: "All fields are required!" });
     }
 
@@ -29,6 +32,7 @@ exports.createAgency = async (req, res) => {
       commissionType,
       commission,
       password: cryptr.encrypt(password),
+      countryCode,
       mobileNumber,
       image: req.file.path,
       description,
@@ -55,7 +59,7 @@ exports.createAgency = async (req, res) => {
 exports.updateAgency = async (req, res) => {
   try {
     const { agencyId } = req.query;
-    const { name, email, commissionType, commission, password, mobileNumber, description, countryFlagImage, country } = req.body;
+    const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country } = req.body;
 
     if (!agencyId) {
       return res.status(200).json({ status: false, message: "Agency ID is required." });
@@ -72,8 +76,9 @@ exports.updateAgency = async (req, res) => {
     }
 
     agency.name = name || agency.name;
-    agency.email = email.trim() || agency.email;
-    agency.password = cryptr.encrypt(password) || agency.password;
+    agency.email = email?.trim() || agency.email;
+    agency.password = password ? cryptr?.encrypt(password) : agency.password;
+    agency.countryCode = countryCode || agency.countryCode;
     agency.mobileNumber = mobileNumber || agency.mobileNumber;
     agency.commissionType = commissionType || agency.commissionType;
     agency.commission = commission || agency.commission;

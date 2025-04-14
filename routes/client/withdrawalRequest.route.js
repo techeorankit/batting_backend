@@ -11,7 +11,7 @@ const WithdrawalRequestController = require("../../controllers/client/withdrawal
 //validate user's access token
 const validateUserToken = require("../../middleware/validateUserToken.middleware");
 
-//withdrawal request ( user )
+//withdrawal request ( host )
 route.post("/submitWithdrawalRequest", validateUserToken, checkAccessWithSecretKey(), WithdrawalRequestController.submitWithdrawalRequest);
 
 module.exports = route;

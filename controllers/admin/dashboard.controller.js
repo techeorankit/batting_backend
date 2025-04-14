@@ -101,7 +101,7 @@ exports.retrieveChartStats = async (req, res) => {
     } else if (type === "host") {
       const data = await Host.aggregate([
         {
-          $match: dateFilterQuery,
+          $match: { ...dateFilterQuery, status: 2 },
         },
         {
           $group: {

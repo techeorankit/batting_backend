@@ -58,7 +58,7 @@ exports.submitWithdrawalRequest = async (req, res) => {
 
     const withdrawalData = {
       uniqueId,
-      person: 3,
+      person: 2,
       hostId: host._id,
       coin: requestedCoins,
       amount: requestAmount,

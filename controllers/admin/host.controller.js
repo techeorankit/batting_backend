@@ -36,9 +36,9 @@ exports.fetchHostRequest = async (req, res) => {
       Host.countDocuments({ ...statusQuery, isFake: false }),
       Host.find({ ...statusQuery, isFake: false })
         .populate("agencyId", "name agencyCode")
+        .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
-        .limit(limit)
-        .sort({ createdAt: -1 }),
+        .limit(limit),
     ]);
 
     return res.status(200).json({
