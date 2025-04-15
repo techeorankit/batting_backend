@@ -75,7 +75,7 @@ exports.submitWithdrawalRequest = async (req, res) => {
       hostId: host._id,
       coin: requestedCoins,
       payoutStatus: 1,
-      type: 4,
+      type: 5,
       date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     };
 

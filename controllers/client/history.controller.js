@@ -153,7 +153,7 @@ exports.retrieveHostCoinHistory = async (req, res) => {
     }
 
     const [host, transactionHistory] = await Promise.all([
-      Host.findOne({ _id: hostId }).select("_id").lean(),
+      Host.findOne({ _id: hostId }).select("_id coin").lean(),
       History.aggregate([
         {
           $match: {
@@ -221,6 +221,7 @@ exports.retrieveHostCoinHistory = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Transaction history fetch successfully.",
+      hostCoin: host?.coin || 0,
       data: transactionHistory,
     });
   } catch (error) {

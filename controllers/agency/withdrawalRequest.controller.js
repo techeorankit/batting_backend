@@ -252,10 +252,6 @@ exports.initiateWithdrawal = async (req, res) => {
       return res.status(200).json({ status: false, message: "Withdrawal settings not found." });
     }
 
-    if (!req.query.hostId) {
-      return res.status(200).json({ status: false, message: "hostId missing or invalid." });
-    }
-
     const { paymentGateway, paymentDetails, coin } = req.body;
 
     if (!paymentGateway || !paymentDetails || !coin) {
