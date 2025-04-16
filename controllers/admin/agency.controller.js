@@ -194,6 +194,7 @@ exports.getAgencies = async (req, res) => {
             commissionType: 1,
             commission: 1,
             agencyCode: 1,
+            countryCode: 1,
             mobileNumber: 1,
             image: 1,
             countryFlagImage: 1,

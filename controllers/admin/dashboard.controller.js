@@ -342,7 +342,12 @@ exports.fetchTopSpenders = async (req, res) => {
     }
 
     const topSpenders = await History.aggregate([
-      { $match: dateFilterQuery },
+      {
+        $match: {
+          ...dateFilterQuery,
+          type: { $in: [2, 3, 9, 10, 11, 12, 13] },
+        },
+      },
       {
         $group: {
           _id: "$userId",

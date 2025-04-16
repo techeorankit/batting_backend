@@ -57,3 +57,9 @@ exports.WITHDRAWAL_PERSON = {
   AGENCY: 1,
   HOST: 2,
 };
+
+exports.NOTIFICATION_PERSON_TYPE = {
+  CUSTOMER: 1,
+  PROVIDER: 2,
+  AGENCY: 3,
+};

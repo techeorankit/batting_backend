@@ -27,6 +27,7 @@ const dailyRewardCoin = require("./dailyRewardCoin.route");
 const liveBroadcastHistory = require("./liveBroadcastHistory.route");
 const currency = require("./currency.route");
 const withdrawalRequest = require("./withdrawalRequest.route");
+const notification = require("./notification.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
@@ -50,5 +51,6 @@ route.use("/dailyRewardCoin", validateAdminToken, dailyRewardCoin);
 route.use("/liveBroadcastHistory", validateAdminToken, liveBroadcastHistory);
 route.use("/currency", validateAdminToken, currency);
 route.use("/withdrawalRequest", validateAdminToken, withdrawalRequest);
+route.use("/notification", validateAdminToken, notification);
 
 module.exports = route;
