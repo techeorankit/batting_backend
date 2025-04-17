@@ -17,7 +17,7 @@ const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 //get withdrawal requests ( hosts / agency )
 exports.fetchPayoutRequests = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
@@ -27,7 +27,7 @@ exports.fetchPayoutRequests = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid query parameters." });
     }
 
-    const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyId = new mongoose.Types.ObjectId(req.agency._id);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
@@ -244,7 +244,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
 //submit withdrawal request ( agency )
 exports.initiateWithdrawal = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
@@ -258,7 +258,7 @@ exports.initiateWithdrawal = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid request. Please provide all required fields." });
     }
 
-    const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyId = new mongoose.Types.ObjectId(req.agency._id);
     const formattedGateway = paymentGateway.trim();
     const requestedCoins = Number(coin);
     const requestAmount = parseFloat(requestedCoins / settingJSON.minCoinsToConvert).toFixed(2);

@@ -11,7 +11,7 @@ const mongoose = require("mongoose");
 //get host requests
 exports.fetchHostRequestsByAgency = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
@@ -22,7 +22,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
     const status = parseInt(req.query.status);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
-    const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyId = new mongoose.Types.ObjectId(req.agency._id);
 
     const [agency, totalHosts, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId }).lean(),
@@ -58,7 +58,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
 //accept Or decline host request
 exports.manageHostRequest = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
@@ -72,7 +72,7 @@ exports.manageHostRequest = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid details provided." });
     }
 
-    const agencyObjectId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyObjectId = new mongoose.Types.ObjectId(req.agency._id);
     const hostObjectId = new mongoose.Types.ObjectId(requestId);
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const statusNumber = Number(status);
@@ -175,14 +175,14 @@ exports.manageHostRequest = async (req, res) => {
 //get hosts
 exports.retrieveAgencyHosts = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyId = new mongoose.Types.ObjectId(req.agency._id);
 
     const [agency, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId }).select("_id").lean(),
@@ -216,7 +216,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
 //handle block or not the host
 exports.modifyHostBlockStatus = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
@@ -230,7 +230,7 @@ exports.modifyHostBlockStatus = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid hostId format." });
     }
 
-    const agencyId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyId = new mongoose.Types.ObjectId(req.agency._id);
 
     const [agency, host] = await Promise.all([Agency.findOne({ _id: agencyId }).select("_id").lean(), Host.findOne({ _id: hostId, agencyId: agencyId })]);
 

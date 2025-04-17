@@ -10,7 +10,7 @@ const mongoose = require("mongoose");
 //agency login
 exports.loginAgency = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.query;
 
     if (!email || !password) {
       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
@@ -39,13 +39,13 @@ exports.loginAgency = async (req, res) => {
 //update agency
 exports.modifyAgency = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
     const { name, email, commissionType, commission, password, mobileNumber, description, countryFlagImage, country } = req.body;
 
-    const agencyObjectId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyObjectId = new mongoose.Types.ObjectId(req.agency._id);
 
     const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim() }) : null, Agency.findById(agencyObjectId)]);
 
@@ -98,17 +98,19 @@ exports.modifyAgency = async (req, res) => {
 //get agency profile
 exports.getAgencyProfile = async (req, res) => {
   try {
-    if (!req.agency || !req.agency.agencyId) {
+    if (!req.agency || !req.agency._id) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
-    const agencyObjectId = new mongoose.Types.ObjectId(req.agency.agencyId);
+    const agencyObjectId = new mongoose.Types.ObjectId(req.agency._id);
 
     const agency = await Agency.findById(agencyObjectId).lean();
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found." });
     }
+
+    agency.password = cryptr.decrypt(agency.password);
 
     return res.status(200).json({
       status: true,

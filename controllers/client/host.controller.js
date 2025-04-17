@@ -17,6 +17,9 @@ const admin = require("../../util/privateKey");
 //mongoose
 const mongoose = require("mongoose");
 
+//fs
+const fs = require("fs");
+
 //get impression list
 exports.getPersonalityImpressions = async (req, res) => {
   try {

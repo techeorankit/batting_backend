@@ -50,7 +50,7 @@ io.on("connection", async (socket) => {
     if (user) {
       await User.findByIdAndUpdate(user._id, { $set: { isOnline: true } }, { new: true });
     } else {
-      const host = await Host.findById(id).select("_id isOnline").lean();
+      const host = await Host.findOne({ _id: id, status: 2 }).select("_id isOnline").lean();
 
       if (host) {
         await Host.findByIdAndUpdate(host._id, { $set: { isOnline: true } }, { new: true });
