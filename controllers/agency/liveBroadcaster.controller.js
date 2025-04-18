@@ -19,7 +19,6 @@ exports.getLiveHosts = async (req, res) => {
       LiveBroadcaster.aggregate([
         {
           $match: {
-            ...dateFilterQuery,
             hostId: { $ne: null },
           },
         },
@@ -55,7 +54,6 @@ exports.getLiveHosts = async (req, res) => {
       LiveBroadcaster.aggregate([
         {
           $match: {
-            ...dateFilterQuery,
             hostId: { $ne: null },
           },
         },

@@ -38,7 +38,7 @@ exports.HostStreaming = async (req, res) => {
     const privilegeExpiredTs = Math.floor(Date.now() / 1000) + expirationTimeInSeconds;
 
     const [host, token] = await Promise.all([
-      Host.findById(hostObjectId).select("name gender image countryFlagImage country isFake isBlock").lean(),
+      Host.findById(hostObjectId).select("userId name gender image countryFlagImage country isFake isBlock").lean(),
       RtcTokenBuilder.buildTokenWithUid(settingJSON.agoraAppId, settingJSON.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
       LiveBroadcaster.deleteOne({ hostId: hostObjectId }),
     ]);
@@ -59,6 +59,7 @@ exports.HostStreaming = async (req, res) => {
     const liveBroadcaster = new LiveBroadcaster({
       liveHistoryId: liveHistory._id,
       hostId: host._id,
+      userId: host.userId,
       name: host.name,
       gender: host.gender,
       image: host.image,

@@ -27,15 +27,15 @@ module.exports = {
   "maxFreeChatMessages": 1,
   "privateKey": {},
   "createdAt": "2025-03-17T09:22:56.775Z",
-  "updatedAt": "2025-04-16T12:27:34.783Z",
+  "updatedAt": "2025-04-18T13:33:13.244Z",
   "adminCommissionRate": 1,
   "agoraAppCertificate": "85576174fc0b469d84f00c9e4875edcb",
   "agoraAppId": "f3f9337c8da0404ba8f9cb1c5549c024",
-  "audioPrivateCallRate": 10,
-  "chatInteractionRate": 1,
+  "audioPrivateCallRate": 15,
+  "chatInteractionRate": 5,
   "femaleRandomCallRate": 0,
-  "generalRandomCallRate": 10,
+  "generalRandomCallRate": 15,
   "isAppEnabled": false,
-  "maleRandomCallRate": 10,
-  "videoPrivateCallRate": 20
+  "maleRandomCallRate": 15,
+  "videoPrivateCallRate": 25
 };

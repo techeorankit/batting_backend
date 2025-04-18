@@ -4,6 +4,7 @@ const Host = require("../../models/host.model");
 const Agency = require("../../models/agency.model");
 const Impression = require("../../models/impression.model");
 const History = require("../../models/history.model");
+const LiveBroadcaster = require("../../models/liveBroadcaster.model");
 
 //deleteFiles
 const { deleteFiles } = require("../../util/deletefile");
@@ -172,7 +173,7 @@ exports.retrieveHosts = async (req, res) => {
     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
     const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
 
-    const [fakeHost, host, followedHost] = await Promise.all([
+    const [fakeHost, host, followedHost, liveHost] = await Promise.all([
       Host.aggregate([
         { $match: fakeMatchQuery },
         {
@@ -203,6 +204,9 @@ exports.retrieveHosts = async (req, res) => {
               },
             },
             privateCallRate: 0,
+            liveHistoryId: "",
+            token: "",
+            channel: "",
           },
         },
         {
@@ -215,6 +219,10 @@ exports.retrieveHosts = async (req, res) => {
             privateCallRate: 1,
             isFake: 1,
             status: 1,
+            video: 1,
+            liveHistoryId: 1,
+            token: 1,
+            channel: 1,
           },
         },
       ]),
@@ -331,12 +339,34 @@ exports.retrieveHosts = async (req, res) => {
           },
         },
       ]),
+      LiveBroadcaster.aggregate([
+        {
+          $match: {
+            userId: { $ne: userId },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            countryFlagImage: 1,
+            country: 1,
+            image: 1,
+            isFake: 1,
+            liveHistoryId: 1,
+            channel: 1,
+            token: 1,
+            view: 1,
+          },
+        },
+      ]),
     ]);
 
     return res.status(200).json({
       status: true,
       message: "Hosts list retrieved successfully.",
       followedHost,
+      liveHost,
       hosts: settingJSON.isDemoData ? [...fakeHost, ...host] : host,
     });
   } catch (error) {

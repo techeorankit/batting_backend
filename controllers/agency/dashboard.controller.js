@@ -312,45 +312,63 @@ exports.getEarningsReport = async (req, res) => {
 
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
+    const type = req?.query?.type?.trim().toLowerCase();
 
-    let dateFilterQuery = { agencyId: agencyObjectId };
+    let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
       const formatStartDate = new Date(startDate);
       const formatEndDate = new Date(endDate);
       formatEndDate.setHours(23, 59, 59, 999);
 
-      dateFilterQuery.createdAt = {
-        $gte: formatStartDate,
-        $lte: formatEndDate,
+      dateFilterQuery = {
+        createdAt: {
+          $gte: formatStartDate,
+          $lte: formatEndDate,
+        },
       };
     }
 
-    const earnings = await History.aggregate([
-      {
-        $match: {
-          ...dateFilterQuery,
-          agencyId: agencyObjectId,
-          type: { $in: [2, 3, 9, 10, 11, 12, 13] },
+    if (type === "agencyearning") {
+      const agencyEarnings = await History.aggregate([
+        {
+          $match: {
+            ...dateFilterQuery,
+            agencyId: agencyObjectId,
+            type: { $in: [2, 3, 9, 10, 11, 12, 13] },
+          },
         },
-      },
-      {
-        $group: {
-          _id: null,
-          totalAgencyEarnings: { $sum: "$agencyCoin" },
-          totalAgencyUnderHostsEarning: { $sum: "$hostCoin" },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            totalAgencyEarnings: { $sum: "$agencyCoin" },
+          },
         },
-      },
-    ]);
+        { $sort: { _id: 1 } },
+      ]);
 
-    const totalAgencyEarnings = agencyHostEarnings.length > 0 ? agencyHostEarnings[0].totalAgencyEarnings : 0;
-    const totalAgencyUnderHostsEarning = agencyHostEarnings.length > 0 ? agencyHostEarnings[0].totalAgencyUnderHostsEarning : 0;
+      return res.status(200).json({ status: true, message: "Success", agencyEarnings });
+    } else if (type === "hostearning") {
+      const hostEarnings = await History.aggregate([
+        {
+          $match: {
+            ...dateFilterQuery,
+            agencyId: agencyObjectId,
+            type: { $in: [2, 3, 9, 10, 11, 12, 13] },
+          },
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            totalHostEarnings: { $sum: "$hostCoin" },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
 
-    return res.status(200).json({
-      status: true,
-      message: "Fetched agency earnings date-wise.",
-      totalAgencyEarnings,
-      totalAgencyUnderHostsEarning,
-    });
+      return res.status(200).json({ status: true, message: "Success", hostEarnings });
+    } else {
+      return res.status(200).json({ status: false, message: "Invalid type passed. Must be one of agencyearning, hostearning." });
+    }
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });

@@ -105,7 +105,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
     if (actionType === "approve") {
       const [updateRequest, updateAgency] = await Promise.all([
         WithdrawalRequest.updateOne(
-          { id: request._id, person: 1, agencyId: agencyId },
+          { _id: request._id, person: 1, agencyId: agencyId },
           {
             $set: {
               status: 2,
@@ -128,7 +128,6 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
       res.status(200).json({
         status: true,
         message: "Withdrawal request approved successfully.",
-        data: updateRequest,
       });
 
       if (agency.fcmToken) {
@@ -180,7 +179,6 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
       res.status(200).json({
         status: true,
         message: "Withdrawal request declined.",
-        data: updateRequest,
       });
 
       if (agency.fcmToken) {
