@@ -12,7 +12,7 @@ const withdrawalRequestSchema = new mongoose.Schema(
     coin: { type: Number, default: 0 },
     amount: { type: Number, default: 0 },
     paymentGateway: { type: String, default: "" },
-    paymentDetails: { type: Array, default: [] },
+    paymentDetails: { type: mongoose.Schema.Types.Mixed, default: {} },
     reason: { type: String, default: "" },
     requestDate: { type: String, default: "" },
     acceptOrDeclineDate: { type: String, default: "" },

@@ -300,9 +300,7 @@ exports.initiateWithdrawal = async (req, res) => {
       coin: requestedCoins,
       amount: requestAmount,
       paymentGateway: formattedGateway,
-      paymentDetails: Array.isArray(paymentDetails)
-        ? paymentDetails.map((detail) => (typeof detail === "object" ? JSON.stringify(detail) : detail))
-        : [typeof paymentDetails === "object" ? JSON.stringify(paymentDetails) : paymentDetails],
+      paymentDetails: paymentDetails,
       requestDate: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     };
 
