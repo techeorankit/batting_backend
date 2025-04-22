@@ -172,8 +172,16 @@ exports.getAgencies = async (req, res) => {
         {
           $lookup: {
             from: "hosts",
-            localField: "_id",
-            foreignField: "agencyId",
+            let: { agencyId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [{ $eq: ["$agencyId", "$$agencyId"] }, { $eq: ["$status", 2] }, { $eq: ["$isFake", false] }],
+                  },
+                },
+              },
+            ],
             as: "hosts",
           },
         },

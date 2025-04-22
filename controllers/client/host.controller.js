@@ -173,7 +173,7 @@ exports.retrieveHosts = async (req, res) => {
     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
     const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
 
-    const [fakeHost, host, followedHost, liveHost] = await Promise.all([
+    const [fakeHost, host, followedHost, liveHost, fakeLiveHost] = await Promise.all([
       Host.aggregate([
         { $match: fakeMatchQuery },
         {
@@ -346,8 +346,14 @@ exports.retrieveHosts = async (req, res) => {
           },
         },
         {
+          $addFields: {
+            video: "",
+          },
+        },
+        {
           $project: {
             _id: 1,
+            hostId: 1,
             name: 1,
             countryFlagImage: 1,
             country: 1,
@@ -357,6 +363,26 @@ exports.retrieveHosts = async (req, res) => {
             channel: 1,
             token: 1,
             view: 1,
+            video: 1,
+          },
+        },
+      ]),
+      Host.aggregate([
+        { $match: { isFake: true, isBlock: false, isLive: true, video: { $ne: "" }, userId: { $ne: userId } } },
+        {
+          $project: {
+            _id: 1,
+            hostId: "$_id",
+            name: 1,
+            countryFlagImage: 1,
+            country: 1,
+            image: 1,
+            isFake: 1,
+            liveHistoryId: 1,
+            channel: 1,
+            token: 1,
+            view: 1,
+            video: 1,
           },
         },
       ]),
@@ -366,7 +392,7 @@ exports.retrieveHosts = async (req, res) => {
       status: true,
       message: "Hosts list retrieved successfully.",
       followedHost,
-      liveHost,
+      liveHost: settingJSON.isDemoData ? [...fakeLiveHost, ...liveHost] : liveHost,
       hosts: settingJSON.isDemoData ? [...fakeHost, ...host] : host,
     });
   } catch (error) {

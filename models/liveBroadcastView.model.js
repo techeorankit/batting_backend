@@ -7,7 +7,7 @@ const liveBroadcastViewSchema = new mongoose.Schema(
     image: { type: String, default: "" },
     countryFlagImage: { type: String, default: "" },
     country: { type: String, trim: true, lowercase: true, default: "" },
-    hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     liveHistoryId: { type: mongoose.Schema.Types.ObjectId, ref: "LiveBroadcastHistory", default: null },
   },
   {
@@ -16,7 +16,7 @@ const liveBroadcastViewSchema = new mongoose.Schema(
   }
 );
 
-liveBroadcastViewSchema.index({ hostId: 1 });
+liveBroadcastViewSchema.index({ userId: 1 });
 liveBroadcastViewSchema.index({ liveHistoryId: 1 });
 
 module.exports = mongoose.model("LiveBroadcastView", liveBroadcastViewSchema);

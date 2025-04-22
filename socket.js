@@ -1571,20 +1571,22 @@ io.on("connection", async (socket) => {
     const dataOfaddView = JSON.parse(data);
     console.log("[liveJoinerCount] Received data:", dataOfaddView);
 
-    const { hostId, liveHistoryId } = dataOfaddView;
+    const { userId, liveHistoryId } = dataOfaddView;
 
-    const [host, liveUser, existLiveView] = await Promise.all([
-      Host.findById(hostId).select("_id name image gender countryFlagImage country").lean(),
+    const [user, liveUser, existLiveView] = await Promise.all([
+      User.findById(userId).select("_id name image gender countryFlagImage country").lean(),
       LiveBroadcaster.findOne({ liveHistoryId }).select("view").lean(),
-      LiveBroadcastView.findOne({ hostId, liveHistoryId }).lean(),
+      LiveBroadcastView.findOne({ userId, liveHistoryId }).lean(),
     ]);
 
-    if (!host) {
-      console.log(`[liveJoinerCount] Host not found.`);
+    if (!user) {
+      console.log(`[liveJoinerCount] User not found.`);
+      return;
     }
 
     if (!liveUser) {
       console.log(`[liveJoinerCount] LiveUser not found.`);
+      return;
     }
 
     if (!socket.rooms.has(liveHistoryId)) {
@@ -1598,9 +1600,9 @@ io.on("connection", async (socket) => {
       console.log("[liveJoinerCount] Creating new LiveView entry");
 
       await LiveBroadcastView.create({
-        hostId,
+        userId,
         liveHistoryId,
-        ...host,
+        ...user,
       });
     }
 
@@ -1611,7 +1613,7 @@ io.on("connection", async (socket) => {
 
     await Promise.all([
       LiveBroadcaster.updateOne(
-        { _id: liveUser._id },
+        { _id: liveUser?._id },
         {
           $set: { view: totalViews },
         }
@@ -1630,12 +1632,13 @@ io.on("connection", async (socket) => {
       const dataOflessView = JSON.parse(data);
       console.log("[removeLiveJoiner] Received data:", dataOflessView);
 
-      const { hostId, liveHistoryId } = dataOflessView;
+      const { userId, liveHistoryId } = dataOflessView;
 
-      const [liveUser, existLiveView] = await Promise.all([LiveBroadcaster.findOne({ liveHistoryId }).select("_id view").lean(), LiveBroadcastView.findOne({ hostId, liveHistoryId }).lean()]);
+      const [liveUser, existLiveView] = await Promise.all([LiveBroadcaster.findOne({ liveHistoryId }).select("_id view").lean(), LiveBroadcastView.findOne({ userId, liveHistoryId }).lean()]);
 
       if (!liveUser) {
         console.log(`[removeLiveJoiner] LiveUser not found.`);
+        return;
       }
 
       if (existLiveView) {
@@ -1727,7 +1730,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const giftCount = giftData.giftCount;
+      const giftCount = Number(giftData.giftCount);
       const coinPerGift = Math.abs(gift.coin);
       const totalCoin = coinPerGift * giftCount;
 
@@ -1739,8 +1742,9 @@ io.on("connection", async (socket) => {
 
       io.in(giftData.liveHistoryId).emit("liveGiftReceived", giftData);
 
-      let adminShare = (totalGiftCost * adminCommissionRate) / 100;
-      let hostEarnings = totalGiftCost - adminShare;
+      const adminCommissionRate = settingJSON.adminCommissionRate || 10;
+      let adminShare = (totalCoin * adminCommissionRate) / 100;
+      let hostEarnings = totalCoin - adminShare;
       let agencyShare = 0;
 
       let agencyUpdate = null;
@@ -1809,6 +1813,7 @@ io.on("connection", async (socket) => {
     } catch (error) {
       console.error("Error in liveGiftSent:", error);
       io.in(giftData.liveHistoryId).emit("liveGiftReceived", { error: "An error occurred while processing the gift." });
+      return;
     }
   });
 
@@ -1819,12 +1824,12 @@ io.on("connection", async (socket) => {
 
       const { hostId, liveHistoryId } = parsedData;
 
-      io.in(liveHistoryId).emit("liveStreamEnd", parsedData);
+      io.in(liveHistoryId).emit("liveStreamEnd", data);
 
       const [host, liveUser, liveHistory] = await Promise.all([
         Host.findOne({ liveHistoryId }).select("_id isLive isBusy liveHistoryId").lean(),
         LiveBroadcaster.findOne({ hostId, liveHistoryId }).select("_id hostId liveHistoryId isAudio").lean(),
-        LiveBroadcastView.findById(liveHistoryId).select("_id startTime endTime duration").lean(),
+        LiveBroadcastHistory.findById(liveHistoryId).select("_id startTime endTime duration").lean(),
       ]);
 
       if (!host) {
@@ -1844,7 +1849,7 @@ io.on("connection", async (socket) => {
 
       if (host.isLive) {
         const endTime = moment().tz("Asia/Kolkata").format();
-        const start = moment.tz(liveHistory.callStartTime, "Asia/Kolkata");
+        const start = moment.tz(liveHistory.startTime, "Asia/Kolkata");
         const end = moment.tz(endTime, "Asia/Kolkata");
         const duration = moment.utc(end.diff(start)).format("HH:mm:ss");
 
@@ -1885,7 +1890,7 @@ io.on("connection", async (socket) => {
         const personId = new mongoose.Types.ObjectId(id);
         console.log(`🔍 Fetching data for Id: ${personId}`);
 
-        const host = await Host.findById(personId).select("_id callId").lean();
+        const host = await Host.findById(personId).select("_id callId isLive liveHistoryId").lean();
         if (host) {
           if (host.callId && host.callId !== null) {
             const callId = new mongoose.Types.ObjectId(host.callId);
@@ -1923,6 +1928,29 @@ io.on("connection", async (socket) => {
                 ),
               ]);
             }
+          }
+
+          if (host.isLive && host.liveHistoryId) {
+            const liveHistoryId = new mongoose.Types.ObjectId(host.liveHistoryId);
+            console.log(`📴 Live session ended for host. Live History ID: ${liveHistoryId}`);
+
+            const liveHistory = await LiveBroadcastHistory.findById(liveHistoryId).select("startTime").lean();
+
+            const endTime = moment().tz("Asia/Kolkata").format();
+            const start = moment.tz(liveHistory.startTime, "Asia/Kolkata");
+            const end = moment.tz(endTime, "Asia/Kolkata");
+            const duration = moment.utc(end.diff(start)).format("HH:mm:ss");
+
+            await Promise.all([
+              LiveBroadcastHistory.updateOne({ _id: liveHistory._id }, { $set: { endTime, duration } }),
+              Host.updateOne({ _id: host._id }, { $set: { isLive: false, isBusy: false, liveHistoryId: null } }),
+              LiveBroadcastView.deleteMany({ liveHistoryId }),
+              LiveBroadcaster.deleteOne({ hostId: personId, liveHistoryId }),
+            ]);
+
+            console.log(`✅ Host is no longer live.`);
+            console.log("✅ Related liveViews deleted.");
+            console.log(`✅ LiveBroadcaster entry deleted for hostId: ${hostId}`);
           }
         } else {
           const user = await User.findById(personId).select("_id callId").lean();

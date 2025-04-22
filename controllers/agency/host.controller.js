@@ -28,7 +28,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
       Agency.findOne({ _id: agencyId }).lean(),
       Host.countDocuments({ agencyId: agencyId, status: status, isBlock: false, isFake: false }),
       Host.find({ agencyId: agencyId, status: status, isBlock: false, isFake: false })
-        .select("_id name gender image impression identityProofType uniqueId isOnline isBusy isLive")
+        .select("_id name gender image photoGallery impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId")
         .skip((start - 1) * limit)
         .limit(limit)
         .sort({ createdAt: -1 })
@@ -186,8 +186,8 @@ exports.retrieveAgencyHosts = async (req, res) => {
 
     const [agency, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId }).select("_id").lean(),
-      Host.find({ agency: agencyId, status: 2, isFake: false })
-        .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive")
+      Host.find({ agencyId: agencyId, status: 2, isFake: false })
+        .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive coin totalGifts")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)

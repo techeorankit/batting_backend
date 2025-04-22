@@ -224,6 +224,7 @@ exports.listAgencyHosts = async (req, res) => {
       return res.status(200).json({ status: false, message: "agencyId must be needed." });
     }
 
+    const agencyId = new mongoose.Types.ObjectId(req.query.agencyId);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
@@ -255,12 +256,10 @@ exports.listAgencyHosts = async (req, res) => {
     let baseQuery = {
       ...dateFilterQuery,
       ...searchQuery,
-      agency: agencyId,
+      agencyId: agencyId,
       status: 2,
       isFake: false,
     };
-
-    const agencyId = new mongoose.Types.ObjectId(req.query.agencyId);
 
     const [agency, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId, isBlock: false }).lean(),

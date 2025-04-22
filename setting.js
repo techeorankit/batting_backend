@@ -1,4 +1,5 @@
 module.exports = {
+  "_id": "67d7e9f0ccd4e02f7ee3dba3",
   "currency": {
     "name": "Bitcoin",
     "symbol": "BTC",
@@ -6,8 +7,7 @@ module.exports = {
     "currencyCode": "USD",
     "isDefault": true
   },
-  "_id": "67d7e9f0ccd4e02f7ee3dba3",
-  "privacyPolicyLink": "PRIVACY POLICY LINK",
+  "privacyPolicyLink": "<h2>Add Privacy Policy </h2><h2><br></h2><ul><li>dfjdgoifjitrytytryio</li></ul><ol><li>grtytyttyty</li><li>2dsssds</li><li><strong>dsdsdsdsds</strong></li></ol>",
   "termsOfUsePolicyLink": "TERMS OF USE POLICY LINK",
   "googlePlayEnabled": false,
   "stripeEnabled": false,
@@ -26,8 +26,6 @@ module.exports = {
   "minCoinsForAgencyPayout": 10,
   "maxFreeChatMessages": 1,
   "privateKey": {},
-  "createdAt": "2025-03-17T09:22:56.775Z",
-  "updatedAt": "2025-04-18T13:33:13.244Z",
   "adminCommissionRate": 1,
   "agoraAppCertificate": "85576174fc0b469d84f00c9e4875edcb",
   "agoraAppId": "f3f9337c8da0404ba8f9cb1c5549c024",
@@ -37,5 +35,7 @@ module.exports = {
   "generalRandomCallRate": 15,
   "isAppEnabled": false,
   "maleRandomCallRate": 15,
-  "videoPrivateCallRate": 25
+  "videoPrivateCallRate": 25,
+  "createdAt": "2025-03-17T09:22:56.775Z",
+  "updatedAt": "2025-04-21T08:48:18.937Z"
 };
