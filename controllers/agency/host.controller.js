@@ -187,7 +187,6 @@ exports.retrieveAgencyHosts = async (req, res) => {
     const [agency, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId }).select("_id").lean(),
       Host.find({ agencyId: agencyId, status: 2, isFake: false })
-        .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive coin totalGifts")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)

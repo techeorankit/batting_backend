@@ -77,7 +77,8 @@ exports.fetchPayoutRequests = async (req, res) => {
         })
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
     ]);
 
     if (!agency) {

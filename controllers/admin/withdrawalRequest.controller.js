@@ -63,7 +63,8 @@ exports.retrievePayoutRequests = async (req, res) => {
         .populate("hostId", "uniqueId name image")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
     ]);
 
     return res.status(200).json({
