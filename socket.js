@@ -276,7 +276,7 @@ io.on("connection", async (socket) => {
     const giftPrice = gift?.coin || 0;
     const giftCount = parseData?.giftCount || 1;
     const totalGiftCost = giftPrice * giftCount;
-    const adminCommissionRate = settingJSON.adminCommissionRate || 10;
+    const adminCommissionRate = settingJSON.adminCommissionRate;
 
     if (sender?.coin < totalGiftCost) {
       console.log("❌ Insufficient coins, gift not sent.");
@@ -1111,8 +1111,8 @@ io.on("connection", async (socket) => {
       }
 
       if (callMode === "private" && callHistory.callType === "audio") {
-        const adminCommissionRate = settingJSON?.adminCommissionRate || 10;
-        let audioCallCharge = Math.abs(receiver.audioCallRate) || 100;
+        const adminCommissionRate = settingJSON?.adminCommissionRate;
+        let audioCallCharge = Math.abs(receiver.audioCallRate);
         let audioCallDiscount = 0;
 
         // Check if user is VIP and apply discount
@@ -1191,8 +1191,8 @@ io.on("connection", async (socket) => {
       }
 
       if (callMode === "private" && callHistory.callType === "video" && callHistory.isPrivate) {
-        const adminCommissionRate = settingJSON?.adminCommissionRate || 10;
-        let privateCallCharge = Math.abs(receiver.privateCallRate) || 100;
+        const adminCommissionRate = settingJSON?.adminCommissionRate;
+        let privateCallCharge = Math.abs(receiver.privateCallRate);
         let privateCallDiscount = 0;
 
         // Check if user is VIP and apply discount
@@ -1275,9 +1275,9 @@ io.on("connection", async (socket) => {
 
         let randomCallCharge;
         if (genderQuery === "female") {
-          randomCallCharge = Math.abs(receiver.randomCallFemaleRate) || 100;
+          randomCallCharge = Math.abs(receiver.randomCallFemaleRate);
         } else if (genderQuery === "male") {
-          randomCallCharge = Math.abs(receiver.randomCallMaleRate) || 100;
+          randomCallCharge = Math.abs(receiver.randomCallMaleRate);
         } else {
           randomCallCharge = Math.abs(receiver.randomCallRate) || 100;
         }
@@ -1291,7 +1291,7 @@ io.on("connection", async (socket) => {
           randomCallCharge = randomCallCharge - discountAmount;
         }
 
-        const adminCommissionRate = settingJSON?.adminCommissionRate || 10;
+        const adminCommissionRate = settingJSON?.adminCommissionRate;
 
         const adminShare = Math.floor((randomCallCharge * adminCommissionRate) / 100);
         const hostEarnings = randomCallCharge - adminShare;
@@ -1742,7 +1742,7 @@ io.on("connection", async (socket) => {
 
       io.in(giftData.liveHistoryId).emit("liveGiftReceived", giftData);
 
-      const adminCommissionRate = settingJSON.adminCommissionRate || 10;
+      const adminCommissionRate = settingJSON.adminCommissionRate;
       let adminShare = (totalCoin * adminCommissionRate) / 100;
       let hostEarnings = totalCoin - adminShare;
       let agencyShare = 0;

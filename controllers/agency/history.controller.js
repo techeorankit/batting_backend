@@ -98,21 +98,6 @@ exports.getCoinTransactions = async (req, res) => {
             payoutStatus: 1,
             createdAt: 1,
             senderName: { $ifNull: ["$sender.name", ""] },
-            isIncome: {
-              $cond: {
-                if: { $in: ["$type", [1, 6, 7, 8]] },
-                then: true,
-                else: {
-                  $cond: {
-                    if: {
-                      $or: [{ $in: ["$type", [2, 3, 10, 11, 12, 13]] }, { $and: [{ $eq: ["$type", 4] }, { $eq: ["$payoutStatus", 2] }] }],
-                    },
-                    then: false,
-                    else: false,
-                  },
-                },
-              },
-            },
           },
         },
         { $sort: { createdAt: -1 } },
