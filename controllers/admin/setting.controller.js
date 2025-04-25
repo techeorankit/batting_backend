@@ -29,7 +29,6 @@ exports.updateSetting = async (req, res) => {
     setting.loginBonus = req.body.loginBonus ? Number(req.body.loginBonus) : setting.loginBonus;
     setting.adminCommissionRate = req.body.adminCommissionRate ? Number(req.body.adminCommissionRate) : setting.adminCommissionRate;
     setting.minCoinsToConvert = req.body.minCoinsToConvert ? Number(req.body.minCoinsToConvert) : setting.minCoinsToConvert;
-    setting.minCoinsForUserPayout = req.body.minCoinsForUserPayout ? Number(req.body.minCoinsForUserPayout) : setting.minCoinsForUserPayout;
     setting.minCoinsForHostPayout = req.body.minCoinsForHostPayout ? Number(req.body.minCoinsForHostPayout) : setting.minCoinsForHostPayout;
     setting.minCoinsForAgencyPayout = req.body.minCoinsForAgencyPayout ? Number(req.body.minCoinsForAgencyPayout) : setting.minCoinsForAgencyPayout;
     setting.maxFreeChatMessages = req.body.maxFreeChatMessages ? Number(req.body.maxFreeChatMessages) : setting.maxFreeChatMessages;
@@ -49,7 +48,7 @@ exports.updateSetting = async (req, res) => {
       message: "Setting has been Updated.",
       data: setting,
     });
-
+    
     await Host.updateMany(
       {},
       {

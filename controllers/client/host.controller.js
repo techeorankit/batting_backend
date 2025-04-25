@@ -422,14 +422,16 @@ exports.fetchHostInfo = async (req, res) => {
         {
           $group: {
             _id: "$giftId",
-            totalReceived: { $sum: "$giftCount" }, // Sum total gift count for each gift
-            lastReceivedAt: { $max: "$createdAt" }, // Get the latest received time
+            totalReceived: { $sum: "$giftCount" },
+            lastReceivedAt: { $max: "$createdAt" },
+            giftCoin: { $first: "$giftCoin" },
+            giftImage: { $first: "$giftImage" },
           },
         },
         {
           $project: {
             giftId: "$_id",
-            giftCoin: "$hostCoin",
+            giftCoin: { $ifNull: ["$giftCoin", 0] },
             giftImage: 1,
             totalReceived: 1,
             lastReceivedAt: 1,
