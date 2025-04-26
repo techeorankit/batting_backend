@@ -5,6 +5,7 @@ const Agency = require("../../models/agency.model");
 const Impression = require("../../models/impression.model");
 const History = require("../../models/history.model");
 const LiveBroadcaster = require("../../models/liveBroadcaster.model");
+const Block = require("../../models/block.model");
 
 //deleteFiles
 const { deleteFiles } = require("../../util/deletefile");
@@ -170,8 +171,15 @@ exports.retrieveHosts = async (req, res) => {
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
 
-    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
-    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
+    const blockedHosts = await Block.find({ userId, blockedBy: "user" }).distinct("hostId");
+
+    const fakeMatchQuery = isGlobal
+      ? { isFake: true, isBlock: false, userId: { $ne: userId }, _id: { $nin: blockedHosts } }
+      : { country: country, isFake: true, isBlock: false, userId: { $ne: userId }, _id: { $nin: blockedHosts } };
+
+    const matchQuery = isGlobal
+      ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId }, _id: { $nin: blockedHosts } }
+      : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId }, _id: { $nin: blockedHosts } };
 
     const [fakeHost, host, followedHost, liveHost, fakeLiveHost] = await Promise.all([
       Host.aggregate([
@@ -181,24 +189,9 @@ exports.retrieveHosts = async (req, res) => {
             status: {
               $switch: {
                 branches: [
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }],
-                    },
-                    then: "Online",
-                  },
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
-                    },
-                    then: "Live",
-                  },
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
-                    },
-                    then: "Busy",
-                  },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
                 ],
                 default: "Offline",
               },
@@ -233,24 +226,9 @@ exports.retrieveHosts = async (req, res) => {
             status: {
               $switch: {
                 branches: [
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }],
-                    },
-                    then: "Online",
-                  },
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
-                    },
-                    then: "Live",
-                  },
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
-                    },
-                    then: "Busy",
-                  },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
                 ],
                 default: "Offline",
               },
@@ -294,6 +272,7 @@ exports.retrieveHosts = async (req, res) => {
             isBlock: false,
             status: 2,
             userId: { $ne: userId },
+            _id: { $nin: blockedHosts }, // block check here too
           },
         },
         {
@@ -302,24 +281,9 @@ exports.retrieveHosts = async (req, res) => {
             status: {
               $switch: {
                 branches: [
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }],
-                    },
-                    then: "Online",
-                  },
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
-                    },
-                    then: "Live",
-                  },
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
-                    },
-                    then: "Busy",
-                  },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
                 ],
                 default: "Offline",
               },
@@ -343,6 +307,7 @@ exports.retrieveHosts = async (req, res) => {
         {
           $match: {
             userId: { $ne: userId },
+            hostId: { $nin: blockedHosts }, // block check for live
           },
         },
         {
@@ -368,7 +333,16 @@ exports.retrieveHosts = async (req, res) => {
         },
       ]),
       Host.aggregate([
-        { $match: { isFake: true, isBlock: false, isLive: true, video: { $ne: "" }, userId: { $ne: userId } } },
+        {
+          $match: {
+            isFake: true,
+            isBlock: false,
+            isLive: true,
+            video: { $ne: "" },
+            userId: { $ne: userId },
+            _id: { $nin: blockedHosts },
+          },
+        },
         {
           $project: {
             _id: 1,
