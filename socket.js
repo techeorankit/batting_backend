@@ -1952,7 +1952,7 @@ io.on("connection", async (socket) => {
 
             console.log(`✅ Host is no longer live.`);
             console.log("✅ Related liveViews deleted.");
-            console.log(`✅ LiveBroadcaster entry deleted for hostId: ${hostId}`);
+            console.log(`✅ LiveBroadcaster entry deleted`);
           }
         } else {
           const user = await User.findById(personId).select("_id callId").lean();

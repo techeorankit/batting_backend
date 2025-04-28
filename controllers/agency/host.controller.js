@@ -184,8 +184,9 @@ exports.retrieveAgencyHosts = async (req, res) => {
 
     const agencyId = new mongoose.Types.ObjectId(req.agency._id);
 
-    const [agency, hosts] = await Promise.all([
+    const [agency, total, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId }).select("_id").lean(),
+      Host.countDocuments({ agencyId: agencyId, status: 2, isFake: false }),
       Host.find({ agencyId: agencyId, status: 2, isFake: false })
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
@@ -204,6 +205,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Agency wise hosts fetched successfully!",
+      total,
       hosts: hosts,
     });
   } catch (error) {
