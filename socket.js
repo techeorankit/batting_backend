@@ -12,6 +12,7 @@ const LiveBroadcaster = require("./models/liveBroadcaster.model");
 const LiveBroadcastView = require("./models/liveBroadcastView.model");
 const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
 const VipPlanPrivilege = require("./models/vipPlanPrivilege.model");
+const Block = require("./models/block.model");
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("./util/generateHistoryUniqueId");
@@ -207,24 +208,35 @@ io.on("connection", async (socket) => {
         }
       }
 
-      if (receiver && !receiver.isBlock && receiver.fcmToken) {
-        const payload = {
-          token: receiver.fcmToken,
-          notification: {
-            title: `${sender?.name} sent you a message 💌`,
-            body: `🗨️ ${chat?.message}`,
-          },
-          data: {
-            type: "CHAT",
-          },
-        };
+      if (receiver && receiver.fcmToken) {
+        const isBlocked = await Block.findOne({
+          $or: [
+            { userId: sender._id, hostId: receiver._id },
+            { userId: receiver._id, hostId: sender._id },
+          ],
+        });
 
-        try {
-          const adminInstance = await admin;
-          const response = await adminInstance.messaging().send(payload);
-          console.log("Successfully sent FCM notification: ", response);
-        } catch (error) {
-          console.log("Error sending FCM message:", error);
+        if (!isBlocked) {
+          const payload = {
+            token: receiver.fcmToken,
+            notification: {
+              title: `${sender?.name} sent you a message 💌`,
+              body: `🗨️ ${chat?.message}`,
+            },
+            data: {
+              type: "CHAT",
+            },
+          };
+
+          try {
+            const adminInstance = await admin;
+            const response = await adminInstance.messaging().send(payload);
+            console.log("✅ Successfully sent FCM notification: ", response);
+          } catch (error) {
+            console.log("❌ Error sending FCM message:", error);
+          }
+        } else {
+          console.log("🚫 Notification not sent. Block exists between sender and receiver.");
         }
       }
     } else {
@@ -259,7 +271,7 @@ io.on("connection", async (socket) => {
     }
 
     const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId");
-    const giftPromise = Gift.findById(parseData?.giftId).lean().select("_id coin image");
+    const giftPromise = Gift.findById(parseData?.giftId).lean().select("_id coin image type");
 
     const [uniqueId, sender, receiver, chatTopic, gift] = await Promise.all([generateHistoryUniqueId(), senderPromise, receiverPromise, chatTopicPromise, giftPromise]);
 
@@ -291,6 +303,7 @@ io.on("connection", async (socket) => {
       senderId: sender._id,
       chatTopicId: chatTopic._id,
       giftCount: giftCount,
+      giftType: gift.type,
       date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     });
 

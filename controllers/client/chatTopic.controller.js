@@ -3,6 +3,9 @@ const ChatTopic = require("../../models/chatTopic.model");
 //mongoose
 const mongoose = require("mongoose");
 
+//import model
+const Block = require("../../models/block.model");
+
 //get chat thumb list ( user )
 exports.fetchChatList = async (req, res) => {
   try {
@@ -14,6 +17,8 @@ exports.fetchChatList = async (req, res) => {
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
+    const blockedHosts = await Block.find({ userId: userObjectId, blockedBy: "user" }).distinct("hostId");
 
     const [chatList] = await Promise.all([
       ChatTopic.aggregate([
@@ -35,6 +40,11 @@ exports.fetchChatList = async (req, res) => {
           },
         },
         {
+          $match: {
+            receiverId: { $nin: blockedHosts },
+          },
+        },
+        {
           $lookup: {
             from: "hosts",
             localField: "receiverId",
@@ -42,12 +52,7 @@ exports.fetchChatList = async (req, res) => {
             as: "host",
           },
         },
-        {
-          $unwind: {
-            path: "$host",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
+        { $unwind: { path: "$host", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "chats",
@@ -56,15 +61,8 @@ exports.fetchChatList = async (req, res) => {
             as: "chat",
           },
         },
-        {
-          $unwind: {
-            path: "$chat",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $sort: { "chat.createdAt": -1 },
-        },
+        { $unwind: { path: "$chat", preserveNullAndEmptyArrays: true } },
+        { $sort: { "chat.createdAt": -1 } },
         {
           $group: {
             _id: "$_id",
@@ -155,8 +153,8 @@ exports.fetchChatList = async (req, res) => {
 
     return res.status(200).json({ status: true, message: "Success", chatList });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ status: false, message: error.errorMessage || "Internal Server Error" });
+    console.error(error);
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
 
@@ -171,6 +169,8 @@ exports.retrieveChatList = async (req, res) => {
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
+    const blockedUsers = await Block.find({ hostId: hostObjectId, blockedBy: "host" }).distinct("userId");
 
     const [chatList] = await Promise.all([
       ChatTopic.aggregate([
@@ -192,6 +192,11 @@ exports.retrieveChatList = async (req, res) => {
           },
         },
         {
+          $match: {
+            userId: { $nin: blockedUsers },
+          },
+        },
+        {
           $lookup: {
             from: "users",
             localField: "userId",
@@ -199,12 +204,7 @@ exports.retrieveChatList = async (req, res) => {
             as: "user",
           },
         },
-        {
-          $unwind: {
-            path: "$user",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
+        { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "chats",
@@ -213,15 +213,8 @@ exports.retrieveChatList = async (req, res) => {
             as: "chat",
           },
         },
-        {
-          $unwind: {
-            path: "$chat",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $sort: { "chat.createdAt": -1 },
-        },
+        { $unwind: { path: "$chat", preserveNullAndEmptyArrays: true } },
+        { $sort: { "chat.createdAt": -1 } },
         {
           $group: {
             _id: "$userId",
