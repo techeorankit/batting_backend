@@ -80,6 +80,8 @@ exports.purchaseVipPlan = async (req, res) => {
       message: "VIP plan purchased successfully.",
     });
 
+    const totalCoins = user.isVip ? vipPlan.coin : vipPlan.coin;
+
     await Promise.all([
       User.updateOne(
         { _id: userId },
@@ -91,6 +93,10 @@ exports.purchaseVipPlan = async (req, res) => {
             "vipPlan.validity": vipPlan.validity,
             "vipPlan.validityType": vipPlan.validityType,
             "vipPlan.amount": vipPlan.amount,
+          },
+          $inc: {
+            coin: totalCoins,
+            rechargedCoins: totalCoins,
           },
         }
       ),

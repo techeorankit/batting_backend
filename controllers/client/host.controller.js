@@ -400,6 +400,7 @@ exports.fetchHostInfo = async (req, res) => {
             lastReceivedAt: { $max: "$createdAt" },
             giftCoin: { $first: "$giftCoin" },
             giftImage: { $first: "$giftImage" },
+            giftType: { $first: "$giftType" },
           },
         },
         {
@@ -407,6 +408,7 @@ exports.fetchHostInfo = async (req, res) => {
             giftId: "$_id",
             giftCoin: { $ifNull: ["$giftCoin", 0] },
             giftImage: 1,
+            giftType: 1,
             totalReceived: 1,
             lastReceivedAt: 1,
           },

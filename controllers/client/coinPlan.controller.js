@@ -66,7 +66,7 @@ exports.recordCoinPlanPurchase = async (req, res) => {
     });
 
     await Promise.all([
-      User.updateOne({ _id: userObjectId }, { $inc: { coin: totalCoins } }, { $inc: { rechargedCoins: totalCoins } }),
+      User.updateOne({ _id: userObjectId }, { $inc: { coin: totalCoins, rechargedCoins: totalCoins } }),
       History.create({
         uniqueId: uniqueId,
         type: 7,

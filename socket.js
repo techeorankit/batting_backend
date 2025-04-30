@@ -374,6 +374,7 @@ io.on("connection", async (socket) => {
         giftId: gift._id,
         giftCoin: gift.coin || 0,
         giftImage: gift.image || "",
+        giftType: gift.type || 1,
         giftCount: giftCount,
         userCoin: totalGiftCost,
         hostCoin: hostEarnings,
@@ -1723,7 +1724,7 @@ io.on("connection", async (socket) => {
         generateHistoryUniqueId(),
         User.findById(giftData.senderId).lean().select("_id coin"),
         Host.findById(giftData.receiverId).lean().select("_id coin totalGifts agencyId"),
-        Gift.findById(giftData.giftId).lean().select("_id coin"),
+        Gift.findById(giftData.giftId).lean().select("_id coin type"),
       ]);
 
       if (!senderUser) {
@@ -1806,6 +1807,7 @@ io.on("connection", async (socket) => {
           giftId: giftData.giftId,
           giftCoin: gift.coin || 0,
           giftImage: gift.image || "",
+          giftType: gift.type || 1,
           giftCount: giftCount,
           userCoin: totalCoin,
           hostCoin: hostEarnings,
@@ -1916,7 +1918,7 @@ io.on("connection", async (socket) => {
             const [callHistory] = await Promise.all([
               History.findById(callId).select("_id callStartTime"),
               Privatecall.deleteOne({ receiver: personId }),
-              Host.findOneAndUpdate({ _id: personId }, { $set: { isOnline: false, isBusy: false, isLive: false, callId: null, liveHistoryId: null } }, { new: true }),
+              Host.updateOne({ _id: personId }, { $set: { isOnline: false, isBusy: false, isLive: false, callId: null, liveHistoryId: null } }),
             ]);
 
             if (callHistory) {
@@ -1967,6 +1969,19 @@ io.on("connection", async (socket) => {
             console.log("✅ Related liveViews deleted.");
             console.log(`✅ LiveBroadcaster entry deleted`);
           }
+
+          await Host.updateOne(
+            { _id: host._id },
+            {
+              $set: {
+                isOnline: false,
+                isBusy: false,
+                isLive: false,
+                liveHistoryId: null,
+                callId: null,
+              },
+            }
+          );
         } else {
           const user = await User.findById(personId).select("_id callId").lean();
 
@@ -1980,7 +1995,18 @@ io.on("connection", async (socket) => {
               const [callHistory] = await Promise.all([
                 History.findById(callId).select("_id callStartTime"),
                 Privatecall.deleteOne({ caller: personId }),
-                User.findOneAndUpdate({ _id: personId }, { $set: { isOnline: false, isBusy: false, isLive: false, callId: null, liveHistoryId: null } }, { new: true }),
+                User.updateOne(
+                  { _id: personId },
+                  {
+                    $set: {
+                      isOnline: false,
+                      isBusy: false,
+                      isLive: false,
+                      callId: null,
+                      liveHistoryId: null,
+                    },
+                  }
+                ),
               ]);
 
               if (callHistory) {
@@ -1994,7 +2020,7 @@ io.on("connection", async (socket) => {
 
                 await Promise.all([
                   callHistory?.save(),
-                  Chat.findOneAndUpdate(
+                  Chat.updateOne(
                     { callId: callHistory._id },
                     {
                       $set: {
@@ -2002,12 +2028,24 @@ io.on("connection", async (socket) => {
                         callType: 1, // 1 = Received Call
                         isRead: true,
                       },
-                    },
-                    { new: true }
+                    }
                   ),
                 ]);
               }
             }
+
+            await User.updateOne(
+              { _id: user._id },
+              {
+                $set: {
+                  isOnline: false,
+                  isBusy: false,
+                  isLive: false,
+                  liveHistoryId: null,
+                  callId: null,
+                },
+              }
+            );
           }
         }
       }

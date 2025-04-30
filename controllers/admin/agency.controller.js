@@ -13,19 +13,20 @@ const fs = require("fs");
 //create agency
 exports.createAgency = async (req, res) => {
   try {
-    const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country } = req.body;
+    const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country, uid } = req.body;
 
-    if (!name || !email || !commissionType || !commission || !password || !countryCode || !mobileNumber || !req.file || !description || !countryFlagImage || !country) {
+    if (!name || !email || !commissionType || !commission || !password || !countryCode || !mobileNumber || !req.file || !description || !countryFlagImage || !country || !uid) {
       return res.status(200).json({ status: false, message: "All fields are required!" });
     }
 
-    const [existingAgency, agencyCode] = await Promise.all([Agency.findOne({ email: email.trim() }), generateAgencyCode()]);
+    const [existingAgency, agencyCode] = await Promise.all([Agency.findOne({ email: email.trim(), uid: uid.trim() }), generateAgencyCode()]);
 
     if (existingAgency) {
       return res.status(200).json({ status: false, message: "Email already exists!" });
     }
 
     const newAgency = new Agency({
+      uid,
       agencyCode,
       name,
       email,
@@ -59,13 +60,13 @@ exports.createAgency = async (req, res) => {
 exports.updateAgency = async (req, res) => {
   try {
     const { agencyId } = req.query;
-    const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country } = req.body;
+    const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country, uid } = req.body;
 
     if (!agencyId) {
       return res.status(200).json({ status: false, message: "Agency ID is required." });
     }
 
-    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim() }) : null, Agency.findById(agencyId)]);
+    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim(), uid: uid.trim() }) : null, Agency.findById(agencyId)]);
 
     if (email && existingAgency) {
       return res.status(200).json({ status: false, message: "Email already exists!" });
@@ -75,6 +76,7 @@ exports.updateAgency = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency not found." });
     }
 
+    agency.uid = uid || agency.uid;
     agency.name = name || agency.name;
     agency.email = email?.trim() || agency.email;
     agency.password = password ? cryptr?.encrypt(password) : agency.password;
@@ -138,7 +140,10 @@ exports.toggleAgencyBlockStatus = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error updating agency block status:", error);
-    return res.status(500).json({ status: false, message: "An error occurred while updating the agency's block status." });
+    return res.status(500).json({
+      status: false,
+      message: "An error occurred while updating the agency's block status.",
+    });
   }
 };
 
@@ -272,9 +277,17 @@ exports.getActiveAgenciesList = async (req, res) => {
   try {
     const agencies = await Agency.find({ isBlock: false }).select("_id name agencyCode").lean();
 
-    return res.status(200).json({ status: true, message: "Active agencies retrieved successfully.", data: agencies });
+    return res.status(200).json({
+      status: true,
+      message: "Active agencies retrieved successfully.",
+      data: agencies,
+    });
   } catch (error) {
     console.error("Error in getActiveAgenciesList:", error);
-    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
+    return res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
