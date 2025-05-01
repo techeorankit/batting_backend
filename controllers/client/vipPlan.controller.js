@@ -47,7 +47,7 @@ exports.purchaseVipPlan = async (req, res) => {
     const [uniqueId, user, vipPlan] = await Promise.all([
       generateHistoryUniqueId(),
       User.findById(userId).select("_id isVip vipPlanStartDate vipPlanEndDate vipPlan").lean(),
-      VipPlan.findById(vipPlanId).select("_id validity validityType amount coin").lean(),
+      VipPlan.findById(vipPlanId).select("_id validity validityType price coin").lean(),
     ]);
 
     if (!user) {

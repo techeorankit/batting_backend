@@ -38,6 +38,28 @@ exports.getPersonalityImpressions = async (req, res) => {
   }
 };
 
+//validate agencyCode ( user )
+exports.validateAgencyCode = async (req, res) => {
+  try {
+    const { agencyCode } = req.query;
+
+    if (!agencyCode) {
+      return res.status(200).json({ status: false, message: "Agency code is required.", F });
+    }
+
+    const agencyExists = await Agency.exists({ agencyCode: agencyCode });
+
+    if (agencyExists) {
+      return res.status(200).json({ status: true, message: "Valid agency code.", isValid: true });
+    } else {
+      return res.status(200).json({ status: false, message: "Invalid agency code.", isValid: false });
+    }
+  } catch (error) {
+    console.error("Error validating agency code:", error);
+    return res.status(500).json({ status: false, message: "Internal server error.",  });
+  }
+};
+
 //host request ( user )
 exports.initiateHostRequest = async (req, res) => {
   try {
@@ -47,9 +69,9 @@ exports.initiateHostRequest = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    const { fcmToken, name, bio, dob, gender, countryFlagImage, country, language, impression, agencyCode, identityProofType } = req.body;
+    const { email, fcmToken, name, bio, dob, gender, countryFlagImage, country, language, impression, agencyCode, identityProofType } = req.body;
 
-    if (!fcmToken || !name || !bio || !dob || !gender || !countryFlagImage || !country || !impression || !language || !identityProofType || !req.files) {
+    if (!email || !fcmToken || !name || !bio || !dob || !gender || !countryFlagImage || !country || !impression || !language || !identityProofType || !req.files) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({ status: false, message: "Oops ! Invalid details." });
     }
@@ -81,6 +103,7 @@ exports.initiateHostRequest = async (req, res) => {
     }
 
     const newHost = new Host({
+      email,
       fcmToken,
       userId,
       agencyId: agencyDetails ? agencyDetails._id : null,

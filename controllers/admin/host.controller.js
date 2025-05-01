@@ -35,7 +35,8 @@ exports.fetchHostRequest = async (req, res) => {
     const [total, request] = await Promise.all([
       Host.countDocuments({ ...statusQuery, isFake: false }),
       Host.find({ ...statusQuery, isFake: false })
-        .populate("agencyId", "name agencyCode")
+        .populate("userId", "name image uniqueId")
+        .populate("agencyId", "name image agencyCode")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit),
@@ -264,7 +265,7 @@ exports.listAgencyHosts = async (req, res) => {
     const [agency, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
       Host.find(baseQuery)
-        .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive")
+        .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive countryFlagImage country")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
         .limit(limit)
@@ -524,7 +525,8 @@ exports.fetchHostList = async (req, res) => {
     const [totalHosts, hostList] = await Promise.all([
       Host.countDocuments(filter),
       Host.find(filter)
-        .populate("agencyId", "name agencyCode")
+        .populate("userId", "name image uniqueId")
+        .populate("agencyId", "name agencyCode image")
         .select(
           "name gender bio age dob email image video impression identityProofType uniqueId isBlock isOnline isBusy isLive countryFlagImage country photoGallery uniqueId randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin totalGifts language"
         )

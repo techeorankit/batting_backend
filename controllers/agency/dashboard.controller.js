@@ -185,7 +185,8 @@ exports.retrieveRecentHosts = async (req, res) => {
       ...dateFilterQuery,
       agencyId: agencyObjectId,
       isFake: false,
-      coin: { $gt: 0 },
+      status: 2,
+      //coin: { $gt: 0 },
     };
 
     const [agency, recentHosts] = await Promise.all([
@@ -218,15 +219,12 @@ exports.retrieveRecentHosts = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: "Top recent hosts retrieved successfully ✅",
+      message: "Recent hosts retrieved successfully ✅",
       data: recentHosts,
     });
   } catch (error) {
     console.error("Error fetching top performers:", error);
-    return res.status(500).json({
-      status: false,
-      message: error.message || "Internal Server Error",
-    });
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
 

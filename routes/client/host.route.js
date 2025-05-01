@@ -19,6 +19,9 @@ const validateUserToken = require("../../middleware/validateUserToken.middleware
 //get impression list
 route.get("/getPersonalityImpressions", checkAccessWithSecretKey(), HostController.getPersonalityImpressions);
 
+//validate agencyCode ( user )
+route.get("/validateAgencyCode", checkAccessWithSecretKey(), HostController.validateAgencyCode);
+
 //host request ( user )
 route.post(
   "/initiateHostRequest",

@@ -58,7 +58,7 @@ exports.getAllGiftCategories = async (req, res) => {
     const [total, categories] = await Promise.all([
       GiftCategory.countDocuments({ isDelete: false }),
       GiftCategory.find({ isDelete: false })
-        .select("_id name createdAt")
+        .select("_id name createdAt updatedAt")
         .skip((start - 1) * limit)
         .limit(limit)
         .lean(),
