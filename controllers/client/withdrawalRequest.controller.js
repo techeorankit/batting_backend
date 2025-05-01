@@ -1,4 +1,4 @@
-const WithdrawalRequest = require("../../models/withdrawalRequest.model");
+const WithdrawalRequest = require("../../models/WithdrawalRequest.model");
 const Host = require("../../models/host.model");
 const History = require("../../models/history.model");
 
