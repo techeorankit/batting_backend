@@ -34,11 +34,14 @@ io.on("connection", async (socket) => {
 
   const { globalRoom } = socket.handshake.query;
   const id = globalRoom.split(":")[1];
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    console.warn("Invalid or missing ID from globalRoom:", globalRoom);
+    return;
+  }
+
+  console.log("Socket connected with:", id);
 
   if (globalRoom) {
-    console.log("Socket connected with:", id);
-
-    //check if the socket is already in the room
     if (!socket.rooms.has(globalRoom)) {
       socket.join(globalRoom);
       console.log(`Socket joined room: ${globalRoom}`);
@@ -57,6 +60,8 @@ io.on("connection", async (socket) => {
         await Host.findByIdAndUpdate(host._id, { $set: { isOnline: true } }, { new: true });
       }
     }
+  } else {
+    console.warn("Invalid globalRoom format:", globalRoom);
   }
 
   //chat

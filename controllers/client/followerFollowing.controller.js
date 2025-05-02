@@ -32,6 +32,8 @@ exports.handleFollowUnfollow = async (req, res) => {
       Block.findOne({ userId: followerId, hostId: followingId }).select("_id").lean(), // Check if user has blocked the host
     ]);
 
+    console.log("existingFollow =====================", existingFollow);
+
     if (!fromUser) return res.status(200).json({ status: false, message: "User not found." });
     if (!toUser) return res.status(200).json({ status: false, message: "Host not found." });
     if (toUser.isBlock) return res.status(403).json({ status: false, message: "Host is blocked." });

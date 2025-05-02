@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 
 //import model
 const History = require("../../models/history.model");
+const Host = require("../../models/host.model");
 
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
@@ -46,15 +47,14 @@ exports.quickUserVerification = async (req, res) => {
 //user login and sign up
 exports.signInOrSignUpUser = async (req, res) => {
   try {
-    const { identity, loginType, fcmToken, email, mobileNumber, name, userName, image } = req.body;
+    const { identity, loginType, fcmToken, email, name, image } = req.body;
 
     if (!identity || loginType === undefined || !fcmToken) {
       if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Oops! Invalid details!!" });
     }
 
-    // Retrieve uid and provider from the validated Firebase token
-    const { uid, provider } = req.user; // ✅ Get values from req.user
+    const { uid, provider } = req.user;
 
     let userQuery;
 
@@ -80,8 +80,7 @@ exports.signInOrSignUpUser = async (req, res) => {
 
     let user = null;
     if (Object.keys(userQuery).length > 0) {
-      // ✅ Only query if there are conditions
-      user = await User.findOne(userQuery).select("_id loginType name image fcmToken lastlogin");
+      user = await User.findOne(userQuery).select("_id loginType name image fcmToken lastlogin isBlock isHost hostId");
     }
 
     if (user) {
@@ -89,6 +88,13 @@ exports.signInOrSignUpUser = async (req, res) => {
 
       if (user.isBlock) {
         return res.status(403).json({ status: false, message: "🚷 User is blocked by the admin." });
+      }
+
+      if (user.isHost && user.hostId) {
+        const host = await Host.findById(user.hostId).select("isBlock");
+        if (host && host.isBlock) {
+          return res.status(403).json({ status: false, message: "🚷 Host account is blocked by the admin." });
+        }
       }
 
       user.name = name ? name?.trim() : user.name;
@@ -138,8 +144,6 @@ exports.signInOrSignUpUser = async (req, res) => {
       ]);
 
       if (user && user.fcmToken && user.fcmToken !== null) {
-        const adminPromise = await admin;
-
         const payload = {
           token: user.fcmToken,
           notification: {
@@ -151,6 +155,7 @@ exports.signInOrSignUpUser = async (req, res) => {
           },
         };
 
+        const adminPromise = await admin;
         adminPromise
           .messaging()
           .send(payload)

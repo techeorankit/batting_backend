@@ -41,13 +41,16 @@ route.get("/verifyHostRequestStatus", validateUserToken, checkAccessWithSecretKe
 //get host thumblist ( user )
 route.get("/retrieveHosts", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveHosts);
 
-//get host profile ( user ) ( host )
-route.get("/fetchHostInfo", checkAccessWithSecretKey(), HostController.fetchHostInfo);
+//get host profile ( user )
+route.get("/retrieveHostDetails", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveHostDetails);
 
 //get random free host ( random video call ) ( user )
-route.get("/retrieveAvailableHost", checkAccessWithSecretKey(), HostController.retrieveAvailableHost);
+route.get("/retrieveAvailableHost", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveAvailableHost);
 
-//update host's info
+//get host profile ( host )
+route.get("/fetchHostInfo", checkAccessWithSecretKey(), HostController.fetchHostInfo);
+
+//update host's info ( host )
 route.patch(
   "/modifyHostDetails",
   checkAccessWithSecretKey(),
@@ -58,5 +61,8 @@ route.patch(
   ]),
   HostController.modifyHostDetails
 );
+
+//get host thumblist ( host )
+route.get("/fetchHostsList", checkAccessWithSecretKey(), HostController.fetchHostsList);
 
 module.exports = route;

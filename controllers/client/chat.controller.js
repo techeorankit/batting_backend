@@ -178,7 +178,7 @@ exports.fetchChatHistory = async (req, res) => {
 
     let chatTopic;
     const [receiver, foundChatTopic] = await Promise.all([
-      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("_id"),
+      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("_id audioCallRate privateCallRate"),
       ChatTopic.findOne({
         $or: [
           { senderId, receiverId },
@@ -213,6 +213,10 @@ exports.fetchChatHistory = async (req, res) => {
       message: "Chat history retrieved successfully.",
       chatTopic: chatTopic._id,
       chat: chatHistory,
+      callRate: {
+        privateCallRate: receiver.privateCallRate || 0,
+        audioCallRate: receiver.audioCallRate || 0,
+      },
     });
   } catch (error) {
     console.log(error);

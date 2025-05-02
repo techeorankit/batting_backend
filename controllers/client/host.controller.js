@@ -6,6 +6,8 @@ const Impression = require("../../models/impression.model");
 const History = require("../../models/history.model");
 const LiveBroadcaster = require("../../models/liveBroadcaster.model");
 const Block = require("../../models/block.model");
+const HostMatchHistory = require("../../models/hostMatchHistory.model");
+const FollowerFollowing = require("../../models/followerFollowing.model");
 
 //deleteFiles
 const { deleteFiles } = require("../../util/deletefile");
@@ -56,7 +58,7 @@ exports.validateAgencyCode = async (req, res) => {
     }
   } catch (error) {
     console.error("Error validating agency code:", error);
-    return res.status(500).json({ status: false, message: "Internal server error.",  });
+    return res.status(500).json({ status: false, message: "Internal server error." });
   }
 };
 
@@ -219,6 +221,7 @@ exports.retrieveHosts = async (req, res) => {
                 default: "Offline",
               },
             },
+            audioCallRate: 0,
             privateCallRate: 0,
             liveHistoryId: "",
             token: "",
@@ -232,6 +235,7 @@ exports.retrieveHosts = async (req, res) => {
             countryFlagImage: 1,
             country: 1,
             image: 1,
+            audioCallRate: 1,
             privateCallRate: 1,
             isFake: 1,
             status: 1,
@@ -265,6 +269,7 @@ exports.retrieveHosts = async (req, res) => {
             countryFlagImage: 1,
             country: 1,
             image: 1,
+            audioCallRate: 1,
             privateCallRate: 1,
             isFake: 1,
             status: 1,
@@ -320,6 +325,7 @@ exports.retrieveHosts = async (req, res) => {
             countryFlagImage: 1,
             country: 1,
             image: 1,
+            audioCallRate: 1,
             privateCallRate: 1,
             isFake: 1,
             status: 1,
@@ -401,18 +407,29 @@ exports.retrieveHosts = async (req, res) => {
   }
 };
 
-//get host profile ( user ) ( host )
-exports.fetchHostInfo = async (req, res) => {
+//get host profile ( user )
+exports.retrieveHostDetails = async (req, res) => {
   try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    }
+
     if (!req.query.hostId) {
       return res.status(200).json({ status: false, message: "Invalid details." });
     }
 
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [host, receivedGifts] = await Promise.all([
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(200).json({ status: false, message: "Valid userId is required." });
+    }
+
+    const [host, receivedGifts, isFollowing] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
-        .select("name email bio countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin")
+        .select(
+          "name email gender bio countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
+        )
         .lean(),
       History.aggregate([
         { $match: { hostId: hostId, giftId: { $ne: null } } },
@@ -437,13 +454,44 @@ exports.fetchHostInfo = async (req, res) => {
           },
         },
       ]),
+      FollowerFollowing.exists({ followerId: userId, followingId: hostId }),
     ]);
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host not found." });
     }
 
+    host.isFollowing = Boolean(isFollowing);
+
     return res.status(200).json({ status: true, message: "The host profile retrieved.", host, receivedGifts });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
+//get host profile ( host )
+exports.fetchHostInfo = async (req, res) => {
+  try {
+    if (!req.query.hostId) {
+      return res.status(200).json({ status: false, message: "Invalid details." });
+    }
+
+    const hostId = new mongoose.Types.ObjectId(req.query.hostId);
+
+    const [host] = await Promise.all([
+      Host.findOne({ _id: hostId, isBlock: false })
+        .select(
+          "name email gender bio countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
+        )
+        .lean(),
+    ]);
+
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
+
+    return res.status(200).json({ status: true, message: "The host profile retrieved.", host });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
@@ -453,76 +501,71 @@ exports.fetchHostInfo = async (req, res) => {
 //get random free host ( random video call ) ( user )
 exports.retrieveAvailableHost = async (req, res) => {
   try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    }
+
     const { gender } = req.query;
 
-    const validGenders = ["male", "female", "both"];
-    if (!gender || !validGenders.includes(gender.trim().toLowerCase())) {
-      return res.status(200).json({ status: false, message: "Gender is required and must be one of: male, female, or both." });
+    if (!gender || !["male", "female", "both"].includes(gender.trim().toLowerCase())) {
+      return res.status(200).json({ status: false, message: "Gender must be one of: male, female, or both." });
+    }
+
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(200).json({ status: false, message: "Valid userId is required." });
     }
 
     const normalizedGender = gender.trim().toLowerCase();
 
-    if (normalizedGender !== "both") {
-      const [genderMatchedHost] = await Promise.all([
-        Host.aggregate([
-          {
-            $match: {
-              isOnline: true,
-              isBusy: false,
-              isFake: false,
-              isLive: false,
-              status: 2,
-              callId: null,
-              gender: normalizedGender,
-            },
-          },
-          { $sample: { size: 1 } },
-        ]),
-      ]);
-
-      if (genderMatchedHost.length) {
-        return res.status(200).json({
-          status: true,
-          message: "Matched host found based on gender!",
-          data: genderMatchedHost[0],
-        });
-      }
-    }
-
-    const [anyAvailableHost] = await Promise.all([
-      Host.aggregate([
-        {
-          $match: {
-            isOnline: true,
-            isBusy: false,
-            isFake: false,
-            isLive: false,
-            status: 2,
-            callId: null,
-          },
-        },
-        { $sample: { size: 1 } },
-      ]),
+    const [blockedHosts, lastMatch] = await Promise.all([
+      Block.aggregate([{ $match: { userId: new mongoose.Types.ObjectId(userId), blockedBy: "user" } }, { $project: { _id: 0, hostId: 1 } }, { $group: { _id: null, ids: { $addToSet: "$hostId" } } }]),
+      HostMatchHistory.findOne({ userId }).lean(),
     ]);
 
-    if (anyAvailableHost.length) {
-      return res.status(200).json({
-        status: true,
-        message: "No gender match found, but available host retrieved!",
-        data: anyAvailableHost[0],
-      });
+    const blockedHostIds = blockedHosts[0]?.ids || [];
+    if (lastMatch?.lastHostId) {
+      blockedHostIds.push(lastMatch.lastHostId);
     }
 
-    return res.status(200).json({
-      status: false,
-      message: "No available hosts found!",
-    });
+    const matchQuery = {
+      isOnline: true,
+      isBusy: false,
+      isFake: false,
+      isLive: false,
+      isBlock: false,
+      status: 2,
+      callId: null,
+      _id: { $nin: blockedHostIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    };
+
+    if (normalizedGender !== "both") {
+      matchQuery.gender = normalizedGender;
+    }
+
+    const [matchedHosts] = await Promise.all([Host.aggregate([{ $match: matchQuery }, { $sample: { size: 1 } }])]);
+
+    if (matchedHosts.length) {
+      const matchedHost = matchedHosts[0];
+
+      res.status(200).json({
+        status: true,
+        message: "Matched host retrieved!",
+        data: matchedHost,
+      });
+
+      await HostMatchHistory.findOneAndUpdate({ userId }, { lastHostId: matchedHost._id }, { upsert: true, new: true });
+    } else {
+      return res.status(200).json({ status: false, message: "No available hosts found!" });
+    }
   } catch (error) {
-    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+    console.error("Match Error:", error);
+    return res.status(500).json({ status: false, message: error.message });
   }
 };
 
-//update host's info
+//update host's info  ( host )
 exports.modifyHostDetails = async (req, res) => {
   try {
     const {
@@ -626,6 +669,116 @@ exports.modifyHostDetails = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: error.message || "Failed to Update host profile due to server error.",
+    });
+  }
+};
+
+//get host thumblist ( host )
+exports.fetchHostsList = async (req, res) => {
+  try {
+    if (!req.query.hostId) {
+      return res.status(200).json({ status: false, message: "hostId is required." });
+    }
+
+    if (!settingJSON) {
+      return res.status(200).json({ status: false, message: "Configuration settings not found." });
+    }
+
+    if (!req.query.country) {
+      return res.status(200).json({ status: false, message: "Please provide a country name." });
+    }
+
+    const hostId = new mongoose.Types.ObjectId(req.query.hostId);
+    const country = req.query.country.trim().toLowerCase();
+    const isGlobal = country === "global";
+
+    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, _id: { $ne: hostId } } : { country: country, isFake: true, isBlock: false, _id: { $ne: hostId } };
+    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } } : { country: country, isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } };
+
+    const [fakeHost, host, followerList] = await Promise.all([
+      Host.aggregate([
+        { $match: fakeMatchQuery },
+        {
+          $addFields: {
+            status: {
+              $switch: {
+                branches: [
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+                ],
+                default: "Offline",
+              },
+            },
+            audioCallRate: 0,
+            privateCallRate: 0,
+            liveHistoryId: "",
+            token: "",
+            channel: "",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            countryFlagImage: 1,
+            country: 1,
+            image: 1,
+            audioCallRate: 1,
+            privateCallRate: 1,
+            isFake: 1,
+            status: 1,
+            video: 1,
+            liveHistoryId: 1,
+            token: 1,
+            channel: 1,
+          },
+        },
+      ]),
+      Host.aggregate([
+        { $match: matchQuery },
+        {
+          $addFields: {
+            status: {
+              $switch: {
+                branches: [
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+                ],
+                default: "Offline",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            countryFlagImage: 1,
+            country: 1,
+            image: 1,
+            audioCallRate: 1,
+            privateCallRate: 1,
+            isFake: 1,
+            status: 1,
+          },
+        },
+      ]),
+      FollowerFollowing.find({ followingId: hostId }).populate("followerId", "_id name image uniqueId").sort({ createdAt: -1 }).lean(),
+    ]);
+
+    return res.status(200).json({
+      status: true,
+      message: "Hosts list retrieved successfully.",
+      hosts: settingJSON.isDemoData ? [...fakeHost, ...host] : host,
+      followerList,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "An error occurred while fetching the hosts list.",
+      error: error.message || "Internal Server Error",
     });
   }
 };
