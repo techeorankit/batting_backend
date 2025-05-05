@@ -12,12 +12,11 @@ exports.getCoinTransactionHistory = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid details." });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.query.userId);
-
     if (req.query.userId && !mongoose.Types.ObjectId.isValid(req.query.userId)) {
       return res.status(200).json({ status: false, message: "Invalid userId. Please provide a valid ObjectId." });
     }
 
+    const userId = new mongoose.Types.ObjectId(req.query.userId);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
@@ -198,12 +197,11 @@ exports.fetchCallTransactionHistory = async (req, res) => {
       return res.status(200).json({ status: false, message: "❌ Invalid details." });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.query.userId);
-
     if (req.query.userId && !mongoose.Types.ObjectId.isValid(req.query.userId)) {
       return res.status(200).json({ status: false, message: "Invalid userId. Please provide a valid ObjectId." });
     }
 
+    const userId = new mongoose.Types.ObjectId(req.query.userId);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
@@ -320,12 +318,11 @@ exports.retrieveGiftTransactionHistory = async (req, res) => {
       return res.status(200).json({ status: false, message: "❌ Invalid details." });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.query.userId);
-
     if (req.query.userId && !mongoose.Types.ObjectId.isValid(req.query.userId)) {
       return res.status(200).json({ status: false, message: "Invalid userId. Please provide a valid ObjectId." });
     }
 
+    const userId = new mongoose.Types.ObjectId(req.query.userId);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
@@ -436,12 +433,11 @@ exports.getVIPPlanTransactionHistory = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid details." });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.query.userId);
-
     if (req.query.userId && !mongoose.Types.ObjectId.isValid(req.query.userId)) {
       return res.status(200).json({ status: false, message: "Invalid userId. Please provide a valid ObjectId." });
     }
 
+    const userId = new mongoose.Types.ObjectId(req.query.userId);
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
