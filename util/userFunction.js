@@ -5,8 +5,7 @@ const userFunction = async (user, data_) => {
   const data = data_.body;
   const file = data_.file;
 
-  user.image = file ? file.path : user.gender?.toLowerCase()?.trim() === "male" ? "storage/male.png" : user.gender?.toLowerCase()?.trim() === "female" ? "storage/female.png" : user.image;
-
+  user.image = file ? file.path : data.image ? data.image : user.image;
   user.name = data?.name?.trim() || user.name;
   user.gender = data?.gender?.toLowerCase()?.trim() || user.gender;
   user.age = data?.age || user.age;

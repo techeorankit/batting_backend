@@ -63,7 +63,7 @@ exports.submitWithdrawalRequest = async (req, res) => {
       coin: requestedCoins,
       amount: requestAmount,
       paymentGateway: formattedGateway,
-      paymentDetails: Array.isArray(paymentDetails) ? paymentDetails.map((detail) => detail.replace("[", "").replace("]", "")) : [String(paymentDetails).replace("[", "").replace("]", "")],
+      paymentDetails: paymentDetails,
       requestDate: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     };
 

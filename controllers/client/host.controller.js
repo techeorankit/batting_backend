@@ -525,9 +525,7 @@ exports.retrieveAvailableHost = async (req, res) => {
     ]);
 
     const blockedHostIds = blockedHosts[0]?.ids || [];
-    if (lastMatch?.lastHostId) {
-      blockedHostIds.push(lastMatch.lastHostId);
-    }
+    const lastMatchedHostId = lastMatch?.lastHostId;
 
     const matchQuery = {
       isOnline: true,
@@ -544,21 +542,27 @@ exports.retrieveAvailableHost = async (req, res) => {
       matchQuery.gender = normalizedGender;
     }
 
-    const [matchedHosts] = await Promise.all([Host.aggregate([{ $match: matchQuery }, { $sample: { size: 1 } }])]);
+    const availableHosts = await Host.find(matchQuery).lean();
 
-    if (matchedHosts.length) {
-      const matchedHost = matchedHosts[0];
+    // Filter out last matched host if more than one host is available
+    let filteredHosts = availableHosts;
+    if (availableHosts.length > 1 && lastMatchedHostId) {
+      filteredHosts = availableHosts.filter((host) => host._id.toString() !== lastMatchedHostId.toString());
+    }
 
-      res.status(200).json({
-        status: true,
-        message: "Matched host retrieved!",
-        data: matchedHost,
-      });
-
-      await HostMatchHistory.findOneAndUpdate({ userId }, { lastHostId: matchedHost._id }, { upsert: true, new: true });
-    } else {
+    if (filteredHosts.length === 0) {
       return res.status(200).json({ status: false, message: "No available hosts found!" });
     }
+
+    const matchedHost = filteredHosts[Math.floor(Math.random() * filteredHosts.length)];
+
+    res.status(200).json({
+      status: true,
+      message: "Matched host retrieved!",
+      data: matchedHost,
+    });
+
+    await HostMatchHistory.findOneAndUpdate({ userId }, { lastHostId: matchedHost._id }, { upsert: true, new: true });
   } catch (error) {
     console.error("Match Error:", error);
     return res.status(500).json({ status: false, message: error.message });
