@@ -54,7 +54,7 @@ const hostSchema = new mongoose.Schema(
     callId: { type: String, default: null },
 
     isLive: { type: Boolean, default: false },
-    liveHistoryId: { type: mongoose.Schema.Types.ObjectId, ref: "LiveHistory", default: null },
+    liveHistoryId: { type: mongoose.Schema.Types.ObjectId, ref: "LiveBroadcastHistory", default: null },
     agoraUid: { type: Number, default: 0 },
     channel: { type: String, default: "" },
     token: { type: String, default: "" },
@@ -67,7 +67,7 @@ const hostSchema = new mongoose.Schema(
   }
 );
 
-hostSchema.index({ isOnline: 1, isBusy: 1, isFake: 1, isLive: 1, callId: 1 });
+hostSchema.index({ isOnline: 1, isBusy: 1, isFake: 1, isLive: 1, isBlock: 1, callId: 1 });
 hostSchema.index({ isFake: 1 });
 hostSchema.index({ createdAt: -1 });
 

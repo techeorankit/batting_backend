@@ -27,8 +27,7 @@ const chatSchema = mongoose.Schema(
   }
 );
 
-chatSchema.index({ createdAt: -1 });
-chatSchema.index({ chatTopic: 1 });
+chatSchema.index({ chatTopicId: 1 });
 chatSchema.index({ senderId: 1 });
 
 module.exports = mongoose.model("Chat", chatSchema);

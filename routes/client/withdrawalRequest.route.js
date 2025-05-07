@@ -11,4 +11,7 @@ const WithdrawalRequestController = require("../../controllers/client/withdrawal
 //withdrawal request ( host )
 route.post("/submitWithdrawalRequest", checkAccessWithSecretKey(), WithdrawalRequestController.submitWithdrawalRequest);
 
+//get withdrawal requests ( host )
+route.get("/listPayoutRequests", checkAccessWithSecretKey(), WithdrawalRequestController.listPayoutRequests);
+
 module.exports = route;

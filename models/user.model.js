@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema(
     isVip: { type: Boolean, default: false },
     vipPlanStartDate: { type: String, default: null },
     vipPlanEndDate: { type: String, default: null },
+    vipPlanId: { type: mongoose.Schema.Types.ObjectId, ref: "VipPlan", default: null },
     vipPlan: {
       validity: { type: Number, default: 0 },
       validityType: { type: String, default: "" },

@@ -99,6 +99,7 @@ exports.fetchChatList = async (req, res) => {
             messageType: 1,
             message: 1,
             unreadCount: 1,
+            lastChatMessageTime: 1,
             time: {
               $let: {
                 vars: {
@@ -145,7 +146,7 @@ exports.fetchChatList = async (req, res) => {
             },
           },
         },
-        { $sort: { time: -1 } },
+        { $sort: { lastChatMessageTime: -1 } },
         { $skip: (start - 1) * limit },
         { $limit: limit },
       ]),
@@ -251,6 +252,7 @@ exports.retrieveChatList = async (req, res) => {
             messageType: 1,
             message: 1,
             unreadCount: 1,
+            lastChatMessageTime: 1,
             time: {
               $let: {
                 vars: {
@@ -297,7 +299,7 @@ exports.retrieveChatList = async (req, res) => {
             },
           },
         },
-        { $sort: { time: -1 } },
+        { $sort: { lastChatMessageTime: -1 } },
         { $skip: (start - 1) * limit },
         { $limit: limit },
       ]),

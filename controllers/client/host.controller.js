@@ -46,7 +46,7 @@ exports.validateAgencyCode = async (req, res) => {
     const { agencyCode } = req.query;
 
     if (!agencyCode) {
-      return res.status(200).json({ status: false, message: "Agency code is required.", F });
+      return res.status(200).json({ status: false, message: "Agency code is required." });
     }
 
     const agencyExists = await Agency.exists({ agencyCode: agencyCode });
@@ -78,9 +78,24 @@ exports.initiateHostRequest = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops ! Invalid details." });
     }
 
+    if (!req.files.identityProof) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "Identity proof is missing. Please upload a valid file." });
+    }
+
+    if (!req.files.photoGallery) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "Photo gallery is missing. Please upload the required photos." });
+    }
+
+    if (!req.files.image) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: "Image is missing. Please upload a valid image." });
+    }
+
     const [uniqueId, agencyDetails, existingHost, declineHostRequest] = await Promise.all([
       generateUniqueId(),
-      agencyCode ? Agency.findOne({ code: agencyCode }).select("_id").lean() : null,
+      agencyCode ? Agency.findOne({ agencyCode: agencyCode }).select("_id").lean() : null,
       Host.findOne({ status: 1, userId: userId }).select("_id").lean(),
       Host.findOne({ status: 3, userId: userId }).select("_id").lean(),
     ]);

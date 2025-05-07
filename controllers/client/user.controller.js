@@ -19,6 +19,9 @@ const userFunction = require("../../util/userFunction");
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
+//validatePlanExpiration
+const validatePlanExpiration = require("../../util/validatePlanExpiration");
+
 //private key
 const admin = require("../../util/privateKey");
 
@@ -225,10 +228,15 @@ exports.retrieveUserProfile = async (req, res) => {
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
-
-    const [user] = await Promise.all([User.findOne({ _id: userId }).lean()]);
+    const user = await User.findOne({ _id: userId }).lean();
 
     res.status(200).json({ status: true, message: "The user has retrieved their profile.", user: user });
+
+    if (user.isVip && user.vipPlanId !== null && user.vipPlanStartDate !== null && user.vipPlanEndDate !== null) {
+      const validity = user.vipPlan.validity;
+      const validityType = user.vipPlan.validityType;
+      validatePlanExpiration(user, validity, validityType);
+    }
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
