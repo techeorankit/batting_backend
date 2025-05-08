@@ -3,9 +3,6 @@ const ChatTopic = require("../../models/chatTopic.model");
 //mongoose
 const mongoose = require("mongoose");
 
-//import model
-const Block = require("../../models/block.model");
-
 //get chat thumb list ( user )
 exports.fetchChatList = async (req, res) => {
   try {
@@ -14,11 +11,8 @@ exports.fetchChatList = async (req, res) => {
     }
 
     const userObjectId = new mongoose.Types.ObjectId(req.user.userId);
-
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
-
-    const blockedHosts = await Block.find({ userId: userObjectId, blockedBy: "user" }).distinct("hostId");
 
     const [chatList] = await Promise.all([
       ChatTopic.aggregate([
@@ -40,8 +34,28 @@ exports.fetchChatList = async (req, res) => {
           },
         },
         {
+          $lookup: {
+            from: "blocks",
+            let: { receiverId: "$receiverId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$userId", userObjectId] },
+                      { $eq: ["$blockedBy", "user"] },
+                      { $eq: ["$hostId", "$$receiverId"] },
+                    ],
+                  },
+                },
+              },
+            ],
+            as: "blockInfo",
+          },
+        },
+        {
           $match: {
-            receiverId: { $nin: blockedHosts },
+            blockInfo: { $eq: [] }, // Only allow unblocked
           },
         },
         {
@@ -52,7 +66,7 @@ exports.fetchChatList = async (req, res) => {
             as: "host",
           },
         },
-        { $unwind: { path: "$host", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$host", preserveNullAndEmptyArrays: false } },
         {
           $lookup: {
             from: "chats",
@@ -61,7 +75,7 @@ exports.fetchChatList = async (req, res) => {
             as: "chat",
           },
         },
-        { $unwind: { path: "$chat", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$chat", preserveNullAndEmptyArrays: false } },
         { $sort: { "chat.createdAt": -1 } },
         {
           $group: {
@@ -70,7 +84,7 @@ exports.fetchChatList = async (req, res) => {
             name: { $first: "$host.name" },
             image: { $first: "$host.image" },
             isOnline: { $first: "$host.isOnline" },
-            chatTopic: { $first: "$chat.chatTopic" },
+            chatTopic: { $first: "$chat.chatTopicId" },
             senderId: { $first: "$chat.senderId" },
             messageType: { $first: "$chat.messageType" },
             message: { $first: "$chat.message" },
@@ -167,11 +181,8 @@ exports.retrieveChatList = async (req, res) => {
     }
 
     const hostObjectId = new mongoose.Types.ObjectId(req.query.hostId);
-
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
-
-    const blockedUsers = await Block.find({ hostId: hostObjectId, blockedBy: "host" }).distinct("userId");
 
     const [chatList] = await Promise.all([
       ChatTopic.aggregate([
@@ -193,8 +204,28 @@ exports.retrieveChatList = async (req, res) => {
           },
         },
         {
+          $lookup: {
+            from: "blocks",
+            let: { userId: "$userId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$hostId", hostObjectId] },
+                      { $eq: ["$blockedBy", "host"] },
+                      { $eq: ["$userId", "$$userId"] },
+                    ],
+                  },
+                },
+              },
+            ],
+            as: "blockInfo",
+          },
+        },
+        {
           $match: {
-            userId: { $nin: blockedUsers },
+            blockInfo: { $eq: [] },
           },
         },
         {
@@ -205,7 +236,7 @@ exports.retrieveChatList = async (req, res) => {
             as: "user",
           },
         },
-        { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$user", preserveNullAndEmptyArrays: false } },
         {
           $lookup: {
             from: "chats",
@@ -214,7 +245,7 @@ exports.retrieveChatList = async (req, res) => {
             as: "chat",
           },
         },
-        { $unwind: { path: "$chat", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$chat", preserveNullAndEmptyArrays: false } },
         { $sort: { "chat.createdAt": -1 } },
         {
           $group: {
@@ -223,7 +254,7 @@ exports.retrieveChatList = async (req, res) => {
             name: { $first: "$user.name" },
             image: { $first: "$user.image" },
             isOnline: { $first: "$user.isOnline" },
-            chatTopic: { $first: "$chat.chatTopic" },
+            chatTopic: { $first: "$chat.chatTopicId" },
             senderId: { $first: "$chat.senderId" },
             message: { $first: "$chat.message" },
             messageType: { $first: "$chat.messageType" },
