@@ -165,7 +165,7 @@ exports.listPayoutRequests = async (req, res) => {
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [totalRecords, records] = await Promise.all([
+    const [host, totalRecords, records] = await Promise.all([
       Host.findOne({ _id: hostId }).select("_id").lean(),
       WithdrawalRequest.countDocuments({ person: 2, hostId: hostId, ...statusQuery, ...dateFilterQuery }),
       WithdrawalRequest.find({ person: 2, hostId: hostId, ...statusQuery, ...dateFilterQuery })

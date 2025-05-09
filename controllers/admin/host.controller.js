@@ -39,7 +39,8 @@ exports.fetchHostRequest = async (req, res) => {
         .populate("agencyId", "name image agencyCode")
         .sort({ createdAt: -1 })
         .skip((start - 1) * limit)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
     ]);
 
     return res.status(200).json({

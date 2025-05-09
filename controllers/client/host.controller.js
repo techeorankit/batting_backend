@@ -440,7 +440,7 @@ exports.retrieveHostDetails = async (req, res) => {
       return res.status(200).json({ status: false, message: "Valid userId is required." });
     }
 
-    const [host, receivedGifts, isFollowing] = await Promise.all([
+    const [host, receivedGifts, isFollowing, totalFollower] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
         .select(
           "name email gender bio countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
@@ -470,6 +470,7 @@ exports.retrieveHostDetails = async (req, res) => {
         },
       ]),
       FollowerFollowing.exists({ followerId: userId, followingId: hostId }),
+      FollowerFollowing.countDocuments({ followingId: hostId }),
     ]);
 
     if (!host) {
@@ -477,8 +478,14 @@ exports.retrieveHostDetails = async (req, res) => {
     }
 
     host.isFollowing = Boolean(isFollowing);
+    host.totalFollower = totalFollower || 0;
 
-    return res.status(200).json({ status: true, message: "The host profile retrieved.", host, receivedGifts });
+    return res.status(200).json({
+      status: true,
+      message: "The host profile retrieved.",
+      host,
+      receivedGifts,
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
