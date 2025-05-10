@@ -177,6 +177,7 @@ io.on("connection", async (socket) => {
                   $inc: {
                     hostCoins: hostEarnings,
                     totalEarnings: Math.floor(agencyShare),
+                    netAvailableEarnings: Math.floor(agencyShare),
                   },
                 }
               );
@@ -353,6 +354,7 @@ io.on("connection", async (socket) => {
             $inc: {
               hostCoins: hostEarnings,
               totalEarnings: Math.floor(agencyShare),
+              netAvailableEarnings: Math.floor(agencyShare),
             },
           }
         );
@@ -1043,7 +1045,7 @@ io.on("connection", async (socket) => {
   socket.on("callDisconnected", async (data) => {
     const parseData = JSON.parse(data);
     const { callerId, receiverId, callId, callType, callMode } = parseData;
-    console.log("[endCallSession]", "data in callDisconnected:", parseData);
+    console.log("[callDisconnected]", "data in callDisconnected:", parseData);
 
     const [caller, receiver, callHistory] = await Promise.all([
       User.findById(callerId).select("_id name").lean(),
@@ -1052,7 +1054,7 @@ io.on("connection", async (socket) => {
     ]);
 
     if (!caller || !receiver || !callHistory) {
-      console.error("❌ [endCallSession] Invalid caller, receiver, or call history.");
+      console.error("❌ [callDisconnected] Invalid caller, receiver, or call history.");
       return io.to(`globalRoom:${callerId}`).emit("callTerminationFailed", { message: "Invalid call data." });
     }
 
@@ -1167,6 +1169,7 @@ io.on("connection", async (socket) => {
                   $inc: {
                     hostCoins: hostEarnings,
                     totalEarnings: Math.floor(agencyShare),
+                    netAvailableEarnings: Math.floor(agencyShare),
                   },
                 }
               );
@@ -1247,6 +1250,7 @@ io.on("connection", async (socket) => {
                   $inc: {
                     hostCoins: hostEarnings,
                     totalEarnings: Math.floor(agencyShare),
+                    netAvailableEarnings: Math.floor(agencyShare),
                   },
                 }
               );
@@ -1337,6 +1341,7 @@ io.on("connection", async (socket) => {
                   $inc: {
                     hostCoins: hostEarnings,
                     totalEarnings: Math.floor(agencyShare),
+                    netAvailableEarnings: Math.floor(agencyShare),
                   },
                 }
               );
@@ -1786,6 +1791,7 @@ io.on("connection", async (socket) => {
               $inc: {
                 hostCoins: hostEarnings,
                 totalEarnings: Math.floor(agencyShare),
+                netAvailableEarnings: Math.floor(agencyShare),
               },
             }
           );

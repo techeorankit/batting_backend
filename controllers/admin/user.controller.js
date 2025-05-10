@@ -51,15 +51,7 @@ exports.retrieveUserList = async (req, res) => {
           $lookup: {
             from: "followerfollowings",
             localField: "_id",
-            foreignField: "toUserId",
-            as: "followers",
-          },
-        },
-        {
-          $lookup: {
-            from: "followerfollowings",
-            localField: "_id",
-            foreignField: "fromUserId",
+            foreignField: "followerId", // user follows these hosts
             as: "followings",
           },
         },
@@ -81,7 +73,6 @@ exports.retrieveUserList = async (req, res) => {
             isOnline: 1,
             loginType: 1,
             createdAt: 1,
-            totalFollowers: { $size: "$followers" },
             totalFollowings: { $size: "$followings" },
           },
         },

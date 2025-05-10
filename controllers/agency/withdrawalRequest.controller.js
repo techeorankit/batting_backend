@@ -266,7 +266,7 @@ exports.initiateWithdrawal = async (req, res) => {
 
     const [uniqueId, agency, pendingRequest, declinedRequest] = await Promise.all([
       generateHistoryUniqueId(),
-      Agency.findOne({ _id: agencyId }).select("_id totalEarnings").lean(),
+      Agency.findOne({ _id: agencyId }).select("_id netAvailableEarnings").lean(),
       WithdrawalRequest.findOne({ agencyId, status: 1 }).select("_id").lean(), // status 1: pending
       WithdrawalRequest.findOne({ agencyId, status: 3 }).select("_id").lean(), // status 3: declined
     ]);
@@ -279,7 +279,7 @@ exports.initiateWithdrawal = async (req, res) => {
       return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
     }
 
-    if (requestedCoins > agency.totalEarnings) {
+    if (requestedCoins > agency.netAvailableEarnings) {
       return res.status(200).json({ status: false, message: "Insufficient balance to request withdrawal." });
     }
 

@@ -57,8 +57,16 @@ exports.retrievePayoutRequests = async (req, res) => {
     }
 
     const [totalRecords, records] = await Promise.all([
-      WithdrawalRequest.countDocuments({ ...personQuery, ...statusQuery, ...dateFilterQuery }),
-      WithdrawalRequest.find({ ...personQuery, ...statusQuery, ...dateFilterQuery })
+      WithdrawalRequest.countDocuments({
+        ...personQuery,
+        ...statusQuery,
+        ...dateFilterQuery,
+      }),
+      WithdrawalRequest.find({
+        ...personQuery,
+        ...statusQuery,
+        ...dateFilterQuery,
+      })
         .populate("agencyId", "uniqueId name image")
         .populate("hostId", "uniqueId name image")
         .sort({ createdAt: -1 })
@@ -115,10 +123,13 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
           }
         ),
         Agency.updateOne(
-          { _id: request.agencyId, totalEarnings: { $gt: 0 } },
+          {
+            _id: request.agencyId,
+            netAvailableEarnings: { $gt: 0 },
+          },
           {
             $inc: {
-              totalEarnings: -request.coin,
+              netAvailableEarnings: -request.coin,
               totalWithdrawn: request.coin,
               totalWithdrawnAmount: request.amount,
             },
@@ -201,7 +212,10 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
           });
       }
     } else {
-      return res.status(200).json({ status: false, message: "Invalid type. Must be 'approve' or 'reject'." });
+      return res.status(200).json({
+        status: false,
+        message: "Invalid type. Must be 'approve' or 'reject'.",
+      });
     }
   } catch (error) {
     console.error("Error in handleAgencyWithdrawalStatus:", error);

@@ -124,7 +124,7 @@ exports.sendBulkHostNotifications = async (req, res) => {
 
     return res.status(200).json({ status: true, message: "Notifications sent successfully." });
   } catch (error) {
-    console.error("sendNotifications error:", error);
+    console.error("sendBulkHostNotifications error:", error);
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };

@@ -181,17 +181,57 @@ exports.retrieveAgencyHosts = async (req, res) => {
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
-
     const agencyId = new mongoose.Types.ObjectId(req.agency._id);
 
     const [agency, total, hosts] = await Promise.all([
-      Agency.findOne({ _id: agencyId }).select("_id").lean(),
-      Host.countDocuments({ agencyId: agencyId, status: 2, isFake: false }),
-      Host.find({ agencyId: agencyId, status: 2, isFake: false })
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+      Agency.findOne({ _id: agencyId }).select("_id isBlock").lean(),
+      Host.countDocuments({
+        agencyId,
+        status: 2,
+        isFake: false,
+      }),
+      Host.aggregate([
+        {
+          $match: {
+            agencyId,
+            status: 2,
+            isFake: false,
+          },
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: (start - 1) * limit },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: "followerfollowings", // must match collection name
+            localField: "_id",
+            foreignField: "followingId",
+            as: "followers",
+          },
+        },
+        {
+          $addFields: {
+            totalFollowers: { $size: "$followers" },
+          },
+        },
+        {
+          $project: {
+            name: 1,
+            coin: 1,
+            gender: 1,
+            image: 1,
+            impression: 1,
+            identityProofType: 1,
+            uniqueId: 1,
+            isOnline: 1,
+            isBusy: 1,
+            isLive: 1,
+            countryFlagImage: 1,
+            country: 1,
+            totalFollowers: 1,
+          },
+        },
+      ]),
     ]);
 
     if (!agency) {
@@ -206,7 +246,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
       status: true,
       message: "Agency wise hosts fetched successfully!",
       total,
-      hosts: hosts,
+      hosts,
     });
   } catch (error) {
     console.error("Error fetching agency wise hosts:", error);

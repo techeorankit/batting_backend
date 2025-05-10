@@ -214,6 +214,7 @@ exports.getAgencies = async (req, res) => {
             country: 1,
             hostCoins: 1,
             totalEarnings: 1,
+            netAvailableEarnings: 1,
             isBlock: 1,
             createdAt: 1,
           },

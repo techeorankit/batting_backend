@@ -561,6 +561,7 @@ exports.fetchCoinPlanTransactionHistory = async (req, res) => {
           $group: {
             _id: "$userDetails._id",
             name: { $first: "$userDetails.name" },
+            name: { $first: "$userDetails.uniqueId" },
             isVip: { $first: "$userDetails.isVip" },
             image: { $first: "$userDetails.image" },
             totalPlansPurchased: { $sum: 1 },

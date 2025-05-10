@@ -21,7 +21,9 @@ const generateUniqueId = require("../../util/generateUniqueId");
 exports.fetchHostRequest = async (req, res) => {
   try {
     if (!req.query.status) {
-      return res.status(200).json({ status: false, message: "Oops ! Invalid details!" });
+      return res
+        .status(200)
+        .json({ status: false, message: "Oops ! Invalid details!" });
     }
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
@@ -51,7 +53,9 @@ exports.fetchHostRequest = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    return res
+      .status(500)
+      .json({ status: false, error: error.message || "Internal Server Error" });
   }
 };
 
@@ -59,13 +63,17 @@ exports.fetchHostRequest = async (req, res) => {
 exports.handleHostRequest = async (req, res) => {
   try {
     if (!settingJSON) {
-      return res.status(200).json({ status: false, message: "Setting not found." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Setting not found." });
     }
 
     const { requestId, userId, status, reason } = req.query;
 
     if (!requestId || !userId || !status) {
-      return res.status(200).json({ status: false, message: "Invalid details provided." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Invalid details provided." });
     }
 
     const hostObjectId = new mongoose.Types.ObjectId(requestId);
@@ -75,19 +83,31 @@ exports.handleHostRequest = async (req, res) => {
     const host = await Host.findOne({ _id: hostObjectId });
 
     if (!host) {
-      return res.status(200).json({ status: false, message: "Host request not found." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Host request not found." });
     }
 
     if (host.agencyId === null) {
-      return res.status(200).json({ status: false, message: "Please assign this host to an agency before accepting the request." });
+      return res.status(200).json({
+        status: false,
+        message:
+          "Please assign this host to an agency before accepting the request.",
+      });
     }
 
     if (host.status === 2) {
-      return res.status(200).json({ status: false, message: "Host request has already been accepted." });
+      return res.status(200).json({
+        status: false,
+        message: "Host request has already been accepted.",
+      });
     }
 
     if (host.status === 3) {
-      return res.status(200).json({ status: false, message: "Host request has already been rejected." });
+      return res.status(200).json({
+        status: false,
+        message: "Host request has already been rejected.",
+      });
     }
 
     if (statusNumber === 2) {
@@ -100,9 +120,15 @@ exports.handleHostRequest = async (req, res) => {
       host.chatRate = settingJSON.chatInteractionRate;
       await host.save();
 
-      res.status(200).json({ status: true, message: "Host request accepted successfully.", data: host });
+      res.status(200).json({
+        status: true,
+        message: "Host request accepted successfully.",
+        data: host,
+      });
 
-      const user = await User.findOne({ _id: userObjectId }).select("isHost hostId");
+      const user = await User.findOne({ _id: userObjectId }).select(
+        "isHost hostId"
+      );
       if (user) {
         user.isHost = true;
         user.hostId = host._id;
@@ -128,14 +154,21 @@ exports.handleHostRequest = async (req, res) => {
       }
     } else if (statusNumber === 3) {
       if (!reason || reason.trim() === "") {
-        return res.status(200).json({ status: false, message: "Please provide a reason for rejection." });
+        return res.status(200).json({
+          status: false,
+          message: "Please provide a reason for rejection.",
+        });
       }
 
       host.status = 3;
       host.reason = reason.trim();
       await host.save();
 
-      res.status(200).json({ status: true, message: "Host request rejected successfully.", data: host });
+      res.status(200).json({
+        status: true,
+        message: "Host request rejected successfully.",
+        data: host,
+      });
 
       if (host.fcmToken) {
         const payload = {
@@ -155,11 +188,17 @@ exports.handleHostRequest = async (req, res) => {
         }
       }
     } else {
-      return res.status(200).json({ status: false, message: "Invalid status value provided." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Invalid status value provided." });
     }
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
+    return res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
 
@@ -175,34 +214,54 @@ exports.assignHostToAgency = async (req, res) => {
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(requestId) || !mongoose.Types.ObjectId.isValid(agencyId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(requestId) ||
+      !mongoose.Types.ObjectId.isValid(agencyId)
+    ) {
       return res.status(200).json({
         status: false,
-        message: "Invalid requestId or agencyId format. Must be a valid ObjectId.",
+        message:
+          "Invalid requestId or agencyId format. Must be a valid ObjectId.",
       });
     }
 
     const requestObjectId = new mongoose.Types.ObjectId(requestId);
-    const [hostRequest, agency] = await Promise.all([Host.findOne({ _id: requestObjectId, status: 1 }), Agency.findById(agencyId).select("_id name agencyCode").lean()]);
+    const [hostRequest, agency] = await Promise.all([
+      Host.findOne({ _id: requestObjectId, status: 1 }),
+      Agency.findById(agencyId).select("_id name agencyCode").lean(),
+    ]);
 
     if (!hostRequest) {
-      return res.status(200).json({ status: false, message: "Host request not found." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Host request not found." });
     }
 
     if (hostRequest.agencyId !== null) {
-      return res.status(200).json({ status: false, message: "This host request is already assigned to an agency." });
+      return res.status(200).json({
+        status: false,
+        message: "This host request is already assigned to an agency.",
+      });
     }
 
     if (!agency) {
-      return res.status(200).json({ status: false, message: "Agency not found." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Agency not found." });
     }
 
     if (hostRequest.status === 2) {
-      return res.status(200).json({ status: false, message: "This host request has already been accepted." });
+      return res.status(200).json({
+        status: false,
+        message: "This host request has already been accepted.",
+      });
     }
 
     if (hostRequest.status === 3) {
-      return res.status(200).json({ status: false, message: "This host request has already been rejected." });
+      return res.status(200).json({
+        status: false,
+        message: "This host request has already been rejected.",
+      });
     }
 
     hostRequest.agencyId = agency._id;
@@ -215,7 +274,11 @@ exports.assignHostToAgency = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in assignHostToAgency:", error);
-    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
+    return res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
 
@@ -223,7 +286,9 @@ exports.assignHostToAgency = async (req, res) => {
 exports.listAgencyHosts = async (req, res) => {
   try {
     if (!req.query.agencyId) {
-      return res.status(200).json({ status: false, message: "agencyId must be needed." });
+      return res
+        .status(200)
+        .json({ status: false, message: "agencyId must be needed." });
     }
 
     const agencyId = new mongoose.Types.ObjectId(req.query.agencyId);
@@ -251,11 +316,15 @@ exports.listAgencyHosts = async (req, res) => {
     let searchQuery = {};
     if (searchString !== "All" && searchString !== "") {
       searchQuery = {
-        $or: [{ name: { $regex: searchString, $options: "i" } }, { email: { $regex: searchString, $options: "i" } }, { uniqueId: { $regex: searchString, $options: "i" } }],
+        $or: [
+          { name: { $regex: searchString, $options: "i" } },
+          { email: { $regex: searchString, $options: "i" } },
+          { uniqueId: { $regex: searchString, $options: "i" } },
+        ],
       };
     }
 
-    let baseQuery = {
+    const baseQuery = {
       ...dateFilterQuery,
       ...searchQuery,
       agencyId: agencyId,
@@ -265,35 +334,88 @@ exports.listAgencyHosts = async (req, res) => {
 
     const [agency, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
-      Host.find(baseQuery)
-        .select("name gender image impression identityProofType uniqueId isOnline isBusy isLive countryFlagImage country")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+      Host.aggregate([
+        { $match: baseQuery },
+        { $sort: { createdAt: -1 } },
+        { $skip: (start - 1) * limit },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: "followerfollowings",
+            localField: "_id",
+            foreignField: "followingId",
+            as: "followers",
+          },
+        },
+        {
+          $addFields: {
+            totalFollowers: { $size: "$followers" },
+          },
+        },
+        {
+          $project: {
+            name: 1,
+            gender: 1,
+            image: 1,
+            impression: 1,
+            identityProofType: 1,
+            uniqueId: 1,
+            isOnline: 1,
+            isBusy: 1,
+            isLive: 1,
+            countryFlagImage: 1,
+            country: 1,
+            totalFollowers: 1,
+          },
+        },
+      ]),
     ]);
 
     if (!agency) {
-      return res.status(200).json({ status: false, message: "Agency not found!" });
+      return res
+        .status(200)
+        .json({ status: false, message: "Agency not found!" });
     }
 
     return res.status(200).json({
       status: true,
       message: "Agency wise hosts fetched successfully!",
-      hosts: hosts,
+      hosts,
     });
   } catch (error) {
     console.error("Error fetching agency wise hosts:", error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    return res
+      .status(500)
+      .json({ status: false, error: error.message || "Internal Server Error" });
   }
 };
 
 //create host
 exports.createHost = async (req, res) => {
   try {
-    const { name, bio, dob, gender, countryFlagImage, country, language, impression, email } = req.body;
+    const {
+      name,
+      bio,
+      dob,
+      gender,
+      countryFlagImage,
+      country,
+      language,
+      impression,
+      email,
+    } = req.body;
 
-    if (!name || !bio || !dob || !gender || !countryFlagImage || !country || !impression || !language || !req.files) {
+    if (
+      !name ||
+      !bio ||
+      !dob ||
+      !gender ||
+      !countryFlagImage ||
+      !country ||
+      !impression ||
+      !language ||
+      !req.files
+    ) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({
         status: false,
@@ -301,7 +423,10 @@ exports.createHost = async (req, res) => {
       });
     }
 
-    const [uniqueId, existingHost] = await Promise.all([generateUniqueId(), Host.findOne({ email: email?.trim() }).select("_id").lean()]);
+    const [uniqueId, existingHost] = await Promise.all([
+      generateUniqueId(),
+      Host.findOne({ email: email?.trim() }).select("_id").lean(),
+    ]);
 
     if (existingHost) {
       if (req.files) deleteFiles(req.files);
@@ -342,7 +467,8 @@ exports.createHost = async (req, res) => {
     console.error("Create Host Error:", error);
     return res.status(500).json({
       status: false,
-      message: error.message || "Failed to create host profile due to server error.",
+      message:
+        error.message || "Failed to create host profile due to server error.",
     });
   }
 };
@@ -350,23 +476,47 @@ exports.createHost = async (req, res) => {
 //update host
 exports.updateHost = async (req, res) => {
   try {
-    const { hostId, name, bio, dob, gender, countryFlagImage, country, language, impression, email } = req.body;
+    const {
+      hostId,
+      name,
+      bio,
+      dob,
+      gender,
+      countryFlagImage,
+      country,
+      language,
+      impression,
+      email,
+    } = req.body;
 
     if (!hostId) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({ status: false, message: "Missing or invalid host details. Please check and try again." });
+      return res.status(200).json({
+        status: false,
+        message: "Missing or invalid host details. Please check and try again.",
+      });
     }
 
-    const [host, existingHost] = await Promise.all([Host.findOne({ _id: hostId }), email ? Host.findOne({ email: email?.trim() }).select("_id").lean() : null]);
+    const [host, existingHost] = await Promise.all([
+      Host.findOne({ _id: hostId }),
+      email
+        ? Host.findOne({ email: email?.trim() }).select("_id").lean()
+        : null,
+    ]);
 
     if (!host) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({ status: false, message: "Host not found." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Host not found." });
     }
 
     if (existingHost) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({ status: false, message: "A host profile with this email already exists." });
+      return res.status(200).json({
+        status: false,
+        message: "A host profile with this email already exists.",
+      });
     }
 
     host.name = name || host.name;
@@ -377,12 +527,24 @@ exports.updateHost = async (req, res) => {
     host.countryFlagImage = countryFlagImage || host.countryFlagImage;
     host.country = country || host.country;
     host.countryFlagImage = countryFlagImage || host.countryFlagImage;
-    host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host.impression;
-    host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host.language;
+    host.impression =
+      typeof impression === "string"
+        ? impression.split(",")
+        : Array.isArray(impression)
+        ? impression
+        : host.impression;
+    host.language =
+      typeof language === "string"
+        ? language.split(",")
+        : Array.isArray(language)
+        ? language
+        : host.language;
 
     if (req.files.image) {
       if (host.image) {
-        const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
+        const imagePath = host.image.includes("storage")
+          ? "storage" + host.image.split("storage")[1]
+          : "";
         if (imagePath && fs.existsSync(imagePath)) {
           const imageName = imagePath.split("/").pop();
           if (!["male.png", "female.png"].includes(imageName)) {
@@ -411,13 +573,17 @@ exports.updateHost = async (req, res) => {
         }
       }
 
-      let updatedPhotoGallery = req.files.photoGallery.map((file) => ({ url: file.path }));
+      let updatedPhotoGallery = req.files.photoGallery.map((file) => ({
+        url: file.path,
+      }));
       host.photoGallery = updatedPhotoGallery;
     }
 
     if (req.files.video) {
       if (host.video) {
-        const videoPath = host.video.includes("storage") ? "storage" + host.video.split("storage")[1] : "";
+        const videoPath = host.video.includes("storage")
+          ? "storage" + host.video.split("storage")[1]
+          : "";
         if (videoPath && fs.existsSync(videoPath)) {
           const videoName = videoPath.split("/").pop();
           if (!["male.png", "female.png"].includes(videoName)) {
@@ -439,7 +605,11 @@ exports.updateHost = async (req, res) => {
   } catch (error) {
     if (req.files) deleteFiles(req.files);
     console.error("Update Host Error:", error);
-    return res.status(500).json({ status: false, message: error.message || "Failed to Update host profile due to server error." });
+    return res.status(500).json({
+      status: false,
+      message:
+        error.message || "Failed to Update host profile due to server error.",
+    });
   }
 };
 
@@ -449,21 +619,30 @@ exports.toggleHostStatusByType = async (req, res) => {
     const { hostId, type } = req.query;
 
     if (!hostId || !type) {
-      return res.status(200).json({ status: false, message: "Host ID and type are required!" });
+      return res
+        .status(200)
+        .json({ status: false, message: "Host ID and type are required!" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(hostId)) {
-      return res.status(200).json({ status: false, message: "Invalid hostId format." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Invalid hostId format." });
     }
 
     const validTypes = ["isBlock", "isBusy", "isLive"];
     if (!validTypes.includes(type)) {
-      return res.status(200).json({ status: false, message: `Invalid type. Valid types: ${validTypes.join(", ")}` });
+      return res.status(200).json({
+        status: false,
+        message: `Invalid type. Valid types: ${validTypes.join(", ")}`,
+      });
     }
 
     const host = await Host.findOne({ _id: hostId });
     if (!host) {
-      return res.status(200).json({ status: false, message: "Host not found." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Host not found." });
     }
 
     host[type] = !host[type];
@@ -471,12 +650,18 @@ exports.toggleHostStatusByType = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: `Host ${type} status has been ${host[type] ? "enabled" : "disabled"} successfully.`,
+      message: `Host ${type} status has been ${
+        host[type] ? "enabled" : "disabled"
+      } successfully.`,
       data: host,
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
+    return res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
 
@@ -484,7 +669,9 @@ exports.toggleHostStatusByType = async (req, res) => {
 exports.fetchHostList = async (req, res) => {
   try {
     if (!req.query.type) {
-      return res.status(200).json({ status: false, message: "Host type is required!" });
+      return res
+        .status(200)
+        .json({ status: false, message: "Host type is required!" });
     }
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
@@ -512,29 +699,100 @@ exports.fetchHostList = async (req, res) => {
     let searchQuery = {};
     if (searchString !== "All" && searchString !== "") {
       searchQuery = {
-        $or: [{ name: { $regex: searchString, $options: "i" } }, { email: { $regex: searchString, $options: "i" } }, { uniqueId: { $regex: searchString, $options: "i" } }],
+        $or: [
+          { name: { $regex: searchString, $options: "i" } },
+          { email: { $regex: searchString, $options: "i" } },
+          { uniqueId: { $regex: searchString, $options: "i" } },
+        ],
       };
     }
 
-    let filter = {
+    const filter = {
       ...dateFilterQuery,
       ...searchQuery,
       status: 2,
-      isFake: hostType == 1 ? false : true,
+      isFake: hostType === 1 ? false : true,
     };
 
     const [totalHosts, hostList] = await Promise.all([
       Host.countDocuments(filter),
-      Host.find(filter)
-        .populate("userId", "name image uniqueId")
-        .populate("agencyId", "name agencyCode image")
-        .select(
-          "name gender bio age dob email image video impression identityProofType uniqueId isBlock isOnline isBusy isLive countryFlagImage country photoGallery uniqueId randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin totalGifts language"
-        )
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+      Host.aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: "followerfollowings",
+            localField: "_id",
+            foreignField: "followingId",
+            as: "followers",
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            as: "userId",
+          },
+        },
+        { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "agencies",
+            localField: "agencyId",
+            foreignField: "_id",
+            as: "agencyId",
+          },
+        },
+        { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            totalFollowers: { $size: "$followers" },
+          },
+        },
+        {
+          $project: {
+            name: 1,
+            gender: 1,
+            bio: 1,
+            age: 1,
+            dob: 1,
+            email: 1,
+            image: 1,
+            video: 1,
+            impression: 1,
+            identityProofType: 1,
+            uniqueId: 1,
+            isBlock: 1,
+            isOnline: 1,
+            isBusy: 1,
+            isLive: 1,
+            countryFlagImage: 1,
+            country: 1,
+            photoGallery: 1,
+            randomCallRate: 1,
+            randomCallFemaleRate: 1,
+            randomCallMaleRate: 1,
+            privateCallRate: 1,
+            audioCallRate: 1,
+            chatRate: 1,
+            coin: 1,
+            totalGifts: 1,
+            language: 1,
+            totalFollowers: 1,
+            "userId._id": 1,
+            "userId.name": 1,
+            "userId.image": 1,
+            "userId.uniqueId": 1,
+            "agencyId._id": 1,
+            "agencyId.name": 1,
+            "agencyId.image": 1,
+            "agencyId.agencyCode": 1,
+          },
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: (start - 1) * limit },
+        { $limit: limit },
+      ]),
     ]);
 
     return res.status(200).json({
@@ -545,7 +803,9 @@ exports.fetchHostList = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching hosts:", error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    return res
+      .status(500)
+      .json({ status: false, error: error.message || "Internal Server Error" });
   }
 };
 
@@ -555,13 +815,20 @@ exports.deleteHost = async (req, res) => {
     const { hostId } = req.query;
 
     if (!hostId) {
-      return res.status(200).json({ status: false, message: "Missing or invalid host details. Please check and try again." });
+      return res.status(200).json({
+        status: false,
+        message: "Missing or invalid host details. Please check and try again.",
+      });
     }
 
-    const host = await Host.findOne({ _id: hostId }).select("_id image photoGallery").lean();
+    const host = await Host.findOne({ _id: hostId })
+      .select("_id image photoGallery")
+      .lean();
 
     if (!host) {
-      return res.status(200).json({ status: false, message: "Host not found." });
+      return res
+        .status(200)
+        .json({ status: false, message: "Host not found." });
     }
 
     res.status(200).json({
@@ -570,7 +837,9 @@ exports.deleteHost = async (req, res) => {
     });
 
     if (host.image) {
-      const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
+      const imagePath = host.image.includes("storage")
+        ? "storage" + host.image.split("storage")[1]
+        : "";
       if (imagePath && fs.existsSync(imagePath)) {
         const imageName = imagePath.split("/").pop();
         if (!["male.png", "female.png"].includes(imageName)) {
@@ -602,6 +871,9 @@ exports.deleteHost = async (req, res) => {
     await Host.deleteOne({ _id: hostId });
   } catch (error) {
     console.error("Delete Host Error:", error);
-    return res.status(500).json({ status: false, message: error.message || "Failed to delete host due to server error." });
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Failed to delete host due to server error.",
+    });
   }
 };

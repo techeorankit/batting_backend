@@ -139,11 +139,11 @@ exports.sendNotifications = async (req, res) => {
 
     let targets = [];
 
-    if (notificationType.trim().toLowerCase() === "user") {
+    if (notificationType?.trim().toLowerCase() === "user") {
       targets = await User.find({ isBlock: false }, "_id fcmToken");
-    } else if (notificationType.trim().toLowerCase() === "host") {
+    } else if (notificationType?.trim().toLowerCase() === "host") {
       targets = await Host.find({ isBlock: false }, "_id fcmToken");
-    } else if (notificationType.trim().toLowerCase() === "both") {
+    } else if (notificationType?.trim().toLowerCase() === "both") {
       const [users, hosts] = await Promise.all([User.find({ isBlock: false }, "_id fcmToken"), Host.find({ isBlock: false }, "_id fcmToken")]);
       targets = [...users.map((u) => ({ ...u.toObject(), isUser: true })), ...hosts.map((h) => ({ ...h.toObject(), isHost: true }))];
     } else {
