@@ -556,7 +556,12 @@ exports.fetchCoinPlanTransactionHistory = async (req, res) => {
             as: "userDetails",
           },
         },
-        { $unwind: "$userDetails" },
+         {
+          $unwind: {
+            path: "$userDetails",
+            preserveNullAndEmptyArrays: false,
+          },
+        },
         {
           $group: {
             _id: "$userDetails._id",

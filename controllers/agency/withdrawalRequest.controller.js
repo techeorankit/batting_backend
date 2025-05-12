@@ -312,6 +312,7 @@ exports.initiateWithdrawal = async (req, res) => {
       res.status(200).json({
         status: true,
         message: "Previous declined request removed. New withdrawal request submitted successfully.",
+        withdrawalRequest: withdrawalData,
       });
 
       await WithdrawalRequest.deleteOne({ _id: declinedRequest._id });

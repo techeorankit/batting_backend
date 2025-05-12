@@ -15,8 +15,6 @@ exports.updateSetting = async (req, res) => {
       return res.status(200).json({ status: false, message: "Setting does not found." });
     }
 
-    // const setting = new Setting();
-
     setting.agoraAppId = req.body.agoraAppId ? req.body.agoraAppId.trim() : setting.agoraAppId;
     setting.agoraAppCertificate = req.body.agoraAppCertificate ? req.body.agoraAppCertificate.trim() : setting.agoraAppCertificate;
     setting.privacyPolicyLink = req.body.privacyPolicyLink ? req.body.privacyPolicyLink.trim() : setting.privacyPolicyLink;
@@ -32,7 +30,10 @@ exports.updateSetting = async (req, res) => {
     setting.minCoinsForHostPayout = req.body.minCoinsForHostPayout ? Number(req.body.minCoinsForHostPayout) : setting.minCoinsForHostPayout;
     setting.minCoinsForAgencyPayout = req.body.minCoinsForAgencyPayout ? Number(req.body.minCoinsForAgencyPayout) : setting.minCoinsForAgencyPayout;
     setting.maxFreeChatMessages = req.body.maxFreeChatMessages ? Number(req.body.maxFreeChatMessages) : setting.maxFreeChatMessages;
-    setting.privateKey = req.body.privateKey ? JSON.parse(req.body.privateKey) : setting.privateKey;
+
+    if (req.body.privateKey) {
+      setting.privateKey = typeof req.body.privateKey === "string" ? JSON.parse(req.body.privateKey.trim()) : req.body.privateKey;
+    }
 
     setting.generalRandomCallRate = req.body.generalRandomCallRate !== undefined ? Number(req.body.generalRandomCallRate) : setting.generalRandomCallRate;
     setting.femaleRandomCallRate = req.body.femaleRandomCallRate !== undefined ? Number(req.body.femaleRandomCallRate) : setting.femaleRandomCallRate;
@@ -48,7 +49,7 @@ exports.updateSetting = async (req, res) => {
       message: "Setting has been Updated.",
       data: setting,
     });
-    
+
     await Host.updateMany(
       {},
       {
