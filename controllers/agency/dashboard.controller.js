@@ -33,7 +33,7 @@ exports.retrieveDashboardStats = async (req, res) => {
       };
     }
 
-    const [agency, pendingHostApplications, totalHosts, activeHosts, suspendedHosts, hostsLiveNow, totalPayoutPending, totalPayoutCompleted, agencyHostEarnings] = await Promise.all([
+    const [agency, pendingHostApplications, totalHosts, activeHosts, suspendedHosts, hostsLiveNow, totalPayoutPending, totalPayoutCompleted, agencyEarnings, agencyHostEarnings] = await Promise.all([
       Agency.findById(agencyObjectId).select("_id").lean(),
       Host.countDocuments({ ...dateFilterQuery, agencyId: agencyObjectId, status: 1 }),
       Host.countDocuments({ ...dateFilterQuery, agencyId: agencyObjectId, status: 2, isFake: false }),
@@ -124,6 +124,20 @@ exports.retrieveDashboardStats = async (req, res) => {
           $group: {
             _id: null,
             totalAgencyEarnings: { $sum: "$agencyCoin" },
+          },
+        },
+      ]),
+      History.aggregate([
+        {
+          $match: {
+            ...dateFilterQuery,
+            agencyId: agencyObjectId,
+            type: { $in: [2, 3, 9, 10, 11, 12, 13] },
+          },
+        },
+        {
+          $group: {
+            _id: null,
             totalAgencyUnderHostsEarning: { $sum: "$hostCoin" },
           },
         },
@@ -134,7 +148,7 @@ exports.retrieveDashboardStats = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency not found." });
     }
 
-    const totalAgencyEarnings = agencyHostEarnings.length > 0 ? agencyHostEarnings[0].totalAgencyEarnings : 0;
+    const totalAgencyEarnings = agencyEarnings.length > 0 ? agencyEarnings[0].totalAgencyEarnings : 0;
     const totalAgencyUnderHostsEarning = agencyHostEarnings.length > 0 ? agencyHostEarnings[0].totalAgencyUnderHostsEarning : 0;
 
     return res.status(200).json({

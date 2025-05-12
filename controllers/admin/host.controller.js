@@ -761,6 +761,8 @@ exports.fetchHostList = async (req, res) => {
             video: 1,
             impression: 1,
             identityProofType: 1,
+            identityProof: 1,
+            photoGallery: 1,
             uniqueId: 1,
             isBlock: 1,
             isOnline: 1,

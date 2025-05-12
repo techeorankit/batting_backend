@@ -17,4 +17,7 @@ route.get("/getCallTransactions", checkAccessWithSecretKey(), HistoryController.
 //get gift history ( host )
 route.get("/getGiftTransactions", checkAccessWithSecretKey(), HistoryController.getGiftTransactions);
 
+//get agency's earnings
+route.get("/retrieveAgencyEarnings", checkAccessWithSecretKey(), HistoryController.retrieveAgencyEarnings);
+
 module.exports = route;
