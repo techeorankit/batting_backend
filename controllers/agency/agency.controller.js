@@ -16,10 +16,14 @@ exports.loginAgency = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
     }
 
-    const agency = await Agency.findOne({ email: email.trim() }).select("_id password").lean();
+    const agency = await Agency.findOne({ email: email.trim() }).select("_id password isBlock").lean();
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Oops! Agency not found with that email." });
+    }
+
+    if (agency.isBlock) {
+      return res.status(200).json({ status: false, message: "Agency is currently inactive." });
     }
 
     if (cryptr.decrypt(agency.password) !== password) {
@@ -108,6 +112,10 @@ exports.getAgencyProfile = async (req, res) => {
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found." });
+    }
+
+    if (agency.isBlock) {
+      return res.status(200).json({ status: false, message: "Agency is currently inactive." });
     }
 
     agency.password = cryptr.decrypt(agency.password);

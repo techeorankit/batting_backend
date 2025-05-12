@@ -556,7 +556,7 @@ exports.fetchCoinPlanTransactionHistory = async (req, res) => {
             as: "userDetails",
           },
         },
-         {
+        {
           $unwind: {
             path: "$userDetails",
             preserveNullAndEmptyArrays: false,
@@ -773,7 +773,7 @@ exports.listCallTransactions = async (req, res) => {
         ...dateFilterQuery,
         type: { $in: [11, 12, 13] },
         hostId: hostId,
-        userCoin: { $ne: 0 },
+        hostCoin: { $ne: 0 },
       }),
       History.aggregate([
         {
@@ -781,7 +781,7 @@ exports.listCallTransactions = async (req, res) => {
             ...dateFilterQuery,
             type: { $in: [11, 12, 13] },
             hostId: hostId,
-            userCoin: { $ne: 0 },
+            hostCoin: { $ne: 0 },
           },
         },
         {
@@ -895,7 +895,7 @@ exports.fetchGiftTransactionHistory = async (req, res) => {
         ...dateFilterQuery,
         type: { $in: [2, 3, 10] },
         hostId: hostId,
-        userCoin: { $ne: 0 },
+        hostCoin: { $ne: 0 },
       }),
       History.aggregate([
         {
@@ -903,7 +903,7 @@ exports.fetchGiftTransactionHistory = async (req, res) => {
             ...dateFilterQuery,
             type: { $in: [2, 3, 10] },
             hostId: hostId,
-            userCoin: { $ne: 0 },
+            hostCoin: { $ne: 0 },
           },
         },
         {

@@ -43,7 +43,7 @@ exports.getCoinTransactions = async (req, res) => {
         ...dateFilterQuery,
         type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
         hostId: hostId,
-        userCoin: { $ne: 0 },
+        hostCoin: { $ne: 0 },
       }),
       History.aggregate([
         {
@@ -51,7 +51,7 @@ exports.getCoinTransactions = async (req, res) => {
             ...dateFilterQuery,
             type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
             hostId: hostId,
-            userCoin: { $ne: 0 },
+            hostCoin: { $ne: 0 },
           },
         },
         {
@@ -65,7 +65,7 @@ exports.getCoinTransactions = async (req, res) => {
         {
           $unwind: {
             path: "$sender",
-            preserveNullAndEmptyArrays: false,
+            preserveNullAndEmptyArrays: true,
           },
         },
         {
@@ -161,7 +161,7 @@ exports.getCallTransactions = async (req, res) => {
         ...dateFilterQuery,
         type: { $in: [11, 12, 13] },
         hostId: hostId,
-        userCoin: { $ne: 0 },
+        hostCoin: { $ne: 0 },
       }),
       History.aggregate([
         {
@@ -169,7 +169,7 @@ exports.getCallTransactions = async (req, res) => {
             ...dateFilterQuery,
             type: { $in: [11, 12, 13] },
             hostId: hostId,
-            userCoin: { $ne: 0 },
+            hostCoin: { $ne: 0 },
           },
         },
         {
@@ -282,7 +282,7 @@ exports.getGiftTransactions = async (req, res) => {
         ...dateFilterQuery,
         type: { $in: [2, 3, 10] },
         hostId: hostId,
-        userCoin: { $ne: 0 },
+        hostCoin: { $ne: 0 },
       }),
       History.aggregate([
         {
@@ -290,7 +290,7 @@ exports.getGiftTransactions = async (req, res) => {
             ...dateFilterQuery,
             type: { $in: [2, 3, 10] },
             hostId: hostId,
-            userCoin: { $ne: 0 },
+            hostCoin: { $ne: 0 },
           },
         },
         {
@@ -477,7 +477,7 @@ exports.retrieveAgencyEarnings = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency not found." });
     }
 
-    if (!agency.isBlock) {
+    if (agency.isBlock) {
       return res.status(200).json({ status: false, message: "Agency is currently inactive." });
     }
 

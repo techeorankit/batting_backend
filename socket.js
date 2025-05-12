@@ -1193,6 +1193,7 @@ io.on("connection", async (socket) => {
               { _id: callHistory._id, userId: caller._id, hostId: receiver._id },
               {
                 $set: {
+                  agencyId: agency._id,
                   date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
                 },
                 $inc: {
@@ -1274,6 +1275,7 @@ io.on("connection", async (socket) => {
               { _id: callHistory._id, userId: caller._id, hostId: receiver._id },
               {
                 $set: {
+                  agencyId: agency._id,
                   date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
                 },
                 $inc: {
@@ -1365,6 +1367,7 @@ io.on("connection", async (socket) => {
               { _id: callHistory._id, userId: caller._id, hostId: receiver._id },
               {
                 $set: {
+                  agencyId: agency._id,
                   date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
                 },
                 $inc: {
