@@ -386,14 +386,24 @@ exports.retrieveAgencyEarnings = async (req, res) => {
       };
     }
 
-    const [agency, total, transactionHistory] = await Promise.all([
+    const [agency, summary, transactionHistory] = await Promise.all([
       Agency.findOne({ _id: agencyObjectId }).select("_id isBlock").lean(),
-      History.countDocuments({
-        ...dateFilterQuery,
-        agencyId: agencyObjectId,
-        type: { $in: [2, 3, 9, 10, 11, 12, 13] },
-        agencyCoin: { $ne: 0 },
-      }),
+      History.aggregate([
+        {
+          $match: {
+            ...dateFilterQuery,
+            agencyId: agencyObjectId,
+            type: { $in: [2, 3, 9, 10, 11, 12, 13] },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            totalAgencyEarnings: { $sum: "$agencyCoin" },
+          },
+        },
+      ]),
       History.aggregate([
         {
           $match: {
@@ -481,10 +491,14 @@ exports.retrieveAgencyEarnings = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency is currently inactive." });
     }
 
+    const total = summary.length > 0 ? summary[0].total : 0;
+    const totalAgencyEarnings = summary.length > 0 ? Number(summary[0].totalAgencyEarnings.toFixed(2)) : 0;
+
     return res.status(200).json({
       status: true,
       message: "Transaction history fetch successfully.",
-      total: total,
+      total,
+      totalAgencyEarnings,
       data: transactionHistory,
     });
   } catch (error) {
