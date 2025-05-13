@@ -211,15 +211,8 @@ exports.retrieveHosts = async (req, res) => {
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
 
-    const blockedHosts = await Block.find({ userId, blockedBy: "user" }).distinct("hostId");
-
-    const fakeMatchQuery = isGlobal
-      ? { isFake: true, isBlock: false, userId: { $ne: userId }, _id: { $nin: blockedHosts } }
-      : { country: country, isFake: true, isBlock: false, userId: { $ne: userId }, _id: { $nin: blockedHosts } };
-
-    const matchQuery = isGlobal
-      ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId }, _id: { $nin: blockedHosts } }
-      : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId }, _id: { $nin: blockedHosts } };
+    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
+    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
 
     const [fakeHost, host, followedHost, liveHost, fakeLiveHost] = await Promise.all([
       Host.aggregate([
@@ -263,6 +256,27 @@ exports.retrieveHosts = async (req, res) => {
       ]),
       Host.aggregate([
         { $match: matchQuery },
+        {
+          $lookup: {
+            from: "blocks",
+            let: { hostId: "$_id", userId: userId },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                  },
+                },
+              },
+            ],
+            as: "blockInfo",
+          },
+        },
+        {
+          $match: {
+            blockInfo: { $eq: [] },
+          },
+        },
         {
           $addFields: {
             status: {
@@ -315,7 +329,27 @@ exports.retrieveHosts = async (req, res) => {
             isBlock: false,
             status: 2,
             userId: { $ne: userId },
-            _id: { $nin: blockedHosts }, // block check here too
+          },
+        },
+        {
+          $lookup: {
+            from: "blocks",
+            let: { hostId: "$_id", userId: userId },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                  },
+                },
+              },
+            ],
+            as: "blockInfo",
+          },
+        },
+        {
+          $match: {
+            blockInfo: { $eq: [] },
           },
         },
         {
@@ -351,7 +385,27 @@ exports.retrieveHosts = async (req, res) => {
         {
           $match: {
             userId: { $ne: userId },
-            hostId: { $nin: blockedHosts }, // block check for live
+          },
+        },
+        {
+          $lookup: {
+            from: "blocks",
+            let: { hostId: "$_id", userId: userId },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                  },
+                },
+              },
+            ],
+            as: "blockInfo",
+          },
+        },
+        {
+          $match: {
+            blockInfo: { $eq: [] },
           },
         },
         {
@@ -384,7 +438,6 @@ exports.retrieveHosts = async (req, res) => {
             isLive: true,
             video: { $ne: "" },
             userId: { $ne: userId },
-            _id: { $nin: blockedHosts },
           },
         },
         {

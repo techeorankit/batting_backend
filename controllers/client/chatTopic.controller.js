@@ -41,10 +41,13 @@ exports.fetchChatList = async (req, res) => {
               {
                 $match: {
                   $expr: {
-                    $and: [
-                      { $eq: ["$userId", userObjectId] },
-                      { $eq: ["$blockedBy", "user"] },
-                      { $eq: ["$hostId", "$$receiverId"] },
+                    $or: [
+                      {
+                        $and: [{ $eq: ["$userId", userObjectId] }, { $eq: ["$hostId", "$$receiverId"] }],
+                      },
+                      {
+                        $and: [{ $eq: ["$userId", "$$receiverId"] }, { $eq: ["$hostId", userObjectId] }],
+                      },
                     ],
                   },
                 },
@@ -55,7 +58,7 @@ exports.fetchChatList = async (req, res) => {
         },
         {
           $match: {
-            blockInfo: { $eq: [] }, // Only allow unblocked
+            blockInfo: { $eq: [] }, // Exclude both user-blocked-host and host-blocked-user
           },
         },
         {
@@ -211,10 +214,13 @@ exports.retrieveChatList = async (req, res) => {
               {
                 $match: {
                   $expr: {
-                    $and: [
-                      { $eq: ["$hostId", hostObjectId] },
-                      { $eq: ["$blockedBy", "host"] },
-                      { $eq: ["$userId", "$$userId"] },
+                    $or: [
+                      {
+                        $and: [{ $eq: ["$hostId", hostObjectId] }, { $eq: ["$userId", "$$userId"] }],
+                      },
+                      {
+                        $and: [{ $eq: ["$userId", hostObjectId] }, { $eq: ["$hostId", "$$userId"] }],
+                      },
                     ],
                   },
                 },
@@ -225,7 +231,7 @@ exports.retrieveChatList = async (req, res) => {
         },
         {
           $match: {
-            blockInfo: { $eq: [] },
+            blockInfo: { $eq: [] }, // Exclude if any block exists between host and user
           },
         },
         {

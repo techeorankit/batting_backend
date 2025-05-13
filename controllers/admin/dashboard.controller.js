@@ -215,6 +215,7 @@ exports.getTopPerformingAgencies = async (req, res) => {
       {
         $addFields: {
           hostsCount: { $size: "$hosts" },
+          totalEarnings: { $round: ["$totalEarnings", 2] },
         },
       },
       {
@@ -242,10 +243,7 @@ exports.getTopPerformingAgencies = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching top performing agencies:", error);
-    return res.status(500).json({
-      status: false,
-      message: error.message || "Internal Server Error",
-    });
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
 

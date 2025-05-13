@@ -72,17 +72,17 @@ exports.getCoinTransactionHistory = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 1] }, then: "🎉 Login Bonus" },
-                  { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 6] }, then: "📅 Daily Check-in Reward" },
-                  { case: { $eq: ["$type", 7] }, then: "💳 Purchased Coin Plan" },
-                  { case: { $eq: ["$type", 8] }, then: "👑 VIP Plan Purchase" },
-                  { case: { $eq: ["$type", 9] }, then: "💬 Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "📞 Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "🎥 Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "🎲 Random Video Call" },
+                  { case: { $eq: ["$type", 1] }, then: "Login Bonus" },
+                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                  { case: { $eq: ["$type", 6] }, then: "Daily Check-in Reward" },
+                  { case: { $eq: ["$type", 7] }, then: "Purchased Coin Plan" },
+                  { case: { $eq: ["$type", 8] }, then: "VIP Plan Purchase" },
+                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -257,9 +257,9 @@ exports.fetchCallTransactionHistory = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 11] }, then: "📞 Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "🎥 Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "🎲 Random Video Call" },
+                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -378,9 +378,9 @@ exports.retrieveGiftTransactionHistory = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
+                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -669,14 +669,14 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 5] }, then: "🏧 Withdrawal by Host" },
-                  { case: { $eq: ["$type", 9] }, then: "💬 Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "📞 Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "🎥 Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "🎲 Random Video Call" },
+                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                  { case: { $eq: ["$type", 5] }, then: "Withdrawal by Host" },
+                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -803,9 +803,9 @@ exports.listCallTransactions = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 11] }, then: "📞 Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "🎥 Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "🎲 Random Video Call" },
+                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -925,9 +925,9 @@ exports.fetchGiftTransactionHistory = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
+                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
                 ],
                 default: "❓ Unknown Type",
               },

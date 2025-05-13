@@ -73,14 +73,14 @@ exports.getCoinTransactions = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 5] }, then: "🏧 Withdrawal by Host" },
-                  { case: { $eq: ["$type", 9] }, then: "💬 Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "📞 Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "🎥 Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "🎲 Random Video Call" },
+                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                  { case: { $eq: ["$type", 5] }, then: "Withdrawal by Host" },
+                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -191,9 +191,9 @@ exports.getCallTransactions = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 11] }, then: "📞 Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "🎥 Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "🎲 Random Video Call" },
+                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -446,13 +446,13 @@ exports.retrieveAgencyEarnings = async (req, res) => {
             typeDescription: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 9] }, then: "💬 Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "📞 Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "🎥 Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "🎲 Random Video Call" },
+                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                 ],
                 default: "❓ Unknown Type",
               },
