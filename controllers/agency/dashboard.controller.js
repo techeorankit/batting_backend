@@ -151,8 +151,6 @@ exports.retrieveDashboardStats = async (req, res) => {
     const totalAgencyEarnings = agencyEarnings.length > 0 ? agencyEarnings[0].totalAgencyEarnings : 0;
     const totalAgencyUnderHostsEarning = agencyHostEarnings.length > 0 ? agencyHostEarnings[0].totalAgencyUnderHostsEarning : 0;
 
-    console.log("totalAgencyUnderHostsEarning ========", totalAgencyUnderHostsEarning);
-
     return res.status(200).json({
       status: true,
       message: "Get admin panel dashboard count.",
