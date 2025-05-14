@@ -22,7 +22,7 @@ exports.validateAdminLogin = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
     }
 
-    const admin = await Admin.findOne({ email: email.trim() }).select("_id password").lean();
+    const admin = await Admin.findOne({ email: email.trim() }).select("_id password flag").lean();
 
     if (!admin) {
       return res.status(200).json({ status: false, message: "Oops! Admin not found with that email." });
@@ -35,6 +35,7 @@ exports.validateAdminLogin = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Admin has successfully logged in.",
+      data: admin.flag || false,
     });
   } catch (error) {
     console.error(error);
