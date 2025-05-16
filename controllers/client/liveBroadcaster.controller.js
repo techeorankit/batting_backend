@@ -4,6 +4,7 @@ const LiveBroadcaster = require("../../models/liveBroadcaster.model");
 const Host = require("../../models/host.model");
 const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
 const FollowerFollowing = require("../../models/followerFollowing.model");
+const User = require("../../models/user.model");
 
 //private key
 const admin = require("../../util/privateKey");
@@ -96,8 +97,9 @@ exports.HostStreaming = async (req, res) => {
     });
 
     const followers = await FollowerFollowing.find({ followingId: hostObjectId }).distinct("followerId");
+
     if (followers.length > 0) {
-      const followerTokens = await Host.find({
+      const followerTokens = await User.find({
         _id: { $in: followers },
         isBlock: false,
         fcmToken: { $ne: null },

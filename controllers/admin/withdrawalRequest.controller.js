@@ -117,13 +117,22 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
         message: "Withdrawal request approved successfully.",
       });
 
-      const [updateRequest, updateAgency] = await Promise.all([
+      await Promise.all([
         WithdrawalRequest.updateOne(
           { _id: request._id, person: 1, agencyId: agencyId },
           {
             $set: {
               status: 2,
               acceptOrDeclineDate: dateNow,
+            },
+          }
+        ),
+        History.updateOne(
+          { uniqueId: request.uniqueId, type: 5 },
+          {
+            $set: {
+              payoutStatus: 2,
+              date: dateNow,
             },
           }
         ),
@@ -170,7 +179,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
         message: "Withdrawal request declined.",
       });
 
-      const [updateRequest, updateHistory] = await Promise.all([
+      await Promise.all([
         WithdrawalRequest.updateOne(
           { _id: request._id },
           {
@@ -182,7 +191,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
           }
         ),
         History.updateOne(
-          { uniqueId: request.uniqueId, type: 4 },
+          { uniqueId: request.uniqueId, type: 5 },
           {
             $set: {
               payoutStatus: 3,
