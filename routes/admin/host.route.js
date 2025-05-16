@@ -52,6 +52,9 @@ route.patch(
 //toggle host status
 route.patch("/toggleHostStatusByType", checkAccessWithSecretKey(), HostController.toggleHostStatusByType);
 
+//get host's profile
+route.get("/fetchHostProfile", checkAccessWithSecretKey(), HostController.fetchHostProfile);
+
 //get hosts
 route.get("/fetchHostList", checkAccessWithSecretKey(), HostController.fetchHostList);
 

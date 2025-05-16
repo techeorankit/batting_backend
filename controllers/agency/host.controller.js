@@ -28,7 +28,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
       Agency.findOne({ _id: agencyId }).lean(),
       Host.countDocuments({ agencyId: agencyId, status: status, isBlock: false, isFake: false }),
       Host.find({ agencyId: agencyId, status: status, isBlock: false, isFake: false })
-        .select("_id name gender image photoGallery impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId")
+        .select("_id name gender image photoGallery impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId reason")
         .skip((start - 1) * limit)
         .limit(limit)
         .sort({ createdAt: -1 })

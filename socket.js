@@ -72,15 +72,15 @@ io.on("connection", async (socket) => {
     let senderPromise, receiverPromise;
 
     if (parseData?.senderRole === "user") {
-      senderPromise = User.findById(parseData?.senderId).lean().select("_id name coin isVip");
+      senderPromise = User.findById(parseData?.senderId).lean().select("_id name image coin isVip");
     } else if (parseData?.senderRole === "host") {
-      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name coin");
+      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name image coin");
     }
 
     if (parseData?.receiverRole === "host") {
-      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin chatRate agencyId");
+      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id name image fcmToken isBlock coin chatRate agencyId");
     } else if (parseData?.receiverRole === "user") {
-      receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
+      receiverPromise = User.findById(parseData?.receiverId).lean().select("_id name image fcmToken isBlock coin");
     }
 
     const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId messageCount");
@@ -231,6 +231,13 @@ io.on("connection", async (socket) => {
             },
             data: {
               type: "CHAT",
+              senderId: chatTopic?.senderId?.toString(),
+              receiverId: chatTopic?.receiverId?.toString(),
+              userName: sender?.name || "",
+              hostName: receiver?.name || "",
+              userImage: sender?.image || "",
+              hostImage: receiver?.image || "",
+              senderRole: parseData?.senderRole || "",
             },
           };
 

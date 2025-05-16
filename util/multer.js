@@ -17,10 +17,6 @@ module.exports = multer.diskStorage({
   destination: (req, file, callback) => {
     let uploadFolder = "storage";
 
-    if (file.fieldname === "svgaImage") {
-      uploadFolder = "svga";
-    }
-
     ensureDirExists(uploadFolder);
     callback(null, uploadFolder);
   },

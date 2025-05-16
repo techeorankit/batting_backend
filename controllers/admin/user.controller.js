@@ -136,6 +136,10 @@ exports.fetchUserProfile = async (req, res) => {
       User.findOne({ _id: userId }).select("name selfIntro gender bio age image email countryFlagImage country loginType uniqueId coin spentCoins rechargedCoins isOnline").lean(),
     ]);
 
+    if (!user) {
+      return res.status(200).json({ status: false, message: "User not found." });
+    }
+
     return res.status(200).json({ status: true, message: "The user has retrieved their profile.", user: user });
   } catch (error) {
     console.log(error);

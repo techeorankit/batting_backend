@@ -55,7 +55,6 @@ async function startServer() {
   require("./socket");
 
   app.use("/storage", express.static(path.join(__dirname, "storage")));
-  app.use("/svga", express.static(path.join(__dirname, "svga")));
 
   db.on("error", () => {
     console.log("Connection Error: ");
@@ -73,3 +72,43 @@ async function startServer() {
 
 //Run server startup
 startServer();
+
+// const admin = require("firebase-admin");
+// const serviceAccount = {};
+
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+// });
+
+// async function deleteAllUsers(nextPageToken) {
+//   try {
+//     const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);    
+//     const uids = listUsersResult.users.map(user => user.uid);
+
+//     console.log(`Fetched ${uids.length} users`);
+
+//     if (uids.length > 0) {
+//       const result = await admin.auth().deleteUsers(uids);
+//       console.log(`✅ Deleted ${result.successCount} users`);
+//       if (result.failureCount > 0) {
+//         console.log(`❌ Failed to delete ${result.failureCount} users`);
+//         result.errors.forEach(err => {
+//           console.error(`Error for UID ${err.index}: ${err.error}`);
+//         });
+//       }
+//     } else {
+//       console.log("⚠️ No users found to delete.");
+//     }
+
+//     if (listUsersResult.pageToken) {
+//       console.log("⏭ Fetching next page of users...");
+//       await deleteAllUsers(listUsersResult.pageToken);
+//     } else {
+//       console.log("✅ All users processed.");
+//     }
+//   } catch (error) {
+//     console.error("❌ Error while deleting users:", error);
+//   }
+// }
+
+// deleteAllUsers();

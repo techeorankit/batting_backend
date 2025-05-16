@@ -119,6 +119,9 @@ exports.initiateHostRequest = async (req, res) => {
       await Host.findByIdAndDelete(declineHostRequest);
     }
 
+    const impressions = Array.isArray(impression) ? impression[0].split(",") : [];
+    const languages = Array.isArray(language) ? language[0].split(",") : [];
+
     const newHost = new Host({
       email,
       fcmToken,
@@ -130,8 +133,8 @@ exports.initiateHostRequest = async (req, res) => {
       gender,
       countryFlagImage,
       country,
-      language,
-      impression,
+      language: languages,
+      impression: impressions,
       identityProofType,
       identityProof: req.files.identityProof?.map((file) => file.path) || [],
       image: req.files.image ? req.files.image[0].path : "",

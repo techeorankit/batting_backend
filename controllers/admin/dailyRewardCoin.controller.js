@@ -6,30 +6,36 @@ exports.createDailyReward = async (req, res) => {
     const { day, dailyRewardCoin } = req.body;
 
     if (!day || !dailyRewardCoin) {
-      return res.status(200).json({ status: false, message: "Oops ! Invalid details!" });
+      return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
     }
 
     if (day < 1 || day > 7) {
       return res.status(200).json({ status: false, message: "Day must be between 1 and 7" });
     }
 
-    const totalAdReward = await DailyRewardCoin.countDocuments();
-    if (totalAdReward === 7) {
+    const [totalAdReward, existingDayReward] = await Promise.all([DailyRewardCoin.countDocuments(), DailyRewardCoin.findOne({ day })]);
+
+    if (totalAdReward >= 7) {
       return res.status(200).json({
         status: false,
         message: "You have reached the maximum number of rewards allowed for this week.",
       });
     }
 
+    if (existingDayReward) {
+      return res.status(200).json({ status: false, message: `Reward for day ${day} already exists.` });
+    }
+
     const dailyReward = new DailyRewardCoin({
-      dailyRewardCoin: parseInt(req.body.dailyRewardCoin),
-      day: day,
+      dailyRewardCoin: parseInt(dailyRewardCoin),
+      day,
     });
+
     await dailyReward.save();
 
     return res.status(200).json({
       status: true,
-      message: "DailyRewardCoin create Successfully",
+      message: "DailyRewardCoin created successfully",
       data: dailyReward,
     });
   } catch (error) {

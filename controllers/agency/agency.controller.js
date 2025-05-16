@@ -26,7 +26,7 @@ exports.loginAgency = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency is currently inactive." });
     }
 
-    if (cryptr.decrypt(agency.password) !== password) {
+    if (cryptr.decrypt(agency.password.trim()) !== password.trim()) {
       return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
     }
 

@@ -37,8 +37,8 @@ exports.pushChatMessage = async (req, res) => {
 
     const [uniqueId, sender, receiver, chatTopic] = await Promise.all([
       generateHistoryUniqueId(),
-      User.findById(senderId).lean().select("name coin"),
-      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name fcmToken chatRate agencyId"),
+      User.findById(senderId).lean().select("name image coin"),
+      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name image fcmToken chatRate agencyId"),
       ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId messageCount"),
     ]);
 
@@ -130,8 +130,6 @@ exports.pushChatMessage = async (req, res) => {
     }
 
     if (receiver.fcmToken !== null) {
-      const adminPromise = await admin;
-
       const payload = {
         token: receiver.fcmToken,
         notification: {
@@ -140,9 +138,17 @@ exports.pushChatMessage = async (req, res) => {
         },
         data: {
           type: "CHAT",
+          senderId: chatTopic?.senderId?.toString(),
+          receiverId: chatTopic?.receiverId?.toString(),
+          userName: sender?.name || "",
+          hostName: receiver?.name || "",
+          userImage: sender?.image || "",
+          hostImage: receiver?.image || "",
+          senderRole: "user" || "",
         },
       };
 
+      const adminPromise = await admin;
       adminPromise
         .messaging()
         .send(payload)
@@ -238,8 +244,8 @@ exports.submitChatMessage = async (req, res) => {
     const chatTopicId = new mongoose.Types.ObjectId(req.body.chatTopicId);
 
     const [sender, receiver, chatTopic] = await Promise.all([
-      Host.findOne({ _id: senderId, isBlock: false }).lean().select("name"),
-      User.findById({ _id: receiverId, isBlock: false }).lean().select("name fcmToken"),
+      Host.findOne({ _id: senderId, isBlock: false }).lean().select("name image"),
+      User.findById({ _id: receiverId, isBlock: false }).lean().select("name image fcmToken"),
       ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId"),
     ]);
 
@@ -304,6 +310,13 @@ exports.submitChatMessage = async (req, res) => {
         },
         data: {
           type: "CHAT",
+          senderId: chatTopic?.senderId?.toString(),
+          receiverId: chatTopic?.receiverId?.toString(),
+          userName: receiver?.name || "",
+          userImage: receiver?.image || "",
+          hostName: sender?.name || "",
+          hostImage: sender?.image || "",
+          senderRole: "host" || "",
         },
       };
 

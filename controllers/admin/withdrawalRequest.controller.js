@@ -112,6 +112,11 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
     if (request.status === 3) return res.status(200).json({ status: false, message: "Request already declined." });
 
     if (actionType === "approve") {
+      res.status(200).json({
+        status: true,
+        message: "Withdrawal request approved successfully.",
+      });
+
       const [updateRequest, updateAgency] = await Promise.all([
         WithdrawalRequest.updateOne(
           { _id: request._id, person: 1, agencyId: agencyId },
@@ -124,7 +129,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
         ),
         Agency.updateOne(
           {
-            _id: request.agencyId,
+            _id: agencyId,
             netAvailableEarnings: { $gt: 0 },
           },
           {
@@ -136,11 +141,6 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
           }
         ),
       ]);
-
-      res.status(200).json({
-        status: true,
-        message: "Withdrawal request approved successfully.",
-      });
 
       if (agency.fcmToken) {
         const payload = {
@@ -165,6 +165,11 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
         return res.status(200).json({ status: false, message: "Rejection reason is required." });
       }
 
+      res.status(200).json({
+        status: true,
+        message: "Withdrawal request declined.",
+      });
+
       const [updateRequest, updateHistory] = await Promise.all([
         WithdrawalRequest.updateOne(
           { _id: request._id },
@@ -187,11 +192,6 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
           }
         ),
       ]);
-
-      res.status(200).json({
-        status: true,
-        message: "Withdrawal request declined.",
-      });
 
       if (agency.fcmToken) {
         const payload = {

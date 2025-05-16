@@ -124,6 +124,12 @@ exports.HostStreaming = async (req, res) => {
           data: {
             type: "LIVE",
             hostId: host._id.toString(),
+            liveHistoryId: liveHistory._id.toString(),
+            name: host.name.toString(),
+            image: host.image.toString(),
+            agoraUid: agoraUID.toString(),
+            channel: channel.toString(),
+            token: token.toString(),
           },
         };
 
