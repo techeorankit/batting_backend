@@ -218,7 +218,7 @@ exports.assignHostToAgency = async (req, res) => {
     const [hostRequest, agency, user] = await Promise.all([
       Host.findOne({ _id: requestObjectId, status: 1 }),
       Agency.findById(agencyId).select("_id name agencyCode").lean(),
-      User.findById(userObjectId).select("_id isHost hostId").lean(),
+      User.findById(userObjectId).select("_id").lean(),
     ]);
 
     if (!hostRequest) {
@@ -226,10 +226,7 @@ exports.assignHostToAgency = async (req, res) => {
     }
 
     if (hostRequest.agencyId !== null) {
-      return res.status(200).json({
-        status: false,
-        message: "This host request is already assigned to an agency.",
-      });
+      return res.status(200).json({ status: false, message: "This host request is already assigned to an agency." });
     }
 
     if (!agency) {
@@ -241,17 +238,11 @@ exports.assignHostToAgency = async (req, res) => {
     }
 
     if (hostRequest.status === 2) {
-      return res.status(200).json({
-        status: false,
-        message: "This host request has already been accepted.",
-      });
+      return res.status(200).json({ status: false, message: "This host request has already been accepted." });
     }
 
     if (hostRequest.status === 3) {
-      return res.status(200).json({
-        status: false,
-        message: "This host request has already been rejected.",
-      });
+      return res.status(200).json({ status: false, message: "This host request has already been rejected." });
     }
 
     hostRequest.agencyId = agency._id;
@@ -269,18 +260,18 @@ exports.assignHostToAgency = async (req, res) => {
       request: { ...hostRequest.toObject(), agency },
     });
 
-    // await Promise.all([
-    //   hostRequest.save(),
-    //   User.updateOne(
-    //     { _id: user._id },
-    //     {
-    //       $set: {
-    //         isHost: true,
-    //         hostId: hostRequest._id,
-    //       },
-    //     }
-    //   ),
-    // ]);
+    await Promise.all([
+      hostRequest.save(),
+      User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            isHost: true,
+            hostId: hostRequest._id,
+          },
+        }
+      ),
+    ]);
 
     if (hostRequest.fcmToken) {
       const payload = {
