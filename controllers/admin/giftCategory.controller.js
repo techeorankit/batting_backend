@@ -32,7 +32,7 @@ exports.updateGiftCategory = async (req, res) => {
       return res.status(200).json({ status: false, message: "Category ID and name are required." });
     }
 
-    const updatedCategory = await GiftCategory.findByIdAndUpdate(categoryId, { name }, { new: true, select: "_id name createdAt" }).lean();
+    const updatedCategory = await GiftCategory.findByIdAndUpdate(categoryId, { name }, { new: true, select: "_id name createdAt updatedAt" }).lean();
 
     if (!updatedCategory) {
       return res.status(200).json({ status: false, message: "Gift category not found." });
