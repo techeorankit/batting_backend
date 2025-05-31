@@ -237,7 +237,7 @@ io.on("connection", async (socket) => {
               hostName: String(receiver?.name || ""),
               userImage: String(sender?.image || ""),
               hostImage: String(receiver?.image || ""),
-              senderRole: "user",
+              senderRole: String(parseData?.senderRole) || "",
             },
           };
 
