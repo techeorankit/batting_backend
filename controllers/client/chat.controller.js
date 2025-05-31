@@ -138,13 +138,13 @@ exports.pushChatMessage = async (req, res) => {
         },
         data: {
           type: "CHAT",
-          senderId: chatTopic?.senderId?.toString(),
-          receiverId: chatTopic?.receiverId?.toString(),
-          userName: sender?.name || "",
-          hostName: receiver?.name || "",
-          userImage: sender?.image || "",
-          hostImage: receiver?.image || "",
-          senderRole: "user" || "",
+          senderId: String(chatTopic?.senderId || ""),
+          receiverId: String(chatTopic?.receiverId || ""),
+          userName: String(sender?.name || ""),
+          hostName: String(receiver?.name || ""),
+          userImage: String(sender?.image || ""),
+          hostImage: String(receiver?.image || ""),
+          senderRole: "user",
         },
       };
 
@@ -156,7 +156,7 @@ exports.pushChatMessage = async (req, res) => {
           console.log("Successfully sent with response: ", response);
         })
         .catch((error) => {
-          console.log("Error sending message:      ", error);
+          console.error("Error sending FCM message:", error); // Log only
         });
     }
   } catch (error) {
@@ -310,13 +310,13 @@ exports.submitChatMessage = async (req, res) => {
         },
         data: {
           type: "CHAT",
-          senderId: chatTopic?.senderId?.toString(),
-          receiverId: chatTopic?.receiverId?.toString(),
-          userName: receiver?.name || "",
-          userImage: receiver?.image || "",
-          hostName: sender?.name || "",
-          hostImage: sender?.image || "",
-          senderRole: "host" || "",
+          senderId: String(chatTopic?.senderId || ""),
+          receiverId: String(chatTopic?.receiverId || ""),
+          userName: String(sender?.name || ""),
+          hostName: String(receiver?.name || ""),
+          userImage: String(sender?.image || ""),
+          hostImage: String(receiver?.image || ""),
+          senderRole: "user",
         },
       };
 

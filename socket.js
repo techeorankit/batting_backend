@@ -231,13 +231,13 @@ io.on("connection", async (socket) => {
             },
             data: {
               type: "CHAT",
-              senderId: chatTopic?.senderId?.toString(),
-              receiverId: chatTopic?.receiverId?.toString(),
-              userName: sender?.name || "",
-              hostName: receiver?.name || "",
-              userImage: sender?.image || "",
-              hostImage: receiver?.image || "",
-              senderRole: parseData?.senderRole || "",
+              senderId: String(chatTopic?.senderId || ""),
+              receiverId: String(chatTopic?.receiverId || ""),
+              userName: String(sender?.name || ""),
+              hostName: String(receiver?.name || ""),
+              userImage: String(sender?.image || ""),
+              hostImage: String(receiver?.image || ""),
+              senderRole: "user",
             },
           };
 
