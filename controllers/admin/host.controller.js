@@ -744,6 +744,7 @@ exports.fetchHostList = async (req, res) => {
             totalGifts: 1,
             language: 1,
             totalFollowers: 1,
+            createdAt: 1,
             "userId._id": 1,
             "userId.name": 1,
             "userId.image": 1,
