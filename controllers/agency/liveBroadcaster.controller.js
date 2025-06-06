@@ -45,6 +45,7 @@ exports.getLiveHosts = async (req, res) => {
             countryFlagImage: 1,
             country: 1,
             view: 1,
+            createdAt: 1,
           },
         },
         { $sort: { view: -1 } },
