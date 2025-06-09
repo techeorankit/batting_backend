@@ -94,10 +94,13 @@ exports.signInOrSignUpUser = async (req, res) => {
       }
 
       if (user.isHost && user.hostId) {
-        const host = await Host.findById(user.hostId).select("isBlock");
+        const host = await Host.findById(user.hostId).select("isBlock fcmToken");
         if (host && host.isBlock) {
           return res.status(403).json({ status: false, message: "🚷 Host account is blocked by the admin." });
         }
+
+        host.fcmToken = fcmToken ? fcmToken : host.fcmToken;
+        await host.save();
       }
 
       user.name = name ? name?.trim() : user.name;
