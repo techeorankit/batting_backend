@@ -457,8 +457,8 @@ io.on("connection", async (socket) => {
     const [callUniqueId, token, caller, receiver] = await Promise.all([
       generateHistoryUniqueId(),
       RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
-      User.findById(callerId).select("_id name image isBlock isBusy callId isOnline").lean(),
-      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline").lean(),
+      User.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
+      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
     ]);
 
     if (!caller) {
@@ -558,8 +558,10 @@ io.on("connection", async (socket) => {
           receiverId: receiver._id,
           callerImage: caller.image,
           callerName: caller.name,
+          callerUniqueId: caller.uniqueId,
           receiverName: receiver.name,
           receiverImage: receiver.image,
+          receiverUniqueId: receiver.uniqueId,
           callId: callHistory._id,
           callType: callType.trim().toLowerCase(),
           callMode: "private",
@@ -1599,6 +1601,43 @@ io.on("connection", async (socket) => {
       io.in(parsedData.liveHistoryId).emit("liveRoomJoin", data);
     } else {
       console.log("Sockets not able to emit");
+    }
+  });
+
+  socket.on("liveStreamStatusCheck", async (data) => {
+    try {
+      const dataOfCheck = JSON.parse(data);
+      console.log("[liveStreamStatusCheck] Parsed data:", dataOfCheck);
+
+      const { liveHistoryId, hostId } = dataOfCheck;
+
+      const liveUser = await LiveBroadcaster.findOne({ hostId: hostId, liveHistoryId: liveHistoryId }).lean();
+
+      if (!liveUser) {
+        console.log(`[liveStreamStatusCheck] User ${hostId} is not live.`);
+
+        const targetSocket = io.sockets.sockets.get(socket.id);
+        if (targetSocket) {
+          console.log("Target socket exists, emitting...");
+          targetSocket.emit("liveStreamStatusCheck", { hostId, liveStatus: false });
+        } else {
+          console.log("Target socket not found.");
+        }
+        return;
+      }
+
+      console.log(`[liveStreamStatusCheck] User ${hostId} is live.`);
+
+      const targetSocket = io.sockets.sockets.get(socket.id);
+      if (targetSocket) {
+        console.log("Target socket exists, emitting...");
+        targetSocket.emit("liveStreamStatusCheck", { hostId, liveStatus: true });
+      } else {
+        console.log("Target socket not found.");
+      }
+    } catch (error) {
+      console.error("[liveStreamStatusCheck] Error:", error);
+      socket.emit("liveStreamStatusCheck", { hostId: dataOfCheck.hostId, liveStatus: false });
     }
   });
 

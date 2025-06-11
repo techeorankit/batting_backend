@@ -14,6 +14,8 @@ exports.getCoinTransactionRecords = async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.user.userId);
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
+    const start = req.query.start ? parseInt(req.query.start) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -88,6 +90,7 @@ exports.getCoinTransactionRecords = async (req, res) => {
             payoutStatus: 1,
             createdAt: 1,
             receiverName: { $ifNull: ["$receiver.name", ""] },
+            uniqueId: { $ifNull: ["$receiver.uniqueId", ""] },
             isIncome: {
               $cond: {
                 if: { $in: ["$type", [1, 6, 7, 8]] },
@@ -105,6 +108,8 @@ exports.getCoinTransactionRecords = async (req, res) => {
             },
           },
         },
+        { $skip: (start - 1) * limit },
+        { $limit: limit },
         { $sort: { createdAt: -1 } },
       ]),
     ]);
@@ -209,6 +214,7 @@ exports.retrieveHostCoinHistory = async (req, res) => {
             payoutStatus: 1,
             createdAt: 1,
             senderName: { $ifNull: ["$sender.name", ""] },
+            uniqueId: { $ifNull: ["$sender.uniqueId", ""] },
           },
         },
         { $sort: { createdAt: -1 } },
