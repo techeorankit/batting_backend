@@ -31,8 +31,7 @@ exports.getCoinTransactionRecords = async (req, res) => {
       };
     }
 
-    const [user, transactionHistory] = await Promise.all([
-      User.findOne({ _id: userId }).select("coin").lean(),
+    const [transactionHistory] = await Promise.all([
       History.aggregate([
         {
           $match: {
@@ -117,7 +116,6 @@ exports.getCoinTransactionRecords = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Transaction history fetch successfully.",
-      userCoin: user?.coin || 0,
       data: transactionHistory,
     });
   } catch (error) {
@@ -158,8 +156,7 @@ exports.retrieveHostCoinHistory = async (req, res) => {
       };
     }
 
-    const [host, transactionHistory] = await Promise.all([
-      Host.findOne({ _id: hostId }).select("_id coin").lean(),
+    const [transactionHistory] = await Promise.all([
       History.aggregate([
         {
           $match: {
@@ -223,14 +220,9 @@ exports.retrieveHostCoinHistory = async (req, res) => {
       ]),
     ]);
 
-    if (!host) {
-      return res.status(200).json({ status: false, message: "Host does not found." });
-    }
-
     return res.status(200).json({
       status: true,
       message: "Transaction history fetch successfully.",
-      hostCoin: host?.coin || 0,
       data: transactionHistory,
     });
   } catch (error) {

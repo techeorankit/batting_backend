@@ -1416,8 +1416,8 @@ io.on("connection", async (socket) => {
     const [callUniqueId, token, caller, receiver] = await Promise.all([
       generateHistoryUniqueId(),
       RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
-      User.findById(callerId).select("_id name image isBlock isBusy callId isOnline").lean(),
-      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline").lean(),
+      User.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
+      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
     ]);
 
     if (!caller) {
@@ -1517,8 +1517,10 @@ io.on("connection", async (socket) => {
           receiverId: receiver._id,
           callerImage: caller.image,
           callerName: caller.name,
+          callerUniqueId: caller.uniqueId,
           receiverName: receiver.name,
           receiverImage: receiver.image,
+          receiverUniqueId: receiver.uniqueId,
           callId: callHistory._id,
           callType: "video",
           callMode: "random",

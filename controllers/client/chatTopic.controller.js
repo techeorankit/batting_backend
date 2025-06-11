@@ -91,6 +91,7 @@ exports.fetchChatList = async (req, res) => {
             senderId: { $first: "$chat.senderId" },
             messageType: { $first: "$chat.messageType" },
             message: { $first: "$chat.message" },
+            isRead: { $first: "$chat.isRead" },
             lastChatMessageTime: { $first: "$chat.createdAt" },
             unreadCount: {
               $sum: {
