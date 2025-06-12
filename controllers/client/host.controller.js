@@ -221,6 +221,27 @@ exports.retrieveHosts = async (req, res) => {
       Host.aggregate([
         { $match: fakeMatchQuery },
         {
+          $lookup: {
+            from: "blocks",
+            let: { hostId: "$_id", userId: userId },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                  },
+                },
+              },
+            ],
+            as: "blockInfo",
+          },
+        },
+        {
+          $match: {
+            blockInfo: { $eq: [] },
+          },
+        },
+        {
           $addFields: {
             status: {
               $switch: {
@@ -292,6 +313,21 @@ exports.retrieveHosts = async (req, res) => {
                 default: "Offline",
               },
             },
+            statusOrder: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$status", "Online"] }, then: 1 },
+                  { case: { $eq: ["$status", "Live"] }, then: 2 },
+                  { case: { $eq: ["$status", "Busy"] }, then: 3 },
+                ],
+                default: 4, // Offline
+              },
+            },
+          },
+        },
+        {
+          $sort: {
+            statusOrder: 1, //Sort by priority
           },
         },
         {
@@ -441,6 +477,27 @@ exports.retrieveHosts = async (req, res) => {
             isLive: true,
             video: { $ne: "" },
             userId: { $ne: userId },
+          },
+        },
+        {
+          $lookup: {
+            from: "blocks",
+            let: { hostId: "$_id", userId: userId },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                  },
+                },
+              },
+            ],
+            as: "blockInfo",
+          },
+        },
+        {
+          $match: {
+            blockInfo: { $eq: [] },
           },
         },
         {

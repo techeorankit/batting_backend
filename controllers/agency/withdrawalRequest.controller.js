@@ -188,7 +188,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
 
       const [updateRequest, updateHistory] = await Promise.all([
         WithdrawalRequest.updateOne(
-          { id: request._id, person: 2, hostId: hostId },
+          { _id: request._id, person: 2, hostId: hostId },
           {
             $set: {
               status: 3,

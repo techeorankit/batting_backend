@@ -261,6 +261,7 @@ exports.retrieveChatList = async (req, res) => {
             name: { $first: "$user.name" },
             image: { $first: "$user.image" },
             isOnline: { $first: "$user.isOnline" },
+            isRead: { $first: "$chat.isRead" },
             chatTopic: { $first: "$chat.chatTopicId" },
             senderId: { $first: "$chat.senderId" },
             message: { $first: "$chat.message" },
