@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
     name: { type: String, default: "" },
     selfIntro: { type: String, default: "" },
     gender: { type: String, default: "" },
+    dob: { type: String, default: "" },
     bio: { type: String, default: "" },
     age: { type: Number, default: 18 },
     image: { type: String, default: "" },

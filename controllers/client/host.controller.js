@@ -119,8 +119,8 @@ exports.initiateHostRequest = async (req, res) => {
       await Host.findByIdAndDelete(declineHostRequest);
     }
 
-    const impressions = Array.isArray(impression) ? impression[0].split(",") : [];
-    const languages = Array.isArray(language) ? language[0].split(",") : [];
+    const impressions = typeof impression === "string" ? impression.split(",").map((topic) => topic.trim()) : [];
+    const languages = typeof language === "string" ? language.split(",").map((lang) => lang.trim()) : [];
 
     const newHost = new Host({
       email,
@@ -617,7 +617,7 @@ exports.fetchHostInfo = async (req, res) => {
     const [host] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
         .select(
-          "name email gender bio uniqueId countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
+          "name email gender dob bio uniqueId countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
         )
         .lean(),
     ]);

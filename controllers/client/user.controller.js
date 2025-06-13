@@ -50,7 +50,7 @@ exports.quickUserVerification = async (req, res) => {
 //user login and sign up
 exports.signInOrSignUpUser = async (req, res) => {
   try {
-    const { identity, loginType, fcmToken, email, name, image } = req.body;
+    const { identity, loginType, fcmToken, email, name, image, dob } = req.body;
 
     if (!identity || loginType === undefined || !fcmToken) {
       if (req.file) deleteFile(req.file);
@@ -104,6 +104,7 @@ exports.signInOrSignUpUser = async (req, res) => {
       }
 
       user.name = name ? name?.trim() : user.name;
+      user.dob = dob ? dob?.trim() : user.dob;
       user.image = req.file ? req.file.path : image ? image : user.image;
       user.fcmToken = fcmToken ? fcmToken : user.fcmToken;
       user.lastlogin = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
@@ -212,6 +213,7 @@ exports.modifyUserProfile = async (req, res) => {
     user.selfIntro = req.body.selfIntro ? req.body.selfIntro : user.selfIntro;
     user.gender = req.body.gender ? req.body.gender?.toLowerCase()?.trim() : user.gender;
     user.bio = req.body.bio ? req.body.bio : user.bio;
+    user.dob = req.body.dob ? req.body.dob.trim() : user.dob;
     user.age = req.body.age ? req.body.age : user.age;
     user.countryFlagImage = req.body.countryFlagImage ? req.body.countryFlagImage : user.countryFlagImage;
     user.country = req.body.country ? req.body.country.toLowerCase()?.trim() : user.country;
