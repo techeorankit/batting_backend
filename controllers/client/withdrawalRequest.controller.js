@@ -32,7 +32,7 @@ exports.submitWithdrawalRequest = async (req, res) => {
 
     const [uniqueId, host, pendingRequest, declinedRequest] = await Promise.all([
       generateHistoryUniqueId(),
-      Host.findOne({ _id: hostId }).select("_id coin fcmToken").lean(),
+      Host.findOne({ _id: hostId }).select("_id coin fcmToken agencyId").lean(),
       WithdrawalRequest.findOne({ hostId, status: 1 }).select("_id").lean(), // status 1: pending
       WithdrawalRequest.findOne({ hostId, status: 3 }).select("_id").lean(), // status 3: declined
     ]);
@@ -59,6 +59,7 @@ exports.submitWithdrawalRequest = async (req, res) => {
     const withdrawalData = {
       uniqueId,
       person: 2,
+      agencyOwnerId: host.agencyId || null,
       hostId: host._id,
       coin: requestedCoins,
       amount: requestAmount,

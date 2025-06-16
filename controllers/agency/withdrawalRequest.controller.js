@@ -59,9 +59,12 @@ exports.fetchPayoutRequests = async (req, res) => {
       personQuery.person = personValue;
 
       if (personValue === 1) {
+        personQuery.person = 1;
         personQuery.agencyId = { $ne: null };
       } else if (personValue === 2) {
+        personQuery.person = 2;
         personQuery.hostId = { $ne: null };
+        personQuery.agencyOwnerId = agencyId;
       }
     }
 
