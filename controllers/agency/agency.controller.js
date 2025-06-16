@@ -63,7 +63,12 @@ exports.modifyAgency = async (req, res) => {
 
     agency.name = name || agency.name;
     agency.email = email?.trim() || agency.email;
-    agency.password = cryptr?.encrypt(password) || agency.password;
+    if (password && password.trim() !== "") {
+      agency.password = cryptr?.encrypt(password);
+    } else {
+      agency.password = agency.password;
+    }
+
     agency.mobileNumber = mobileNumber || agency.mobileNumber;
     agency.commissionType = commissionType || agency.commissionType;
     agency.commission = commission || agency.commission;
