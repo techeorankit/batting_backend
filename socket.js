@@ -458,7 +458,7 @@ io.on("connection", async (socket) => {
       generateHistoryUniqueId(),
       RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
       User.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
-      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
+      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId fcmToken").lean(),
     ]);
 
     if (!caller) {
@@ -571,6 +571,52 @@ io.on("connection", async (socket) => {
 
         io.in("globalRoom:" + receiver._id.toString()).emit("callIncoming", dataOfVideoCall); // Notify receiver
         io.in("globalRoom:" + caller._id.toString()).emit("callConnected", dataOfVideoCall); // Notify caller
+
+        if (!receiver.isBlock && receiver.fcmToken !== null) {
+          const isVideo = callType?.trim().toLowerCase() === "video";
+          const callerName = caller?.name?.trim() || "Someone";
+
+          const notificationTitle = isVideo ? "📹 Video Call Request" : "📞 Audio Call Request";
+          const notificationBody = isVideo
+            ? `${callerName} is inviting you to a video call. Tap to connect now! 👥`
+            : `${callerName} is calling you for an audio chat. Tap to join the conversation! 📞`;
+
+          const payload = {
+            token: receiver.fcmToken,
+            notification: {
+              title: notificationTitle,
+              body: notificationBody,
+            },
+            data: {
+              type: "callIncoming",
+              callType: String(dataOfVideoCall.callType),
+              callId: String(dataOfVideoCall.callId),
+              callerId: String(dataOfVideoCall.callerId),
+              receiverId: String(dataOfVideoCall.receiverId),
+              callerName: String(dataOfVideoCall.callerName),
+              callerImage: String(dataOfVideoCall.callerImage),
+              callerUniqueId: String(dataOfVideoCall.callerUniqueId),
+              receiverName: String(dataOfVideoCall.receiverName),
+              receiverImage: String(dataOfVideoCall.receiverImage),
+              receiverUniqueId: String(dataOfVideoCall.receiverUniqueId),
+              token: String(dataOfVideoCall.token),
+              channel: String(dataOfVideoCall.channel),
+              callMode: String(dataOfVideoCall.callMode),
+              gender: String(dataOfVideoCall.gender),
+            },
+          };
+
+          const adminInstance = await admin;
+          adminInstance
+            .messaging()
+            .send(payload)
+            .then((response) => {
+              console.log("📨 Call notification sent successfully:", response);
+            })
+            .catch((error) => {
+              console.error("⚠️ Failed to send call notification:", error);
+            });
+        }
 
         console.log(`Call successfully initiated: ${caller.name} → ${receiver.name}`);
 
@@ -1033,8 +1079,13 @@ io.on("connection", async (socket) => {
       const payload = {
         token: receiver.fcmToken,
         notification: {
-          title: "📞 Missed Call Alert! ⏳",
-          body: "You just missed a call! Tap to reconnect now. 🔄✨",
+          title: `📞 Missed Call from ${caller.name || "Someone"} ⏳`,
+          body: `You missed a call from  ${caller.name || "Someone"}. Tap to reconnect now! 🔄✨`,
+        },
+        data: {
+          type: "missedCall",
+          callerId: dataOfVideoCall.callerId.toString(),
+          callId: dataOfVideoCall.callId.toString(),
         },
       };
 
@@ -1417,7 +1468,7 @@ io.on("connection", async (socket) => {
       generateHistoryUniqueId(),
       RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
       User.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
-      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
+      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId fcmToken").lean(),
     ]);
 
     if (!caller) {
@@ -1533,6 +1584,58 @@ io.on("connection", async (socket) => {
         io.in("globalRoom:" + caller._id.toString()).emit("callConnected", dataOfVideoCall); // Notify caller
 
         console.log(`Call successfully initiated: ${caller.name} → ${receiver.name}`);
+
+        if (!receiver.isBlock && receiver.fcmToken !== null) {
+          const isVideo = dataOfVideoCall.callType?.trim().toLowerCase() === "video";
+          const isRandom = dataOfVideoCall.callMode === "random";
+          const callerName = dataOfVideoCall.callerName?.trim() || "Someone";
+
+          const notificationTitle = isVideo ? (isRandom ? "🎥 Incoming Random Video Call!" : "🎥 Incoming Video Call") : isRandom ? "📞 Incoming Random Audio Call!" : "📞 Incoming Audio Call";
+
+          const notificationBody = isVideo
+            ? isRandom
+              ? `${callerName} wants to randomly video chat with you! Tap to join 🔗`
+              : `${callerName} is inviting you to a video call. Tap to connect now! 👥`
+            : isRandom
+            ? `${callerName} wants a random audio chat! Tap to talk 🎙️`
+            : `${callerName} is calling you for an audio chat. Tap to join the conversation! 📞`;
+
+          const payload = {
+            token: receiver.fcmToken,
+            notification: {
+              title: notificationTitle,
+              body: notificationBody,
+            },
+            data: {
+              type: "callIncoming",
+              callType: dataOfVideoCall.callType,
+              callId: dataOfVideoCall.callId.toString(),
+              callerId: dataOfVideoCall.callerId.toString(),
+              receiverId: dataOfVideoCall.receiverId.toString(),
+              callerName: dataOfVideoCall.callerName,
+              callerImage: dataOfVideoCall.callerImage,
+              callerUniqueId: dataOfVideoCall.callerUniqueId,
+              receiverName: dataOfVideoCall.receiverName,
+              receiverImage: dataOfVideoCall.receiverImage,
+              receiverUniqueId: dataOfVideoCall.receiverUniqueId,
+              token: dataOfVideoCall.token,
+              channel: dataOfVideoCall.channel,
+              callMode: dataOfVideoCall.callMode,
+              gender: dataOfVideoCall.gender,
+            },
+          };
+
+          const adminInstance = await admin;
+          adminInstance
+            .messaging()
+            .send(payload)
+            .then((response) => {
+              console.log("📨 Call notification sent successfully:", response);
+            })
+            .catch((error) => {
+              console.error("⚠️ Failed to send call notification:", error);
+            });
+        }
 
         callHistory.type = 13;
         callHistory.callType = "video";
