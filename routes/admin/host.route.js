@@ -32,7 +32,8 @@ route.post(
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "photoGallery", maxCount: 10 },
-    { name: "video", maxCount: 1 },
+    { name: "video", maxCount: 10 },
+    { name: "liveVideo", maxCount: 10 },
   ]),
   HostController.createHost
 );
@@ -44,7 +45,8 @@ route.patch(
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "photoGallery", maxCount: 10 },
-    { name: "video", maxCount: 1 },
+    { name: "video", maxCount: 10 },
+    { name: "liveVideo", maxCount: 10 },
   ]),
   HostController.updateHost
 );

@@ -399,14 +399,39 @@ exports.createHost = async (req, res) => {
   try {
     const { name, bio, dob, gender, countryFlagImage, country, language, impression, email } = req.body;
 
-    if (!name || !bio || !dob || !gender || !countryFlagImage || !country || !impression || !language || !req.files) {
+    if (
+      !name ||
+      !bio ||
+      !dob ||
+      !gender ||
+      !countryFlagImage ||
+      !country ||
+      !impression ||
+      !language ||
+      !req.files ||
+      !Array.isArray(req.files.image) ||
+      req.files.image.length === 0 ||
+      !Array.isArray(req.files.video) ||
+      req.files.video.length === 0 ||
+      !Array.isArray(req.files.liveVideo) ||
+      req.files.liveVideo.length === 0
+    ) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({
         status: false,
-        message: "Missing or invalid host details. Please check and try again.",
+        message: "Missing or invalid host details or required media files (image, video, liveVideo).",
       });
     }
 
+    const hasInvalidFile = (arr) => arr?.some((file) => !file?.path);
+
+    if (hasInvalidFile(req.files.image) || hasInvalidFile(req.files.video) || hasInvalidFile(req.files.liveVideo) || (req.files.photoGallery && hasInvalidFile(req.files.photoGallery))) {
+      deleteFiles(req.files);
+      return res.status(200).json({
+        status: false,
+        message: "Invalid file(s) uploaded. Ensure files are uploaded properly without 'url' fields.",
+      });
+    }
     const [uniqueId, existingHost] = await Promise.all([generateUniqueId(), Host.findOne({ email: email?.trim() }).select("_id").lean()]);
 
     if (existingHost) {
@@ -429,10 +454,17 @@ exports.createHost = async (req, res) => {
       impression,
       image: req.files.image ? req.files.image[0].path : "",
       photoGallery: req.files.photoGallery?.map((file) => file.path) || [],
-      video: req.files.video ? req.files.video[0].path : "",
+      video: req.files.video?.map((file) => file.path) || [],
+      liveVideo: req.files.liveVideo?.map((file) => file.path) || [],
       uniqueId,
       status: 2,
       isFake: true,
+      randomCallRate: settingJSON.generalRandomCallRate,
+      randomCallFemaleRate: settingJSON.femaleRandomCallRate,
+      randomCallMaleRate: settingJSON.maleRandomCallRate,
+      privateCallRate: settingJSON.videoPrivateCallRate,
+      audioCallRate: settingJSON.audioPrivateCallRate,
+      chatRate: settingJSON.chatInteractionRate,
       date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     });
 
@@ -456,7 +488,24 @@ exports.createHost = async (req, res) => {
 //update host
 exports.updateHost = async (req, res) => {
   try {
-    const { hostId, name, bio, dob, gender, countryFlagImage, country, language, impression, email } = req.body;
+    const {
+      hostId,
+      name,
+      bio,
+      dob,
+      gender,
+      countryFlagImage,
+      country,
+      language,
+      impression,
+      email,
+      randomCallRate,
+      randomCallFemaleRate,
+      randomCallMaleRate,
+      privateCallRate,
+      audioCallRate,
+      chatRate,
+    } = req.body;
 
     if (!hostId) {
       if (req.files) deleteFiles(req.files);
@@ -466,7 +515,14 @@ exports.updateHost = async (req, res) => {
       });
     }
 
-    const [host, existingHost] = await Promise.all([Host.findOne({ _id: hostId }), email ? Host.findOne({ email: email?.trim() }).select("_id").lean() : null]);
+    const [host, existingHost] = await Promise.all([
+      Host.findById(hostId),
+      email
+        ? Host.findOne({ email: email?.trim(), _id: { $ne: hostId } })
+            .select("_id")
+            .lean()
+        : null,
+    ]);
 
     if (!host) {
       if (req.files) deleteFiles(req.files);
@@ -488,59 +544,62 @@ exports.updateHost = async (req, res) => {
     host.gender = gender || host.gender;
     host.countryFlagImage = countryFlagImage || host.countryFlagImage;
     host.country = country || host.country;
-    host.countryFlagImage = countryFlagImage || host.countryFlagImage;
     host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host.impression;
     host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host.language;
+    host.randomCallRate = randomCallRate || host.randomCallRate;
+    host.randomCallFemaleRate = randomCallFemaleRate || host.randomCallFemaleRate;
+    host.randomCallMaleRate = randomCallMaleRate || host.randomCallMaleRate;
+    host.privateCallRate = privateCallRate || host.privateCallRate;
+    host.audioCallRate = audioCallRate || host.audioCallRate;
+    host.chatRate = chatRate || host.chatRate;
 
-    if (req.files.image) {
-      if (host.image) {
-        const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
-        if (imagePath && fs.existsSync(imagePath)) {
-          const imageName = imagePath.split("/").pop();
-          if (!["male.png", "female.png"].includes(imageName)) {
-            fs.unlinkSync(imagePath);
-          }
+    if (req.files?.image?.[0]) {
+      if (host.image && fs.existsSync(host.image)) {
+        const imageName = host.image.split("/").pop();
+        if (!["male.png", "female.png"].includes(imageName)) {
+          fs.unlinkSync(host.image);
         }
       }
-
       host.image = req.files.image[0].path;
     }
 
-    if (req.files.photoGallery) {
-      if (host.photoGallery.length > 0) {
-        for (const photo of host.photoGallery) {
-          const photoGalleryPath = photo?.url?.split("storage");
-          if (photoGalleryPath?.[1]) {
-            const filePath = "storage" + photoGalleryPath[1];
-            if (fs.existsSync(filePath)) {
-              try {
-                fs.unlinkSync(filePath);
-              } catch (error) {
-                console.error(`Error deleting file: ${filePath}`, error);
-              }
-            }
+    if (req.files?.photoGallery) {
+      for (const photo of host.photoGallery) {
+        if (photo && fs.existsSync(photo)) {
+          try {
+            fs.unlinkSync(photo);
+          } catch (err) {
+            console.error(`Failed to delete photoGallery file: ${photo}`, err);
           }
         }
       }
-
-      let updatedPhotoGallery = req.files.photoGallery.map((file) => ({
-        url: file.path,
-      }));
-      host.photoGallery = updatedPhotoGallery;
+      host.photoGallery = req.files.photoGallery.filter((file) => file?.path && !file?.url).map((file) => file.path);
     }
 
-    if (req.files.video) {
-      if (host.video) {
-        const videoPath = host.video.includes("storage") ? "storage" + host.video.split("storage")[1] : "";
-        if (videoPath && fs.existsSync(videoPath)) {
-          const videoName = videoPath.split("/").pop();
-          if (!["male.png", "female.png"].includes(videoName)) {
-            fs.unlinkSync(videoPath);
+    if (req.files?.video) {
+      for (const vid of host.video) {
+        if (vid && fs.existsSync(vid)) {
+          try {
+            fs.unlinkSync(vid);
+          } catch (err) {
+            console.error(`Failed to delete video file: ${vid}`, err);
           }
         }
       }
+      host.video = req.files.video.filter((file) => file?.path && !file?.url).map((file) => file.path);
+    }
 
-      host.video = req.files.video[0].path;
+    if (req.files?.liveVideo) {
+      for (const live of host.liveVideo) {
+        if (live && fs.existsSync(live)) {
+          try {
+            fs.unlinkSync(live);
+          } catch (err) {
+            console.error(`Failed to delete liveVideo file: ${live}`, err);
+          }
+        }
+      }
+      host.liveVideo = req.files.liveVideo.filter((file) => file?.path && !file?.url).map((file) => file.path);
     }
 
     await host.save();
@@ -555,7 +614,7 @@ exports.updateHost = async (req, res) => {
     console.error("Update Host Error:", error);
     return res.status(500).json({
       status: false,
-      message: error.message || "Failed to Update host profile due to server error.",
+      message: error.message || "Failed to update host profile due to server error.",
     });
   }
 };
@@ -722,6 +781,7 @@ exports.fetchHostList = async (req, res) => {
             email: 1,
             image: 1,
             video: 1,
+            liveVideo: 1,
             impression: 1,
             identityProofType: 1,
             identityProof: 1,
@@ -785,7 +845,7 @@ exports.deleteHost = async (req, res) => {
       });
     }
 
-    const host = await Host.findOne({ _id: hostId }).select("_id image photoGallery").lean();
+    const host = await Host.findOne({ _id: hostId }).select("_id image photoGallery video liveVideo").lean();
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host not found." });
@@ -811,10 +871,44 @@ exports.deleteHost = async (req, res) => {
     }
 
     if (Array.isArray(host.photoGallery) && host.photoGallery.length > 0) {
-      for (const photo of host.photoGallery) {
-        const photoGalleryPath = photo?.url?.split("storage");
-        if (photoGalleryPath?.[1]) {
-          const filePath = "storage" + photoGalleryPath[1];
+      for (const photoUrl of host.photoGallery) {
+        if (photoUrl) {
+          const photoGalleryPath = photoUrl?.split("storage");
+          if (photoGalleryPath?.[1]) {
+            const filePath = "storage" + photoGalleryPath[1];
+            if (fs.existsSync(filePath)) {
+              try {
+                fs.unlinkSync(filePath);
+              } catch (error) {
+                console.error(`Error deleting gallery image: ${filePath}`, error);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(host.video) && host.video.length > 0) {
+      for (const videoUrl of host.video) {
+        const videoPath = videoUrl?.split("storage");
+        if (videoPath?.[1]) {
+          const filePath = "storage" + videoPath[1];
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+            } catch (error) {
+              console.error(`Error deleting gallery image: ${filePath}`, error);
+            }
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(host.liveVideo) && host.liveVideo.length > 0) {
+      for (const liveVideo of host.liveVideo) {
+        const liveVideoPath = liveVideo?.split("storage");
+        if (liveVideoPath?.[1]) {
+          const filePath = "storage" + liveVideoPath[1];
           if (fs.existsSync(filePath)) {
             try {
               fs.unlinkSync(filePath);

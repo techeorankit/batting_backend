@@ -1,4 +1,5 @@
 const Agency = require("../../models/agency.model");
+const Admin = require("../../models/admin.model");
 
 //generateAgencyCode
 const generateAgencyCode = require("../../util/generateAgencyCode");
@@ -10,18 +11,26 @@ const cryptr = new Cryptr("myTotallySecretKey");
 //fs
 const fs = require("fs");
 
+//axios
+const axios = require("axios");
+
+//deletefile
+const { deleteFile } = require("../../util/deletefile");
+
 //create agency
 exports.createAgency = async (req, res) => {
   try {
     const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country, uid } = req.body;
 
     if (!name || !email || !commissionType || !commission || !password || !countryCode || !mobileNumber || !req.file || !description || !countryFlagImage || !country || !uid) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "All fields are required!" });
     }
 
     const [existingAgency, agencyCode] = await Promise.all([Agency.findOne({ email: email.trim(), uid: uid.trim() }), generateAgencyCode()]);
 
     if (existingAgency) {
+      if (req.file) deleteFile(req.file.path);
       return res.status(200).json({ status: false, message: "Email already exists!" });
     }
 
@@ -42,16 +51,16 @@ exports.createAgency = async (req, res) => {
     });
 
     await newAgency.save();
-
     newAgency.password = cryptr.decrypt(newAgency.password);
 
     return res.status(200).json({
       status: true,
-      message: "Agency created successfully!",
+      message: "Agency created successfully under a valid license!",
       data: newAgency,
     });
   } catch (error) {
-    console.error(error);
+    console.error("createAgency error:", error);
+    if (req.file) deleteFile(req.file.path);
     return res.status(500).json({ status: false, message: "Internal server error." });
   }
 };
@@ -63,16 +72,19 @@ exports.updateAgency = async (req, res) => {
     const { name, email, commissionType, commission, password, countryCode, mobileNumber, description, countryFlagImage, country, uid } = req.body;
 
     if (!agencyId) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Agency ID is required." });
     }
 
     const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim(), uid: uid.trim() }) : null, Agency.findById(agencyId)]);
 
     if (email && existingAgency) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Email already exists!" });
     }
 
     if (!agency) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Agency not found." });
     }
 
@@ -111,6 +123,7 @@ exports.updateAgency = async (req, res) => {
       data: agency,
     });
   } catch (error) {
+    if (req.file) deleteFile(req.file);
     console.error(error);
     return res.status(500).json({ status: false, message: "Internal server error." });
   }

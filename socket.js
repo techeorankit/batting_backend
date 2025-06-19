@@ -1084,8 +1084,6 @@ io.on("connection", async (socket) => {
         },
         data: {
           type: "missedCall",
-          callerId: dataOfVideoCall.callerId.toString(),
-          callId: dataOfVideoCall.callId.toString(),
         },
       };
 

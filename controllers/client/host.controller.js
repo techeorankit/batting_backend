@@ -215,6 +215,20 @@ exports.retrieveHosts = async (req, res) => {
     const isGlobal = country === "global";
 
     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
+    const fakeLiveMatchQuery = isGlobal
+      ? {
+          isFake: true,
+          isBlock: false,
+          userId: { $ne: userId },
+          video: { $ne: [] },
+        }
+      : {
+          country: country,
+          isFake: true,
+          isBlock: false,
+          userId: { $ne: userId },
+          video: { $ne: [] },
+        };
     const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
 
     const [fakeHost, host, followedHost, liveHost, fakeLiveHost] = await Promise.all([
@@ -236,21 +250,16 @@ exports.retrieveHosts = async (req, res) => {
             as: "blockInfo",
           },
         },
-        {
-          $match: {
-            blockInfo: { $eq: [] },
-          },
-        },
+        { $match: { blockInfo: { $eq: [] } } },
         {
           $addFields: {
             status: {
               $switch: {
                 branches: [
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+                  { case: { $lte: [{ $rand: {} }, 0.33] }, then: "Live" },
+                  { case: { $lte: [{ $rand: {} }, 0.66] }, then: "Busy" },
                 ],
-                default: "Offline",
+                default: "Online",
               },
             },
             audioCallRate: 0,
@@ -258,8 +267,10 @@ exports.retrieveHosts = async (req, res) => {
             liveHistoryId: "",
             token: "",
             channel: "",
+            randomSort: { $rand: {} },
           },
         },
+        { $sort: { randomSort: 1 } },
         {
           $project: {
             _id: 1,
@@ -272,9 +283,12 @@ exports.retrieveHosts = async (req, res) => {
             isFake: 1,
             status: 1,
             video: 1,
+            liveVideo: 1,
             liveHistoryId: 1,
             token: 1,
             channel: 1,
+            uniqueId: 1,
+            gender: 1,
           },
         },
       ]),
@@ -296,11 +310,7 @@ exports.retrieveHosts = async (req, res) => {
             as: "blockInfo",
           },
         },
-        {
-          $match: {
-            blockInfo: { $eq: [] },
-          },
-        },
+        { $match: { blockInfo: { $eq: [] } } },
         {
           $addFields: {
             status: {
@@ -313,23 +323,10 @@ exports.retrieveHosts = async (req, res) => {
                 default: "Offline",
               },
             },
-            statusOrder: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ["$status", "Online"] }, then: 1 },
-                  { case: { $eq: ["$status", "Live"] }, then: 2 },
-                  { case: { $eq: ["$status", "Busy"] }, then: 3 },
-                ],
-                default: 4, // Offline
-              },
-            },
+            randomSort: { $rand: {} },
           },
         },
-        {
-          $sort: {
-            statusOrder: 1, //Sort by priority
-          },
-        },
+        { $sort: { randomSort: 1 } },
         {
           $project: {
             _id: 1,
@@ -386,11 +383,7 @@ exports.retrieveHosts = async (req, res) => {
             as: "blockInfo",
           },
         },
-        {
-          $match: {
-            blockInfo: { $eq: [] },
-          },
-        },
+        { $match: { blockInfo: { $eq: [] } } },
         {
           $addFields: {
             isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
@@ -417,15 +410,13 @@ exports.retrieveHosts = async (req, res) => {
             privateCallRate: 1,
             isFake: 1,
             status: 1,
+            uniqueId: 1,
+            gender: 1,
           },
         },
       ]),
       LiveBroadcaster.aggregate([
-        {
-          $match: {
-            userId: { $ne: userId },
-          },
-        },
+        { $match: { userId: { $ne: userId } } },
         {
           $lookup: {
             from: "blocks",
@@ -442,16 +433,15 @@ exports.retrieveHosts = async (req, res) => {
             as: "blockInfo",
           },
         },
-        {
-          $match: {
-            blockInfo: { $eq: [] },
-          },
-        },
+        { $match: { blockInfo: { $eq: [] } } },
         {
           $addFields: {
-            video: "",
+            video: [],
+            liveVideo: [],
+            randomSort: { $rand: {} },
           },
         },
+        { $sort: { randomSort: 1 } },
         {
           $project: {
             _id: 1,
@@ -466,19 +456,12 @@ exports.retrieveHosts = async (req, res) => {
             token: 1,
             view: 1,
             video: 1,
+            liveVideo: 1,
           },
         },
       ]),
       Host.aggregate([
-        {
-          $match: {
-            isFake: true,
-            isBlock: false,
-            isLive: true,
-            video: { $ne: "" },
-            userId: { $ne: userId },
-          },
-        },
+        { $match: fakeLiveMatchQuery },
         {
           $lookup: {
             from: "blocks",
@@ -495,11 +478,13 @@ exports.retrieveHosts = async (req, res) => {
             as: "blockInfo",
           },
         },
+        { $match: { blockInfo: { $eq: [] } } },
         {
-          $match: {
-            blockInfo: { $eq: [] },
+          $addFields: {
+            randomSort: { $rand: {} },
           },
         },
+        { $sort: { randomSort: 1 } },
         {
           $project: {
             _id: 1,
@@ -514,6 +499,7 @@ exports.retrieveHosts = async (req, res) => {
             token: 1,
             view: 1,
             video: 1,
+            liveVideo: 1,
           },
         },
       ]),
@@ -648,38 +634,52 @@ exports.retrieveAvailableHost = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(200).json({ status: false, message: "Valid userId is required." });
     }
 
     const normalizedGender = gender.trim().toLowerCase();
 
     const [blockedHosts, lastMatch] = await Promise.all([
-      Block.aggregate([{ $match: { userId: new mongoose.Types.ObjectId(userId), blockedBy: "user" } }, { $project: { _id: 0, hostId: 1 } }, { $group: { _id: null, ids: { $addToSet: "$hostId" } } }]),
+      Block.aggregate([{ $match: { userId, blockedBy: "user" } }, { $project: { _id: 0, hostId: 1 } }, { $group: { _id: null, ids: { $addToSet: "$hostId" } } }]),
       HostMatchHistory.findOne({ userId }).lean(),
     ]);
 
     const blockedHostIds = blockedHosts[0]?.ids || [];
     const lastMatchedHostId = lastMatch?.lastHostId;
 
-    const matchQuery = {
+    const realHostQuery = {
       isOnline: true,
       isBusy: false,
-      isFake: false,
       isLive: false,
       isBlock: false,
       status: 2,
       callId: null,
-      _id: { $nin: blockedHostIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      isFake: false,
     };
 
     if (normalizedGender !== "both") {
-      matchQuery.gender = normalizedGender;
+      realHostQuery.gender = normalizedGender;
     }
 
-    const availableHosts = await Host.find(matchQuery).lean();
+    // Step 1: Try real hosts
+    let availableHosts = await Host.find(realHostQuery).lean();
 
-    // Filter out last matched host if more than one host is available
+    // Step 2: Fallback to fake hosts (only use isFake + block filter)
+    if (availableHosts.length === 0) {
+      const fakeHostQuery = {
+        isFake: true,
+        _id: { $nin: blockedHostIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      };
+
+      if (normalizedGender !== "both") {
+        fakeHostQuery.gender = normalizedGender;
+      }
+
+      availableHosts = await Host.find(fakeHostQuery).lean();
+    }
+
+    // Step 3: Filter out last matched host if needed
     let filteredHosts = availableHosts;
     if (availableHosts.length > 1 && lastMatchedHostId) {
       filteredHosts = availableHosts.filter((host) => host._id.toString() !== lastMatchedHostId.toString());
@@ -777,7 +777,7 @@ exports.modifyHostDetails = async (req, res) => {
     if (req.files.photoGallery) {
       if (host.photoGallery.length > 0) {
         for (const photo of host.photoGallery) {
-          const photoGalleryPath = photo?.url?.split("storage");
+          const photoGalleryPath = photo?.split("storage");
           if (photoGalleryPath?.[1]) {
             const filePath = "storage" + photoGalleryPath[1];
             if (fs.existsSync(filePath)) {
@@ -868,6 +868,7 @@ exports.fetchHostsList = async (req, res) => {
             isFake: 1,
             status: 1,
             video: 1,
+            liveVideo: 1,
             liveHistoryId: 1,
             token: 1,
             channel: 1,
