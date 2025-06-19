@@ -1,5 +1,7 @@
 const History = require("../models/history.model");
 
+const crypto = require("crypto");
+
 async function generateHistoryUniqueId() {
   let uniqueId;
   let isUnique = false;
