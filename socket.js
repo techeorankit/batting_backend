@@ -74,7 +74,7 @@ io.on("connection", async (socket) => {
     if (parseData?.senderRole === "user") {
       senderPromise = User.findById(parseData?.senderId).lean().select("_id name image coin isVip");
     } else if (parseData?.senderRole === "host") {
-      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name image coin");
+      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name image isFake coin");
     }
 
     if (parseData?.receiverRole === "host") {
@@ -231,13 +231,14 @@ io.on("connection", async (socket) => {
             },
             data: {
               type: "CHAT",
-              senderId: String(chatTopic?.senderId || ""),
-              receiverId: String(chatTopic?.receiverId || ""),
-              userName: String(sender?.name || ""),
-              hostName: String(receiver?.name || ""),
-              userImage: String(sender?.image || ""),
-              hostImage: String(receiver?.image || ""),
-              senderRole: String(parseData?.senderRole) || "",
+              senderId: String(chatTopic?.senderId ?? ""),
+              receiverId: String(chatTopic?.receiverId ?? ""),
+              userName: String(sender?.name ?? ""),
+              hostName: String(receiver?.name ?? ""),
+              userImage: String(sender?.image ?? ""),
+              hostImage: String(receiver?.image ?? ""),
+              senderRole: String(parseData?.senderRole ?? ""),
+              isFakeSender: String(parseData?.senderRole === "host" ? !!sender?.isFake : false),
             },
           };
 
@@ -1450,6 +1451,151 @@ io.on("connection", async (socket) => {
     }
   });
 
+  socket.on("callCoinChargedForFakeCall", async (data) => {
+    try {
+      const parsedData = JSON.parse(data);
+      console.log("[callCoinChargedForFakeCall] Parsed Data:", parsedData);
+
+      const { callerId, receiverId, callMode, callType, gender } = parsedData;
+
+      const [callUniqueId, caller, receiver, vipPrivilege] = await Promise.all([
+        generateHistoryUniqueId(),
+        User.findById(callerId).select("_id coin isVip").lean(),
+        Host.findById(receiverId).select("_id coin privateCallRate audioCallRate randomCallRate randomCallFemaleRate randomCallMaleRate agencyId").lean(),
+        VipPlanPrivilege.findOne().select("audioCallDiscount privateCallDiscount randomMatchCallDiscount").lean(),
+      ]);
+
+      if (!caller || !receiver) {
+        console.log("[callCoinChargedForFakeCall] Caller or Receiver not found!");
+        return;
+      }
+
+      const normalizedCallType = callType?.trim()?.toLowerCase();
+      const normalizedCallMode = callMode?.trim()?.toLowerCase();
+
+      let historyDoc = await History.findOne({
+        userId: caller._id,
+        hostId: receiver._id,
+        callType: normalizedCallMode,
+        isPrivate: normalizedCallMode === "private",
+        isRandom: normalizedCallMode === "random",
+        type: normalizedCallType === "audio" ? 11 : 12,
+      });
+
+      if (!historyDoc) {
+        historyDoc = await History.create({
+          uniqueId: callUniqueId,
+          type: normalizedCallType === "audio" ? 11 : 12,
+          userId: caller._id,
+          hostId: receiver._id,
+          isPrivate: normalizedCallMode === "private",
+          isRandom: normalizedCallMode === "random",
+          callType: normalizedCallMode,
+          date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+        });
+      }
+
+      const historyId = historyDoc._id;
+      const settingJSON = global.settings || { adminCommissionRate: 20 };
+      const adminCommissionRate = settingJSON.adminCommissionRate || 20;
+
+      const processCallPayment = async (callCharge, discountPercent = 0) => {
+        const discountAmount = Math.floor((callCharge * discountPercent) / 100);
+        callCharge -= discountAmount;
+
+        const adminShare = Math.floor((callCharge * adminCommissionRate) / 100);
+        const hostEarnings = callCharge - adminShare;
+
+        let agencyShare = 0;
+        let agencyUpdate = null;
+
+        if (receiver.agencyId) {
+          const agency = await Agency.findById(receiver.agencyId).lean().select("_id commissionType commission");
+
+          if (agency) {
+            if (agency.commissionType === 1) {
+              agencyShare = (hostEarnings * agency.commission) / 100;
+            }
+
+            agencyUpdate = Agency.updateOne(
+              { _id: agency._id },
+              {
+                $inc: {
+                  hostCoins: hostEarnings,
+                  totalEarnings: Math.floor(agencyShare),
+                  netAvailableEarnings: Math.floor(agencyShare),
+                },
+              }
+            );
+          }
+        }
+
+        if (caller.coin >= callCharge) {
+          await Promise.all([
+            User.updateOne(
+              { _id: caller._id, coin: { $gte: callCharge } },
+              {
+                $inc: {
+                  coin: -callCharge,
+                  spentCoins: callCharge,
+                },
+              }
+            ),
+            Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
+            History.updateOne(
+              { _id: historyId },
+              {
+                $set: {
+                  agencyId: receiver.agencyId || null,
+                  date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+                },
+                $inc: {
+                  userCoin: callCharge,
+                  hostCoin: hostEarnings,
+                  adminCoin: adminShare,
+                  agencyCoin: Math.floor(agencyShare),
+                },
+              }
+            ),
+            agencyUpdate,
+          ]);
+
+          console.log("[callCoinChargedForFakeCall] Coin deduction and history update successful.");
+        } else {
+          console.log(`[callCoinChargedForFakeCall] Insufficient Coins for Caller: ${caller._id}`);
+          io.in("globalRoom:" + caller._id.toString()).emit("insufficientCoins", "You don't have sufficient coins.");
+        }
+      };
+
+      if (normalizedCallMode === "private" && normalizedCallType === "audio") {
+        const rate = Math.abs(receiver.audioCallRate);
+        const discount = caller.isVip && vipPrivilege?.audioCallDiscount ? Math.min(Math.max(vipPrivilege.audioCallDiscount, 0), 100) : 0;
+        await processCallPayment(rate, discount);
+      }
+
+      if (normalizedCallMode === "private" && normalizedCallType === "video") {
+        const rate = Math.abs(receiver.privateCallRate);
+        const discount = caller.isVip && vipPrivilege?.privateCallDiscount ? Math.min(Math.max(vipPrivilege.privateCallDiscount, 0), 100) : 0;
+        await processCallPayment(rate, discount);
+      }
+
+      if (normalizedCallMode === "random" && normalizedCallType === "video") {
+        let rate = Math.abs(receiver.randomCallRate) || 100;
+        if (gender?.toLowerCase() === "female") {
+          rate = Math.abs(receiver.randomCallFemaleRate);
+        } else if (gender?.toLowerCase() === "male") {
+          rate = Math.abs(receiver.randomCallMaleRate);
+        }
+
+        const discount = caller.isVip && vipPrivilege?.randomMatchCallDiscount ? Math.min(Math.max(vipPrivilege.randomMatchCallDiscount, 0), 100) : 0;
+
+        await processCallPayment(rate, discount);
+      }
+    } catch (error) {
+      console.error("[callCoinChargedForFakeCall] Error:", error);
+    }
+  });
+
   //random video call
   socket.on("ringingStarted", async (data) => {
     const parsedData = JSON.parse(data);
@@ -1950,6 +2096,20 @@ io.on("connection", async (socket) => {
         }
       }
 
+      const liveHistoryUpdate =
+        giftData.liveHistoryId && mongoose.Types.ObjectId.isValid(giftData.liveHistoryId)
+          ? LiveBroadcastHistory.findByIdAndUpdate(
+              giftData.liveHistoryId,
+              {
+                $inc: {
+                  coins: totalCoin,
+                  gifts: giftCount,
+                },
+              },
+              { new: true }
+            )
+          : Promise.resolve();
+
       await Promise.all([
         User.updateOne(
           { _id: senderUser._id, coin: { $gte: totalCoin } },
@@ -1979,16 +2139,7 @@ io.on("connection", async (socket) => {
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
         agencyUpdate,
-        LiveBroadcastHistory.findByIdAndUpdate(
-          giftData.liveHistoryId,
-          {
-            $inc: {
-              coins: totalCoin,
-              gifts: giftCount,
-            },
-          },
-          { new: true }
-        ),
+        liveHistoryUpdate,
       ]);
     } catch (error) {
       console.error("Error in liveGiftSent:", error);

@@ -31,6 +31,9 @@ exports.updateSetting = async (req, res) => {
     setting.minCoinsForAgencyPayout = req.body.minCoinsForAgencyPayout ? Number(req.body.minCoinsForAgencyPayout) : setting.minCoinsForAgencyPayout;
     setting.maxFreeChatMessages = req.body.maxFreeChatMessages ? Number(req.body.maxFreeChatMessages) : setting.maxFreeChatMessages;
 
+    setting.messageInitiatedAt = req.body.messageInitiatedAt ? Number(req.body.messageInitiatedAt) : setting.messageInitiatedAt;
+    setting.callInitiatedAt = req.body.callInitiatedAt ? Number(req.body.callInitiatedAt) : setting.callInitiatedAt;
+
     if (req.body.privateKey) {
       setting.privateKey = typeof req.body.privateKey === "string" ? JSON.parse(req.body.privateKey.trim()) : req.body.privateKey;
     }

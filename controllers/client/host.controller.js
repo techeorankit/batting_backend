@@ -361,7 +361,6 @@ exports.retrieveHosts = async (req, res) => {
         {
           $match: {
             followInfo: { $ne: [] },
-            isFake: false,
             isBlock: false,
             status: 2,
             userId: { $ne: userId },
@@ -542,7 +541,7 @@ exports.retrieveHostDetails = async (req, res) => {
     const [host, receivedGifts, isFollowing, totalFollower] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
         .select(
-          "name email gender bio uniqueId countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
+          "name email gender bio uniqueId countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin isFake video liveVideo"
         )
         .lean(),
       History.aggregate([
@@ -920,5 +919,57 @@ exports.fetchHostsList = async (req, res) => {
       message: "An error occurred while fetching the hosts list.",
       error: error.message || "Internal Server Error",
     });
+  }
+};
+
+//get random fake host ( user ) ( auto call )
+exports.getRandomAvailableFakeHost = async (req, res) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ status: false, message: "Unauthorized. Please log in again." });
+    }
+
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ status: false, message: "Invalid user ID provided." });
+    }
+
+    const [blockedHosts, lastMatch] = await Promise.all([
+      Block.aggregate([{ $match: { userId, blockedBy: "user" } }, { $project: { _id: 0, hostId: 1 } }, { $group: { _id: null, ids: { $addToSet: "$hostId" } } }]),
+      HostMatchHistory.findOne({ userId }).lean(),
+    ]);
+
+    const blockedHostIds = blockedHosts[0]?.ids || [];
+    const lastMatchedHostId = lastMatch?.lastHostId;
+
+    const query = {
+      isFake: true,
+      _id: { $nin: blockedHostIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    };
+
+    const availableHosts = await Host.find(query).lean();
+
+    let filteredHosts = availableHosts;
+    if (availableHosts.length > 1 && lastMatchedHostId) {
+      filteredHosts = availableHosts.filter((host) => host._id.toString() !== lastMatchedHostId.toString());
+    }
+
+    if (filteredHosts.length === 0) {
+      return res.status(200).json({ status: false, message: "No fake hosts available for matching." });
+    }
+
+    const matchedHost = filteredHosts[Math.floor(Math.random() * filteredHosts.length)];
+
+    res.status(200).json({
+      status: true,
+      message: "Successfully retrieved a random fake host.",
+      data: matchedHost,
+    });
+
+    await HostMatchHistory.findOneAndUpdate({ userId }, { lastHostId: matchedHost._id }, { upsert: true, new: true });
+  } catch (error) {
+    console.error("getRandomAvailableFakeHost Error:", error);
+    return res.status(500).json({ status: false, message: "Internal server error. Please try again later." });
   }
 };

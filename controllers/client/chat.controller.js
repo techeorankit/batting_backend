@@ -145,6 +145,7 @@ exports.pushChatMessage = async (req, res) => {
           userImage: String(sender?.image || ""),
           hostImage: String(receiver?.image || ""),
           senderRole: "user",
+          isFakeSender: "false",
         },
       };
 
@@ -317,6 +318,7 @@ exports.submitChatMessage = async (req, res) => {
           userImage: String(sender?.image || ""),
           hostImage: String(receiver?.image || ""),
           senderRole: "user",
+          isFakeSender: "false",
         },
       };
 

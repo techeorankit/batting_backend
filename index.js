@@ -64,6 +64,10 @@ async function startServer() {
     console.log("Mongo: successfully connected to db");
   });
 
+  //Schedule the chat job
+  const scheduleChatJob = require("./worker/bullRandomChatJob");
+  scheduleChatJob();
+
   //Step 3: Start Server after all setup is done
   server.listen(process?.env.PORT, () => {
     console.log("Hello World ! listening on " + process?.env?.PORT);
@@ -82,7 +86,7 @@ startServer();
 
 // async function deleteAllUsers(nextPageToken) {
 //   try {
-//     const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);    
+//     const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
 //     const uids = listUsersResult.users.map(user => user.uid);
 
 //     console.log(`Fetched ${uids.length} users`);
@@ -112,3 +116,40 @@ startServer();
 // }
 
 // deleteAllUsers();
+
+const Bull = require("bull");
+const chatQueue = new Bull("chat-job-queue", {
+  redis: {
+    host: "127.0.0.1",
+    port: 6379,
+  },
+});
+
+(async () => {
+  const jobs = await chatQueue.getJobs(["delayed", "waiting", "active", "completed", "failed"]);
+
+  for (const job of jobs) {
+    console.log(`Job ID: ${job.id}`);
+    console.log(`Name: ${job.name}`);
+    console.log(`Data:`, job.data);
+    console.log(`Status: ${await job.getState()}`);
+  }
+})();
+
+// Remove jobs in each state
+// (async () => {
+//   const states = ["delayed", "wait", "active", "completed", "failed"];
+
+//   for (const state of states) {
+//     const jobs = await chatQueue.getJobs([state]);
+//     for (const job of jobs) {
+//       await job.remove();
+//       console.log(`Removed job ${job.id} from ${state}`);
+//     }
+//   }
+
+//   // Optionally, empty the queue's wait/delayed list entirely
+//   await chatQueue.empty(); // This clears only 'wait' and 'paused' jobs
+
+//   console.log("All jobs cleared.");
+// })();

@@ -28,6 +28,7 @@ const liveBroadcastHistory = require("./liveBroadcastHistory.route");
 const currency = require("./currency.route");
 const withdrawalRequest = require("./withdrawalRequest.route");
 const notification = require("./notification.route");
+const message = require("./message.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
@@ -36,7 +37,7 @@ route.use("/impression", validateAdminToken, impression);
 route.use("/giftCategory", validateAdminToken, giftCategory);
 route.use("/gift", validateAdminToken, gift);
 route.use("/vipPlanPrivilege", validateAdminToken, vipPlanPrivilege);
-route.use("/host", host);
+route.use("/host", validateAdminToken, host);
 route.use("/dashboard", validateAdminToken, dashboard);
 route.use("/agency", validateAdminToken, agency);
 route.use("/block", validateAdminToken, block);
@@ -52,5 +53,6 @@ route.use("/liveBroadcastHistory", validateAdminToken, liveBroadcastHistory);
 route.use("/currency", validateAdminToken, currency);
 route.use("/withdrawalRequest", validateAdminToken, withdrawalRequest);
 route.use("/notification", validateAdminToken, notification);
+route.use("/message", message);
 
 module.exports = route;

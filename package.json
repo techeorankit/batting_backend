@@ -11,6 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "agora-access-token": "^2.0.4",
+    "axios": "^1.10.0",
+    "bull": "^4.16.5",
     "cors": "^2.8.5",
     "cryptr": "^6.3.0",
     "dotenv": "^16.4.7",

@@ -45,6 +45,9 @@ const settingSchema = new mongoose.Schema(
     maxFreeChatMessages: { type: Number, default: 0 }, //maximum free messages allowed
     chatInteractionRate: { type: Number, default: 0 },
 
+    messageInitiatedAt: { type: Number, default: 0 }, //in min
+    callInitiatedAt: { type: Number, default: 0 }, //in min
+
     adminCommissionRate: { type: Number, default: 0 }, //in %
     minCoinsToConvert: { type: Number, default: 0 }, //min coin requried for convert coin to default currency i.e., 1000 coin = 1 $
 

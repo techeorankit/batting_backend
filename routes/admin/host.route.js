@@ -31,9 +31,9 @@ route.post(
   checkAccessWithSecretKey(),
   upload.fields([
     { name: "image", maxCount: 1 },
-    { name: "photoGallery", maxCount: 10 },
-    { name: "video", maxCount: 10 },
-    { name: "liveVideo", maxCount: 10 },
+    { name: "photoGallery", maxCount: 20 },
+    { name: "video", maxCount: 20 },
+    { name: "liveVideo", maxCount: 20 },
   ]),
   HostController.createHost
 );
@@ -44,9 +44,9 @@ route.patch(
   checkAccessWithSecretKey(),
   upload.fields([
     { name: "image", maxCount: 1 },
-    { name: "photoGallery", maxCount: 10 },
-    { name: "video", maxCount: 10 },
-    { name: "liveVideo", maxCount: 10 },
+    { name: "photoGallery", maxCount: 20 },
+    { name: "video", maxCount: 20 },
+    { name: "liveVideo", maxCount: 20 },
   ]),
   HostController.updateHost
 );
