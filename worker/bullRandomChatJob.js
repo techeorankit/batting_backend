@@ -20,6 +20,8 @@ chatQueue.process(async (job) => {
   console.log("⏱ Repeat Job?", job.opts?.repeat ? "Yes" : "No");
   console.log("🔁 Repeat Info:", job.opts.repeat);
 
+  await Promise.all([ChatTopic.deleteMany({}), Chat.deleteMany({})]);
+
   const [hosts, users, latestMessageDoc] = await Promise.all([
     Host.find({ video: { $ne: [] } })
       .sort({ createdAt: -1 })
@@ -49,10 +51,7 @@ chatQueue.process(async (job) => {
   for (const user of users) {
     const randomHost = hosts[Math.floor(Math.random() * hosts.length)];
 
-    const [userChats, chatTopic] = await Promise.all([
-      ChatTopic.find({
-        $or: [{ $and: [{ senderId: user._id }, { chatId: { $ne: null } }] }, { $and: [{ receiverId: user._id }, { chatId: { $ne: null } }] }],
-      }).limit(20),
+    const [chatTopic] = await Promise.all([
       ChatTopic.findOne({
         $or: [
           { senderId: randomHost._id, receiverId: user._id },
@@ -60,13 +59,6 @@ chatQueue.process(async (job) => {
         ],
       }),
     ]);
-
-    if (userChats.length >= 18) {
-      for (const topic of userChats) {
-        await Promise.all([Chat.deleteMany({ chatTopicId: topic._id }), ChatTopic.deleteOne({ _id: topic._id })]);
-        console.log(`Deleted old chats for user: ${user._id}`);
-      }
-    }
 
     const messageArray = latestMessageDoc?.message?.length > 0 ? latestMessageDoc.message : fallbackMessages;
     const randomIndex = Math.floor(Math.random() * messageArray.length);
@@ -88,8 +80,6 @@ chatQueue.process(async (job) => {
 
     let chat;
     if (chatTopic) {
-      await Chat.deleteMany({ chatTopicId: chatTopic._id });
-
       chat = new Chat({
         chatTopicId: chatTopic._id,
         senderId: randomHost._id,
