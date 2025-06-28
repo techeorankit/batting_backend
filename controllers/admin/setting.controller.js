@@ -100,6 +100,8 @@ exports.updateSettingToggle = async (req, res) => {
       setting.isDemoData = !setting.isDemoData;
     } else if (type === "isAppEnabled") {
       setting.isAppEnabled = !setting.isAppEnabled;
+    } else if (type === "isAutoRefreshEnabled") {
+      setting.isAutoRefreshEnabled = !setting.isAutoRefreshEnabled;
     } else {
       return res.status(200).json({ status: false, message: "type passed must be valid." });
     }

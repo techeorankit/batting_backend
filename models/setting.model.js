@@ -25,6 +25,7 @@ const settingSchema = new mongoose.Schema(
     isDemoData: { type: Boolean, default: false },
 
     isAppEnabled: { type: Boolean, default: true },
+    isAutoRefreshEnabled: { type: Boolean, default: false },
 
     currency: {
       name: { type: String, default: "" },
