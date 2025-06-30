@@ -12,7 +12,7 @@ exports.fetchGiftList = async (req, res, next) => {
 
     const [giftCategory, gifts] = await Promise.all([
       GiftCategory.findById(giftCategoryId),
-      Gift.find({ giftCategoryId: giftCategoryId, isDelete: false }).select("title type image coin").sort({ createdAt: -1 }).lean(),
+      Gift.find({ giftCategoryId: giftCategoryId, isDelete: false }).select("title type image svgaImage coin").sort({ createdAt: -1 }).lean(),
     ]);
 
     if (!giftCategory) {

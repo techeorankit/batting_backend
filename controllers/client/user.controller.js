@@ -233,9 +233,17 @@ exports.retrieveUserProfile = async (req, res) => {
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
-    const user = await User.findOne({ _id: userId }).lean();
 
-    res.status(200).json({ status: true, message: "The user has retrieved their profile.", user: user });
+    const [user, hostRequest] = await Promise.all([User.findOne({ _id: userId }).lean(), Host.findOne({ userId }).select("status").lean()]);
+
+    const hasHostRequest = !!hostRequest;
+
+    res.status(200).json({
+      status: true,
+      message: "The user has retrieved their profile.",
+      user,
+      hasHostRequest,
+    });
 
     if (user.isVip && user.vipPlanId !== null && user.vipPlanStartDate !== null && user.vipPlanEndDate !== null) {
       const validity = user.vipPlan.validity;
