@@ -136,6 +136,14 @@ chatQueue.process(async (job) => {
     console.log(`Selected message: ${messageText}`);
     console.log(`Message type: ${messageType === 1 ? "Text" : "Image"}`);
 
+    await Chat.deleteMany({
+      $or: [
+        { senderId: randomHost._id, receiverId: user._id },
+        { senderId: user._id, receiverId: randomHost._id },
+      ],
+    });
+    console.log(`🗑 Deleted all existing chats between ${randomHost._id} and ${user._id}`);
+
     let chat;
     if (chatTopic) {
       chat = new Chat({
