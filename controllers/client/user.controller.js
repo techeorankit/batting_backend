@@ -9,6 +9,9 @@ const mongoose = require("mongoose");
 //import model
 const History = require("../../models/history.model");
 const Host = require("../../models/host.model");
+const ChatTopic = require("../../models/chatTopic.model");
+const Chat = require("../../models/chat.model");
+const Message = require("../../models/message.model");
 
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
@@ -172,6 +175,103 @@ exports.signInOrSignUpUser = async (req, res) => {
           .catch((error) => {
             console.log("Error sending message: ", error);
           });
+      }
+
+      //✅ Send random messages from 4 hosts
+      const [hosts, latestMessageDoc] = await Promise.all([
+        Host.find({ video: { $ne: [] } })
+          .sort({ createdAt: -1 })
+          .limit(5),
+        Message.findOne().sort({ createdAt: -1 }).lean(),
+      ]);
+
+      const fallbackMessages = [
+        "Hey there! 👋",
+        "How's your day going? 😊",
+        "Wanna chat? 💬",
+        "You look amazing today! ✨",
+        "Let's talk! 💖",
+        "Hope you're having a great time! 🌟",
+        "What's your favorite movie? 🎬",
+        "I’d love to get to know you better! 😄",
+      ];
+
+      for (const host of hosts) {
+        const chatTopic = await ChatTopic.findOne({
+          $or: [
+            { senderId: host._id, receiverId: user._id },
+            { senderId: user._id, receiverId: host._id },
+          ],
+        });
+
+        const messages = latestMessageDoc?.message?.length > 0 ? latestMessageDoc.message : fallbackMessages;
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        const messageType = Math.random() < 0.5 ? 1 : 2;
+
+        let imageUrl = "";
+        if (messageType === 2) {
+          const images = Array.isArray(host.image) ? host.image : [host.image];
+          if (images.length > 0) {
+            const index = Math.floor(Math.random() * images.length);
+            imageUrl = images[index];
+          }
+        }
+
+        let chat;
+        if (chatTopic) {
+          chat = new Chat({
+            chatTopicId: chatTopic._id,
+            senderId: host._id,
+            messageType,
+            message: messageType === 2 ? "📸 Image" : randomMessage,
+            image: messageType === 2 ? imageUrl : "",
+            date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+          });
+          chatTopic.chatId = chat._id;
+          await Promise.all([chat.save(), chatTopic.save()]);
+        } else {
+          const newChatTopic = new ChatTopic({
+            senderId: host._id,
+            receiverId: user._id,
+          });
+
+          chat = new Chat({
+            chatTopicId: newChatTopic._id,
+            senderId: host._id,
+            messageType,
+            message: messageType === 2 ? "📸 Image" : randomMessage,
+            image: messageType === 2 ? imageUrl : "",
+            date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+          });
+
+          newChatTopic.chatId = chat._id;
+          await Promise.all([newChatTopic.save(), chat.save()]);
+        }
+
+        if (user && user.fcmToken && user.fcmToken !== null) {
+          const payload = {
+            token: user.fcmToken,
+            notification: {
+              title: `${host.name} sent you a message 📩`,
+              body: `🗨️ ${chat.message}`,
+            },
+            data: {
+              type: "CHAT",
+              senderId: String(host._id),
+              isFake: String(host.isFake),
+              receiverId: String(user._id),
+              userName: String(host.name),
+              hostName: String(user.name),
+              userImage: String(host.image || ""),
+              hostImage: String(user.image || ""),
+              senderRole: "host",
+              isFakeSender: String(host.isFake || "false"),
+            },
+          };
+
+          const adminInstance = await admin;
+          adminInstance.messaging().send(payload).catch(console.error);
+        }
       }
     }
   } catch (error) {

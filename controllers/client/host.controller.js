@@ -504,12 +504,17 @@ exports.retrieveHosts = async (req, res) => {
       ]),
     ]);
 
+    const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
+    let allHosts;
+    allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
+    allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
+
     return res.status(200).json({
       status: true,
       message: "Hosts list retrieved successfully.",
       followedHost,
       liveHost: settingJSON.isDemoData ? [...fakeLiveHost, ...liveHost] : liveHost,
-      hosts: settingJSON.isDemoData ? [...fakeHost, ...host] : host,
+      hosts: allHosts,
     });
   } catch (error) {
     return res.status(500).json({

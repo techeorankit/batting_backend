@@ -107,9 +107,9 @@ function deleteFileIfExists(filePath) {
   }
 }
 
-cron.schedule("0 0 * * *", async () => {
+cron.schedule("0 0 * * 0", async () => {
   try {
-    console.log("Cron job scheduled to run at 12 AM every day.");
+    console.log("Cron job running every Sunday at 12:00 AM");
 
     const users = await User.find({
       _id: { $ne: "68555d4280ab3d1897a91da7" },

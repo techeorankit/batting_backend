@@ -20,7 +20,65 @@ chatQueue.process(async (job) => {
   console.log("⏱ Repeat Job?", job.opts?.repeat ? "Yes" : "No");
   console.log("🔁 Repeat Info:", job.opts.repeat);
 
-  await Promise.all([ChatTopic.deleteMany({}), Chat.deleteMany({})]);
+  const usersWithManyTopics = await ChatTopic.aggregate([
+    {
+      $match: {
+        chatId: { $ne: null },
+      },
+    },
+    {
+      $group: {
+        _id: "$receiverId",
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $unwind: "$user",
+    },
+    {
+      $project: {
+        _id: 0,
+        userId: "$_id",
+        count: 1,
+        // name: "$user.name",
+        // image: "$user.image",
+        // email: "$user.email",
+        // isHost: "$user.isHost",
+      },
+    },
+  ]);
+
+  console.log("📌 Found users with >4 chat topics:", usersWithManyTopics);
+  console.log(`📌 Users with more than 4 chatId-bound ChatTopics: ${usersWithManyTopics.length}`);
+
+  for (const { userId } of usersWithManyTopics) {
+    const allTopics = await ChatTopic.find({
+      receiverId: userId,
+      chatId: { $ne: null },
+    })
+      .sort({ _id: -1 }) // newest first
+      .select("_id")
+      .lean();
+
+    const topicsToKeep = allTopics.slice(0, 4).map((t) => t._id); // keep latest 4
+    const topicsToDelete = allTopics.slice(4).map((t) => t._id); // delete the rest
+
+    if (topicsToDelete.length > 0) {
+      await Promise.all([Chat.deleteMany({ chatTopicId: { $in: topicsToDelete } }), ChatTopic.deleteMany({ _id: { $in: topicsToDelete } })]);
+
+      console.log(`🗑 Deleted ${topicsToDelete.length} old topics for user ${userId}`);
+    } else {
+      console.log(`✅ Nothing to delete for user ${userId}`);
+    }
+  }
 
   const [hosts, users, latestMessageDoc] = await Promise.all([
     Host.find({ video: { $ne: [] } })
