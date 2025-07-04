@@ -25,9 +25,6 @@ route.patch("/modifyAdminProfile", checkAccessWithSecretKey(), validateAdminToke
 //get admin profile
 route.get("/retrieveAdminProfile", checkAccessWithSecretKey(), validateAdminToken, AdminController.retrieveAdminProfile);
 
-//send email ( forgot password )
-route.post("/sendPasswordResetRequest", checkAccessWithSecretKey(), AdminController.sendPasswordResetRequest);
-
 //update password
 route.patch("/modifyPassword", checkAccessWithSecretKey(), validateAdminToken, AdminController.modifyPassword);
 

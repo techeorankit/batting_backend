@@ -29,6 +29,7 @@ const currency = require("./currency.route");
 const withdrawalRequest = require("./withdrawalRequest.route");
 const notification = require("./notification.route");
 const message = require("./message.route");
+const login = require("./login.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
@@ -54,5 +55,6 @@ route.use("/currency", validateAdminToken, currency);
 route.use("/withdrawalRequest", validateAdminToken, withdrawalRequest);
 route.use("/notification", validateAdminToken, notification);
 route.use("/message", message);
+route.use("/login", login);
 
 module.exports = route;
