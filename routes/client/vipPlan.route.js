@@ -12,7 +12,7 @@ const VipPlanController = require("../../controllers/client/vipPlan.controller")
 const validateUserToken = require("../../middleware/validateUserToken.middleware");
 
 //get vipPlan
-route.get("/fetchVipPlans", checkAccessWithSecretKey(), VipPlanController.fetchVipPlans);
+route.get("/fetchVipPlans", validateUserToken, checkAccessWithSecretKey(), VipPlanController.fetchVipPlans);
 
 //purchase vipPlan ( vipPlan history )
 route.post("/purchaseVipPlan", validateUserToken, checkAccessWithSecretKey(), VipPlanController.purchaseVipPlan);

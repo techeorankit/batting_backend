@@ -56,15 +56,14 @@ exports.handleFollowUnfollow = async (req, res) => {
       if (toUser.fcmToken) {
         const payload = {
           token: toUser.fcmToken,
-          notification: {
+          data: {
             title: "🌟 New Follower Alert! 👤✨",
             body: "🚀 You’ve got a new fan! Someone just followed you—check them out now! 👀💫",
+            type: "FOLLOW",
           },
-          data: { type: "FOLLOW" },
         };
 
         const adminPromise = await admin;
-
         adminPromise
           .messaging()
           .send(payload)

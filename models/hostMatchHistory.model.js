@@ -2,8 +2,13 @@ const mongoose = require("mongoose");
 
 const HostMatchHistorySchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    lastHostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", required: true },
+    //user to host
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    lastHostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null },
+
+    //host to user
+    hostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host", default: null },
+    lastUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   {
     timestamps: true,

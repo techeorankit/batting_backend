@@ -154,19 +154,16 @@ exports.processDailyCheckIn = async (req, res) => {
     ]);
 
     if (user.fcmToken && user.fcmToken !== null) {
-      const adminPromise = await admin;
-
       const payload = {
         token: user.fcmToken,
-        notification: {
+        data: {
           title: "🌟 Daily Check-in Reward Unlocked! 💰",
           body: `Way to go! You've earned ${dailyRewardCoin} coins for checking in today. Come back tomorrow for more rewards! 🌟💸`,
-        },
-        data: {
           type: "DAILY_CHECKIN_REWARD",
         },
       };
 
+      const adminPromise = await admin;
       adminPromise
         .messaging()
         .send(payload)

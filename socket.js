@@ -225,11 +225,9 @@ io.on("connection", async (socket) => {
         if (!isBlocked) {
           const payload = {
             token: receiver.fcmToken,
-            notification: {
+            data: {
               title: `${sender?.name} sent you a message 💌`,
               body: `🗨️ ${chat?.message}`,
-            },
-            data: {
               type: "CHAT",
               senderId: String(chatTopic?.senderId ?? ""),
               receiverId: String(chatTopic?.receiverId ?? ""),
@@ -405,11 +403,9 @@ io.on("connection", async (socket) => {
     if (receiver && !receiver.isBlock && receiver.fcmToken) {
       const payload = {
         token: receiver.fcmToken,
-        notification: {
+        data: {
           title: `${sender.name} sent you a gift 🎁`,
           body: `💝 You received ${giftCount} gifts worth ${totalGiftCost} coins!`,
-        },
-        data: {
           type: "GIFT",
           giftCount: giftCount.toString(),
         },
@@ -447,7 +443,16 @@ io.on("connection", async (socket) => {
     const parsedData = JSON.parse(data);
     console.log("callRinging request received:", parsedData);
 
-    const { callerId, receiverId, agoraUID, channel, callType } = parsedData;
+    const { callerId, receiverId, agoraUID, channel, callType, callerRole, receiverRole } = parsedData;
+
+    const validRoles = ["user", "host"];
+    if (!validRoles.includes(callerRole?.toLowerCase()) || !validRoles.includes(receiverRole?.toLowerCase())) {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", { message: "Invalid roles provided." });
+      return;
+    }
+
+    const callerModel = callerRole.trim().toLowerCase() === "user" ? User : Host;
+    const receiverModel = receiverRole.trim().toLowerCase() === "host" ? Host : User;
 
     const role = RtcRole.PUBLISHER;
     const uid = agoraUID ? agoraUID : 0;
@@ -458,8 +463,8 @@ io.on("connection", async (socket) => {
     const [callUniqueId, token, caller, receiver] = await Promise.all([
       generateHistoryUniqueId(),
       RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
-      User.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
-      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId fcmToken").lean(),
+      callerModel.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
+      receiverModel.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId fcmToken").lean(),
     ]);
 
     if (!caller) {
@@ -519,12 +524,14 @@ io.on("connection", async (socket) => {
       callHistory.uniqueId = callUniqueId;
 
       const [callerVerify, receiverVerify] = await Promise.all([
-        User.updateOne(
+        callerModel.updateOne(
           {
             _id: caller._id,
+            isBlock: false,
             isOnline: true,
             isBusy: false,
             callId: null,
+            ...(callerRole.trim().toLowerCase() === "host" ? { isFake: false, isLive: false } : {}),
           },
           {
             $set: {
@@ -533,15 +540,14 @@ io.on("connection", async (socket) => {
             },
           }
         ),
-        Host.updateOne(
+        receiverModel.updateOne(
           {
             _id: receiver._id,
-            isFake: false,
             isBlock: false,
             isOnline: true,
             isBusy: false,
-            isLive: false,
             callId: null,
+            ...(receiverRole.trim().toLowerCase() === "host" ? { isFake: false, isLive: false } : {}),
           },
           {
             $set: {
@@ -566,6 +572,8 @@ io.on("connection", async (socket) => {
           callId: callHistory._id,
           callType: callType.trim().toLowerCase(),
           callMode: "private",
+          callerRole,
+          receiverRole,
           token,
           channel,
         };
@@ -584,11 +592,9 @@ io.on("connection", async (socket) => {
 
           const payload = {
             token: receiver.fcmToken,
-            notification: {
+            data: {
               title: notificationTitle,
               body: notificationBody,
-            },
-            data: {
               type: "callIncoming",
               callType: String(dataOfVideoCall.callType),
               callId: String(dataOfVideoCall.callId),
@@ -670,8 +676,17 @@ io.on("connection", async (socket) => {
     try {
       const parsedData = JSON.parse(data);
 
-      const { callerId, receiverId, callId, isAccept, callType, callMode } = parsedData;
+      const { callerId, receiverId, callId, isAccept, callType, callMode, callerRole, receiverRole } = parsedData;
       console.log("🟢 [callResponseHandled] Event received:", parsedData);
+
+      const validRoles = ["user", "host"];
+      if (!validRoles.includes(callerRole?.toLowerCase()) || !validRoles.includes(receiverRole?.toLowerCase())) {
+        io.in("globalRoom:" + callerId.toString()).emit("callRinging", { message: "Invalid roles provided." });
+        return;
+      }
+
+      const callerModel = callerRole.trim().toLowerCase() === "user" ? User : Host;
+      const receiverModel = receiverRole.trim().toLowerCase() === "host" ? Host : User;
 
       const callerRoom = `globalRoom:${callerId}`;
       const receiverRoom = `globalRoom:${receiverId}`;
@@ -679,8 +694,8 @@ io.on("connection", async (socket) => {
       console.log(`🔄 Fetching caller, receiver, and call history for callId: ${callId}`);
 
       const [caller, receiver, callHistory] = await Promise.all([
-        User.findById(callerId).select("_id name isBusy callId").lean(),
-        Host.findById(receiverId).select("_id name isBusy callId").lean(),
+        callerModel.findById(callerId).select("_id name isBusy callId").lean(),
+        receiverModel.findById(receiverId).select("_id name isBusy callId").lean(),
         History.findById(callId).select("_id callConnect callEndTime duration"),
       ]);
 
@@ -699,8 +714,8 @@ io.on("connection", async (socket) => {
           io.to(receiverRoom).emit("callRejected", data);
 
           const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
-            User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
-            Host.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
+            callerModel.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
+            receiverModel.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
             Privatecall.deleteOne({ caller: caller._id, receiver: receiver._id }),
           ]);
 
@@ -847,8 +862,8 @@ io.on("connection", async (socket) => {
           io.to(receiverRoom).emit("callRejected", data);
 
           const [callerUpdate, receiverUpdate, randomCallDeleted] = await Promise.all([
-            User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
-            Host.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
+            callerModel.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
+            receiverModel.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
             Randomcall.deleteOne({ caller: caller._id }),
           ]);
 
@@ -993,14 +1008,23 @@ io.on("connection", async (socket) => {
 
   socket.on("callCancelled", async (data) => {
     const parseData = JSON.parse(data);
-    const { callerId, receiverId, callId, callType, callMode } = parseData;
+    const { callerId, receiverId, callId, callType, callMode, callerRole, receiverRole } = parseData;
     console.log("🟢 [callCancelled] Event received:", parseData);
+
+    const validRoles = ["user", "host"];
+    if (!validRoles.includes(callerRole?.toLowerCase()) || !validRoles.includes(receiverRole?.toLowerCase())) {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", { message: "Invalid roles provided." });
+      return;
+    }
 
     console.log(`🔄 Fetching call details for callId: ${callId}`);
 
+    const callerModel = callerRole.trim().toLowerCase() === "user" ? User : Host;
+    const receiverModel = receiverRole.trim().toLowerCase() === "host" ? Host : User;
+
     const [caller, receiver, callHistory] = await Promise.all([
-      User.findById(callerId).select("_id name fcmToken isBlock").lean(),
-      Host.findById(receiverId).select("_id name fcmToken isBlock").lean(),
+      callerModel.findById(callerId).select("_id name fcmToken isBlock").lean(),
+      receiverModel.findById(receiverId).select("_id name fcmToken isBlock").lean(),
       History.findById(callId).select("_id userId callConnect"),
     ]);
 
@@ -1016,8 +1040,8 @@ io.on("connection", async (socket) => {
 
     if (callMode.trim().toLowerCase() === "private") {
       const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
-        User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
-        Host.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
+        callerModel.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
+        receiverModel.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
         Privatecall.deleteOne({ caller: caller._id, receiver: receiver._id }),
       ]);
 
@@ -1028,8 +1052,8 @@ io.on("connection", async (socket) => {
 
     if (callMode.trim().toLowerCase() === "random") {
       const [callerUpdate, receiverUpdate, randomCallDeleted] = await Promise.all([
-        User.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
-        Host.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
+        callerModel.updateOne({ _id: caller._id }, { $set: { isBusy: false, callId: null } }),
+        receiverModel.updateOne({ _id: receiver._id }, { $set: { isBusy: false, callId: null } }),
         Randomcall.deleteOne({ caller: caller._id }),
       ]);
 
@@ -1079,11 +1103,9 @@ io.on("connection", async (socket) => {
     if (!receiver.isBlock && receiver.fcmToken !== null) {
       const payload = {
         token: receiver.fcmToken,
-        notification: {
+        data: {
           title: `📞 Missed Call from ${caller.name || "Someone"} ⏳`,
           body: `You missed a call from  ${caller.name || "Someone"}. Tap to reconnect now! 🔄✨`,
-        },
-        data: {
           type: "missedCall",
         },
       };
@@ -1103,12 +1125,21 @@ io.on("connection", async (socket) => {
 
   socket.on("callDisconnected", async (data) => {
     const parseData = JSON.parse(data);
-    const { callerId, receiverId, callId, callType, callMode } = parseData;
+    const { callerId, receiverId, callId, callType, callMode, callerRole, receiverRole } = parseData;
     console.log("[callDisconnected]", "data in callDisconnected:", parseData);
 
+    const validRoles = ["user", "host"];
+    if (!validRoles.includes(callerRole?.toLowerCase()) || !validRoles.includes(receiverRole?.toLowerCase())) {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", { message: "Invalid roles provided." });
+      return;
+    }
+
+    const callerModel = callerRole.trim().toLowerCase() === "user" ? User : Host;
+    const receiverModel = receiverRole.trim().toLowerCase() === "host" ? Host : User;
+
     const [caller, receiver, callHistory] = await Promise.all([
-      User.findById(callerId).select("_id name").lean(),
-      Host.findById(receiverId).select("_id name").lean(),
+      callerModel.findById(callerId).select("_id name").lean(),
+      receiverModel.findById(receiverId).select("_id name").lean(),
       History.findById(callId).select("_id callConnect callStartTime callEndTime duration"),
     ]);
 
@@ -1124,8 +1155,8 @@ io.on("connection", async (socket) => {
 
     if (callMode.trim().toLowerCase() === "private") {
       const [callerUpdate, receiverUpdate, privateCallDeleted] = await Promise.all([
-        User.updateOne({ _id: callerId }, { $set: { isBusy: false, callId: null } }),
-        Host.updateOne({ _id: receiverId }, { $set: { isBusy: false, callId: null } }),
+        callerModel.updateOne({ _id: callerId }, { $set: { isBusy: false, callId: null } }),
+        receiverModel.updateOne({ _id: receiverId }, { $set: { isBusy: false, callId: null } }),
         Privatecall.deleteOne({ caller: callerId, receiver: receiverId }),
       ]);
 
@@ -1136,8 +1167,8 @@ io.on("connection", async (socket) => {
 
     if (callMode.trim().toLowerCase() === "random") {
       const [callerUpdate, receiverUpdate, randomCallDeleted] = await Promise.all([
-        User.updateOne({ _id: callerId }, { $set: { isBusy: false, callId: null } }),
-        Host.updateOne({ _id: receiverId }, { $set: { isBusy: false, callId: null } }),
+        callerModel.updateOne({ _id: callerId }, { $set: { isBusy: false, callId: null } }),
+        receiverModel.updateOne({ _id: receiverId }, { $set: { isBusy: false, callId: null } }),
         Randomcall.deleteOne({ caller: callerId }),
       ]);
 
@@ -1599,8 +1630,17 @@ io.on("connection", async (socket) => {
   //random video call
   socket.on("ringingStarted", async (data) => {
     const parsedData = JSON.parse(data);
-    const { callerId, receiverId, agoraUID, channel, gender } = parsedData;
+    const { callerId, receiverId, agoraUID, channel, gender, callerRole, receiverRole } = parsedData;
     console.log("ringingStarted request received:", parsedData);
+
+    const validRoles = ["user", "host"];
+    if (!validRoles.includes(callerRole?.toLowerCase()) || !validRoles.includes(receiverRole?.toLowerCase())) {
+      io.in("globalRoom:" + callerId.toString()).emit("callRinging", { message: "Invalid roles provided." });
+      return;
+    }
+
+    const callerModel = callerRole.trim().toLowerCase() === "user" ? User : Host;
+    const receiverModel = receiverRole.trim().toLowerCase() === "host" ? Host : User;
 
     const role = RtcRole.PUBLISHER;
     const uid = agoraUID ? agoraUID : 0;
@@ -1673,12 +1713,14 @@ io.on("connection", async (socket) => {
       callHistory.callId = callUniqueId;
 
       const [callerVerify, receiverVerify] = await Promise.all([
-        User.updateOne(
+        callerModel.updateOne(
           {
             _id: caller._id,
+            isBlock: false,
             isOnline: true,
             isBusy: false,
             callId: null,
+            ...(callerRole.trim().toLowerCase() === "host" ? { isFake: false, isLive: false } : {}),
           },
           {
             $set: {
@@ -1687,15 +1729,14 @@ io.on("connection", async (socket) => {
             },
           }
         ),
-        Host.updateOne(
+        receiverModel.updateOne(
           {
             _id: receiver._id,
-            isFake: false,
             isBlock: false,
             isOnline: true,
             isBusy: false,
-            isLive: false,
             callId: null,
+            ...(receiverRole.trim().toLowerCase() === "host" ? { isFake: false, isLive: false } : {}),
           },
           {
             $set: {
@@ -1721,6 +1762,8 @@ io.on("connection", async (socket) => {
           callMode: "random",
           token,
           channel,
+          callerRole,
+          receiverRole,
           gender: gender.trim().toLowerCase(),
         };
 
@@ -1746,11 +1789,10 @@ io.on("connection", async (socket) => {
 
           const payload = {
             token: receiver.fcmToken,
-            notification: {
+            notification: {},
+            data: {
               title: notificationTitle,
               body: notificationBody,
-            },
-            data: {
               type: "callIncoming",
               callType: dataOfVideoCall.callType,
               callId: dataOfVideoCall.callId.toString(),

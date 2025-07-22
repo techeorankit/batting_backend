@@ -229,24 +229,24 @@ cron.schedule("0 0 * * 0", async () => {
 
 // deleteAllUsers();
 
-const Bull = require("bull");
-const chatQueue = new Bull("chat-job-queue", {
-  redis: {
-    host: "127.0.0.1",
-    port: 6379,
-  },
-});
+// const Bull = require("bull");
+// const chatQueue = new Bull("chat-job-queue", {
+//   redis: {
+//     host: "127.0.0.1",
+//     port: 6379,
+//   },
+// });
 
-(async () => {
-  const jobs = await chatQueue.getJobs(["delayed", "waiting", "active", "completed", "failed"]);
+// (async () => {
+//   const jobs = await chatQueue.getJobs(["delayed", "waiting", "active", "completed", "failed"]);
 
-  for (const job of jobs) {
-    console.log(`Job ID: ${job.id}`);
-    console.log(`Name: ${job.name}`);
-    console.log(`Data:`, job.data);
-    console.log(`Status: ${await job.getState()}`);
-  }
-})();
+//   for (const job of jobs) {
+//     console.log(`Job ID: ${job.id}`);
+//     console.log(`Name: ${job.name}`);
+//     console.log(`Data:`, job.data);
+//     console.log(`Status: ${await job.getState()}`);
+//   }
+// })();
 
 // Remove jobs in each state
 // (async () => {

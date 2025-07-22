@@ -156,11 +156,9 @@ exports.signInOrSignUpUser = async (req, res) => {
       if (user && user.fcmToken && user.fcmToken !== null) {
         const payload = {
           token: user.fcmToken,
-          notification: {
+          data: {
             title: "🚀 Instant Bonus Activated! 🎁",
             body: "🎊 Hooray! You've unlocked a special welcome reward just for joining us. Enjoy your bonus! 💰",
-          },
-          data: {
             type: "LOGINBONUS",
           },
         };
@@ -251,11 +249,9 @@ exports.signInOrSignUpUser = async (req, res) => {
         if (user && user.fcmToken && user.fcmToken !== null) {
           const payload = {
             token: user.fcmToken,
-            notification: {
+            data: {
               title: `${host.name} sent you a message 📩`,
               body: `🗨️ ${chat.message}`,
-            },
-            data: {
               type: "CHAT",
               senderId: String(host._id),
               isFake: String(host.isFake),

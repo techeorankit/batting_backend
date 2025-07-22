@@ -123,7 +123,7 @@ exports.manageHostRequest = async (req, res) => {
       if (host.fcmToken) {
         const payload = {
           token: host.fcmToken,
-          notification: {
+          data: {
             title: "🎉 Host Verification Successful!",
             body: "Congratulations! Your host request has been approved. You’re now ready to go live! 🚀",
           },
@@ -151,7 +151,7 @@ exports.manageHostRequest = async (req, res) => {
       if (host.fcmToken) {
         const payload = {
           token: host.fcmToken,
-          notification: {
+          data: {
             title: "❌ Host Request Declined",
             body: "Unfortunately, your host request was declined. Please check your details or contact support for assistance. 📩",
           },

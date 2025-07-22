@@ -8,6 +8,7 @@ const LiveBroadcaster = require("../../models/liveBroadcaster.model");
 const Block = require("../../models/block.model");
 const HostMatchHistory = require("../../models/hostMatchHistory.model");
 const FollowerFollowing = require("../../models/followerFollowing.model");
+const User = require("../../models/user.model");
 
 //deleteFiles
 const { deleteFiles } = require("../../util/deletefile");
@@ -149,7 +150,7 @@ exports.initiateHostRequest = async (req, res) => {
     if (fcmToken && fcmToken !== null) {
       const payload = {
         token: fcmToken,
-        notification: {
+        data: {
           title: "🎙️ Host Application Received 🚀",
           body: "Thank you for applying as a host! Our team is reviewing your request, and we'll update you soon. Stay tuned! 🤝✨",
         },
@@ -976,5 +977,80 @@ exports.getRandomAvailableFakeHost = async (req, res) => {
   } catch (error) {
     console.error("getRandomAvailableFakeHost Error:", error);
     return res.status(500).json({ status: false, message: "Internal server error. Please try again later." });
+  }
+};
+
+//get user ( host ) ( auto call )
+exports.getRandomAvailableUser = async (req, res) => {
+  try {
+    const { hostId } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(hostId)) {
+      return res.status(200).json({ status: false, message: "Invalid host ID provided." });
+    }
+
+    const hostObjectId = new mongoose.Types.ObjectId(hostId);
+
+    const [blockedUsers, lastMatch] = await Promise.all([
+      Block.find({
+        hostId: hostObjectId,
+        blockedBy: "host",
+      })
+        .select("userId -_id")
+        .lean(), //Get users blocked by this host
+      HostMatchHistory.findOne({ hostId: hostObjectId }).lean(), //Get last matched user
+    ]);
+
+    const blockedUserIds = blockedUsers.map((b) => b.userId.toString());
+    const lastMatchedUserId = lastMatch?.lastUserId?.toString();
+
+    const allEligibleUsers = await User.find({
+      _id: { $nin: blockedUserIds },
+      isHost: false,
+      hostId: null,
+      isBlock: false,
+      isOnline: true,
+      isBusy: false,
+      callId: null,
+    })
+      .select("_id name uniqueId image coin")
+      .lean();
+
+    if (!allEligibleUsers.length) {
+      return res.status(200).json({ status: false, message: "No available user found." });
+    }
+
+    //Apply last match exclusion logic
+    let finalCandidates;
+    if (allEligibleUsers.length === 1) {
+      finalCandidates = allEligibleUsers;
+    } else {
+      const filtered = allEligibleUsers.filter((u) => u._id.toString() !== lastMatchedUserId);
+      finalCandidates = filtered.length > 0 ? filtered : allEligibleUsers;
+    }
+
+    //Select a random user
+    const randomIndex = Math.floor(Math.random() * finalCandidates.length);
+    const selectedUser = finalCandidates[randomIndex];
+
+    res.status(200).json({
+      status: true,
+      message: "Successfully retrieved a random available user.",
+      data: {
+        userId: selectedUser._id,
+        username: selectedUser.name,
+        uniqueId: selectedUser.uniqueId,
+        userImage: selectedUser.image,
+        userCoin: selectedUser.coin,
+      },
+    });
+
+    await HostMatchHistory.findOneAndUpdate({ hostId: hostObjectId }, { lastUserId: selectedUser._id }, { upsert: true, new: true });
+  } catch (error) {
+    console.error("getRandomAvailableUser Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error. Please try again later.",
+    });
   }
 };

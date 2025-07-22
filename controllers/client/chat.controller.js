@@ -132,11 +132,9 @@ exports.pushChatMessage = async (req, res) => {
     if (receiver.fcmToken !== null) {
       const payload = {
         token: receiver.fcmToken,
-        notification: {
+        data: {
           title: `${sender.name} sent you a message 📩`,
           body: `🗨️ ${chat.message}`,
-        },
-        data: {
           type: "CHAT",
           senderId: String(chatTopic?.senderId || ""),
           receiverId: String(chatTopic?.receiverId || ""),
@@ -301,15 +299,11 @@ exports.submitChatMessage = async (req, res) => {
     });
 
     if (receiver.fcmToken !== null) {
-      const adminPromise = await admin;
-
       const payload = {
         token: receiver.fcmToken,
-        notification: {
+        data: {
           title: `${sender.name} sent you a message 📩`,
           body: `🗨️ ${chat.message}`,
-        },
-        data: {
           type: "CHAT",
           senderId: String(chatTopic?.senderId || ""),
           receiverId: String(chatTopic?.receiverId || ""),
@@ -322,6 +316,7 @@ exports.submitChatMessage = async (req, res) => {
         },
       };
 
+      const adminPromise = await admin;
       adminPromise
         .messaging()
         .send(payload)

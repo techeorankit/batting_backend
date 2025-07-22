@@ -154,11 +154,11 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
       if (agency.fcmToken) {
         const payload = {
           token: agency.fcmToken,
-          notification: {
+          data: {
             title: "✅ Withdrawal Approved!",
             body: "🎉 Great news! Your withdrawal has been successfully approved. Keep up the great work! 💼💰",
+            type: "WITHDRAWREQUEST",
           },
-          data: { type: "WITHDRAWREQUEST" },
         };
 
         const adminInstance = await admin;
@@ -205,11 +205,11 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
       if (agency.fcmToken) {
         const payload = {
           token: agency.fcmToken,
-          notification: {
+          data: {
             title: "❌ Withdrawal Declined",
             body: "⚠️ Your withdrawal request was declined. Please review the reason or contact support. 📩",
+            type: "WITHDRAWREQUEST",
           },
-          data: { type: "WITHDRAWREQUEST" },
         };
 
         const adminInstance = await admin;

@@ -11,7 +11,7 @@ const validateUserToken = require("../../middleware/validateUserToken.middleware
 const checkAccessWithSecretKey = require("../../checkAccess");
 
 //get coinplan
-route.get("/getCoinPackage", checkAccessWithSecretKey(), coinplanController.getCoinPackage);
+route.get("/getCoinPackage", validateUserToken, checkAccessWithSecretKey(), coinplanController.getCoinPackage);
 
 //purchase coinPlan ( coinPlan history )
 route.post("/recordCoinPlanPurchase", validateUserToken, checkAccessWithSecretKey(), coinplanController.recordCoinPlanPurchase);

@@ -181,11 +181,9 @@ chatQueue.process(async (job) => {
     if (user.fcmToken) {
       const payload = {
         token: user.fcmToken,
-        notification: {
+        data: {
           title: `${randomHost.name} sent you a message 📩`,
           body: `🗨️ ${chat.message}`,
-        },
-        data: {
           type: "CHAT",
           senderId: String(randomHost._id),
           isFake: String(randomHost.isFake),

@@ -122,8 +122,9 @@ exports.HostStreaming = async (req, res) => {
 
         const payload = {
           tokens: followerTokens,
-          notification: { title, body },
           data: {
+            title,
+            body,
             type: "LIVE",
             hostId: host._id.toString(),
             liveHistoryId: liveHistory._id.toString(),

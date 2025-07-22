@@ -169,11 +169,11 @@ exports.updateWithdrawalStatus = async (req, res) => {
       if (host.fcmToken) {
         const payload = {
           token: host.fcmToken,
-          notification: {
+          data: {
             title: "🔔 Withdrawal Request Accepted!",
             body: "Your withdrawal request has been approved and processed. 🎉",
+            type: "WITHDRAWREQUEST",
           },
-          data: { type: "WITHDRAWREQUEST" },
         };
 
         const adminInstance = await admin;
@@ -221,11 +221,11 @@ exports.updateWithdrawalStatus = async (req, res) => {
       if (host.fcmToken) {
         const payload = {
           token: host.fcmToken,
-          notification: {
+          data: {
             title: "🔔 Withdrawal Request Declined!",
             body: "Your withdrawal request has been declined. Please contact support.",
+            type: "WITHDRAWREQUEST",
           },
-          data: { type: "WITHDRAWREQUEST" },
         };
 
         const adminInstance = await admin;
