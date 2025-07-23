@@ -7,6 +7,9 @@ const cryptr = new Cryptr("myTotallySecretKey");
 //mongoose
 const mongoose = require("mongoose");
 
+//fs
+const fs = require("fs");
+
 //agency login
 exports.loginAgency = async (req, res) => {
   try {
