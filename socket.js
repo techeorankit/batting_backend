@@ -1928,7 +1928,6 @@ io.on("connection", async (socket) => {
       }
     } catch (error) {
       console.error("[liveStreamStatusCheck] Error:", error);
-      socket.emit("liveStreamStatusCheck", { hostId: dataOfCheck.hostId, liveStatus: false });
     }
   });
 
