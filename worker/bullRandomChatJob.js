@@ -257,7 +257,7 @@ const scheduleChatJob = () => {
     }
   );
 
-  console.log("🔁 Chat job scheduled to run every 10 minutes.");
+  console.log("🔁 Chat job scheduled to run every 10 minutes.", settingJSON.messageInitiatedAt);
 };
 
 module.exports = scheduleChatJob;
