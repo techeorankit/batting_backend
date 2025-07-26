@@ -5,6 +5,7 @@ const ChatTopic = require("../../models/chatTopic.model");
 const User = require("../../models/user.model");
 const Host = require("../../models/host.model");
 const History = require("../../models/history.model");
+const Agency = require("../../models/agency.model");
 
 //mongoose
 const mongoose = require("mongoose");
@@ -65,6 +66,7 @@ exports.pushChatMessage = async (req, res) => {
     let deductedCoins = 0;
     let adminShare = 0;
     let hostEarnings = 0;
+    let agencyShare = 0;
 
     if (!isWithinFreeLimit && sender.coin < chatRate) {
       if (req.files) deleteFiles(req.files);
@@ -112,6 +114,32 @@ exports.pushChatMessage = async (req, res) => {
       adminShare = (chatRate * adminCommissionRate) / 100;
       hostEarnings = chatRate - adminShare;
 
+      let agencyUpdate = null;
+      if (receiver.agencyId) {
+        const agency = await Agency.findById(receiver.agencyId).lean().select("_id commissionType commission");
+
+        if (agency) {
+          if (agency.commissionType === 1) {
+            // Percentage commission
+            agencyShare = (hostEarnings * agency.commission) / 100;
+          } else {
+            // Fixed salary, ignore earnings share
+            agencyShare = 0;
+          }
+
+          agencyUpdate = Agency.updateOne(
+            { _id: agency._id },
+            {
+              $inc: {
+                hostCoins: hostEarnings,
+                totalEarnings: Math.floor(agencyShare),
+                netAvailableEarnings: Math.floor(agencyShare),
+              },
+            }
+          );
+        }
+      }
+
       await Promise.all([
         User.updateOne({ _id: sender._id, coin: { $gte: deductedCoins } }, { $inc: { coin: -deductedCoins, spentCoins: deductedCoins } }),
         Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
@@ -126,6 +154,7 @@ exports.pushChatMessage = async (req, res) => {
           adminCoin: adminShare,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
+        agencyUpdate,
       ]);
     }
 

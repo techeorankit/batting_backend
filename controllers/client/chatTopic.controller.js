@@ -14,167 +14,185 @@ exports.fetchChatList = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const [chatList] = await Promise.all([
-      ChatTopic.aggregate([
-        {
-          $match: {
-            chatId: { $ne: null },
-            $or: [{ senderId: userObjectId }, { receiverId: userObjectId }],
-          },
+    const chatList = await ChatTopic.aggregate([
+      {
+        $match: {
+          chatId: { $ne: null },
+          $or: [{ senderId: userObjectId }, { receiverId: userObjectId }],
         },
-        {
-          $addFields: {
-            receiverId: {
-              $cond: {
-                if: { $eq: ["$senderId", userObjectId] },
-                then: "$receiverId",
-                else: "$senderId",
-              },
+      },
+      {
+        $addFields: {
+          receiverId: {
+            $cond: {
+              if: { $eq: ["$senderId", userObjectId] },
+              then: "$receiverId",
+              else: "$senderId",
             },
           },
         },
-        {
-          $lookup: {
-            from: "blocks",
-            let: { receiverId: "$receiverId" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $or: [
-                      {
-                        $and: [{ $eq: ["$userId", userObjectId] }, { $eq: ["$hostId", "$$receiverId"] }],
-                      },
-                      {
-                        $and: [{ $eq: ["$userId", "$$receiverId"] }, { $eq: ["$hostId", userObjectId] }],
-                      },
-                    ],
-                  },
-                },
-              },
-            ],
-            as: "blockInfo",
-          },
-        },
-        {
-          $match: {
-            blockInfo: { $eq: [] }, // Exclude both user-blocked-host and host-blocked-user
-          },
-        },
-        {
-          $lookup: {
-            from: "hosts",
-            localField: "receiverId",
-            foreignField: "_id",
-            as: "host",
-          },
-        },
-        { $unwind: { path: "$host", preserveNullAndEmptyArrays: false } },
-        {
-          $lookup: {
-            from: "chats",
-            localField: "chatId",
-            foreignField: "_id",
-            as: "chat",
-          },
-        },
-        { $unwind: { path: "$chat", preserveNullAndEmptyArrays: false } },
-        { $sort: { "chat.createdAt": -1 } },
-        {
-          $group: {
-            _id: "$_id",
-            receiverId: { $first: "$receiverId" },
-            name: { $first: "$host.name" },
-            image: { $first: "$host.image" },
-            isFake: { $first: "$host.isFake" },
-            isOnline: { $first: "$host.isOnline" },
-            chatTopic: { $first: "$chat.chatTopicId" },
-            senderId: { $first: "$chat.senderId" },
-            messageType: { $first: "$chat.messageType" },
-            message: { $first: "$chat.message" },
-            isRead: { $first: "$chat.isRead" },
-            lastChatMessageTime: { $first: "$chat.createdAt" },
-            unreadCount: {
-              $sum: {
-                $cond: [
-                  {
-                    $and: [{ $ne: ["$chat.senderId", userObjectId] }, { $eq: ["$chat.isRead", false] }],
-                  },
-                  1,
-                  0,
-                ],
-              },
-            },
-          },
-        },
-        {
-          $project: {
-            receiverId: 1,
-            name: 1,
-            image: 1,
-            isFake: 1,
-            isOnline: 1,
-            chatTopic: 1,
-            senderId: 1,
-            messageType: 1,
-            message: 1,
-            unreadCount: 1,
-            lastChatMessageTime: 1,
-            time: {
-              $let: {
-                vars: {
-                  messageDay: {
-                    $dateToString: { format: "%Y-%m-%d", date: "$lastChatMessageTime" },
-                  },
-                  today: {
-                    $dateToString: { format: "%Y-%m-%d", date: new Date() },
-                  },
-                  yesterday: {
-                    $dateToString: { format: "%Y-%m-%d", date: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-                  },
-                  dayOfWeek: {
-                    $dayOfWeek: "$lastChatMessageTime",
-                  },
-                },
-                in: {
-                  $cond: [
-                    { $eq: ["$$messageDay", "$$today"] },
-                    "Today",
+      },
+      {
+        $lookup: {
+          from: "blocks",
+          let: { receiverId: "$receiverId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
                     {
-                      $cond: [
-                        { $eq: ["$$messageDay", "$$yesterday"] },
-                        "Yesterday",
-                        {
-                          $switch: {
-                            branches: [
-                              { case: { $eq: ["$$dayOfWeek", 1] }, then: "Sunday" },
-                              { case: { $eq: ["$$dayOfWeek", 2] }, then: "Monday" },
-                              { case: { $eq: ["$$dayOfWeek", 3] }, then: "Tuesday" },
-                              { case: { $eq: ["$$dayOfWeek", 4] }, then: "Wednesday" },
-                              { case: { $eq: ["$$dayOfWeek", 5] }, then: "Thursday" },
-                              { case: { $eq: ["$$dayOfWeek", 6] }, then: "Friday" },
-                              { case: { $eq: ["$$dayOfWeek", 7] }, then: "Saturday" },
-                            ],
-                            default: "Unknown day",
-                          },
-                        },
-                      ],
+                      $and: [{ $eq: ["$userId", userObjectId] }, { $eq: ["$hostId", "$$receiverId"] }],
+                    },
+                    {
+                      $and: [{ $eq: ["$userId", "$$receiverId"] }, { $eq: ["$hostId", userObjectId] }],
                     },
                   ],
                 },
               },
             },
+          ],
+          as: "blockInfo",
+        },
+      },
+      {
+        $match: {
+          blockInfo: { $eq: [] }, // Exclude both user-blocked-host and host-blocked-user
+        },
+      },
+      {
+        $lookup: {
+          from: "hosts",
+          localField: "receiverId",
+          foreignField: "_id",
+          as: "host",
+        },
+      },
+      { $unwind: { path: "$host", preserveNullAndEmptyArrays: false } },
+      {
+        $lookup: {
+          from: "chats",
+          localField: "chatId",
+          foreignField: "_id",
+          as: "chat",
+        },
+      },
+      { $unwind: { path: "$chat", preserveNullAndEmptyArrays: false } },
+      { $sort: { "chat.createdAt": -1 } },
+      {
+        $group: {
+          _id: "$_id",
+          receiverId: { $first: "$receiverId" },
+          name: { $first: "$host.name" },
+          image: { $first: "$host.image" },
+          isFake: { $first: "$host.isFake" },
+          isOnline: { $first: "$host.isOnline" },
+          chatTopic: { $first: "$chat.chatTopicId" },
+          senderId: { $first: "$chat.senderId" },
+          messageType: { $first: "$chat.messageType" },
+          message: { $first: "$chat.message" },
+          isRead: { $first: "$chat.isRead" },
+          lastChatMessageTime: { $first: "$chat.createdAt" },
+        },
+      },
+      {
+        $lookup: {
+          from: "chats",
+          let: { topicId: "$chatTopic" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ["$chatTopicId", "$$topicId"] }, { $eq: ["$isRead", false] }, { $ne: ["$senderId", userObjectId] }],
+                },
+              },
+            },
+            { $count: "unreadCount" },
+          ],
+          as: "unreads",
+        },
+      },
+      {
+        $addFields: {
+          unreadCount: {
+            $cond: [{ $gt: [{ $size: "$unreads" }, 0] }, { $arrayElemAt: ["$unreads.unreadCount", 0] }, 0],
           },
         },
-        { $sort: { lastChatMessageTime: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-      ]),
+      },
+      {
+        $project: {
+          receiverId: 1,
+          name: 1,
+          image: 1,
+          isFake: 1,
+          isOnline: 1,
+          chatTopic: 1,
+          senderId: 1,
+          messageType: 1,
+          message: 1,
+          unreadCount: 1,
+          lastChatMessageTime: 1,
+          time: {
+            $let: {
+              vars: {
+                messageDay: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$lastChatMessageTime" },
+                },
+                today: {
+                  $dateToString: { format: "%Y-%m-%d", date: new Date() },
+                },
+                yesterday: {
+                  $dateToString: {
+                    format: "%Y-%m-%d",
+                    date: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                  },
+                },
+                dayOfWeek: {
+                  $dayOfWeek: "$lastChatMessageTime",
+                },
+              },
+              in: {
+                $cond: [
+                  { $eq: ["$$messageDay", "$$today"] },
+                  "Today",
+                  {
+                    $cond: [
+                      { $eq: ["$$messageDay", "$$yesterday"] },
+                      "Yesterday",
+                      {
+                        $switch: {
+                          branches: [
+                            { case: { $eq: ["$$dayOfWeek", 1] }, then: "Sunday" },
+                            { case: { $eq: ["$$dayOfWeek", 2] }, then: "Monday" },
+                            { case: { $eq: ["$$dayOfWeek", 3] }, then: "Tuesday" },
+                            { case: { $eq: ["$$dayOfWeek", 4] }, then: "Wednesday" },
+                            { case: { $eq: ["$$dayOfWeek", 5] }, then: "Thursday" },
+                            { case: { $eq: ["$$dayOfWeek", 6] }, then: "Friday" },
+                            { case: { $eq: ["$$dayOfWeek", 7] }, then: "Saturday" },
+                          ],
+                          default: "Unknown Day",
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      { $sort: { lastChatMessageTime: -1 } },
+      { $skip: (start - 1) * limit },
+      { $limit: limit },
     ]);
 
-    return res.status(200).json({ status: true, message: "Success", chatList });
+    return res.status(200).json({
+      status: true,
+      message: "Success",
+      chatList,
+    });
   } catch (error) {
-    console.error(error);
+    console.error("Error in fetchChatList:", error);
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
@@ -234,7 +252,7 @@ exports.retrieveChatList = async (req, res) => {
         },
         {
           $match: {
-            blockInfo: { $eq: [] }, // Exclude if any block exists between host and user
+            blockInfo: { $eq: [] }, // Exclude blocked relationships
           },
         },
         {
@@ -255,7 +273,6 @@ exports.retrieveChatList = async (req, res) => {
           },
         },
         { $unwind: { path: "$chat", preserveNullAndEmptyArrays: false } },
-        { $sort: { "chat.createdAt": -1 } },
         {
           $group: {
             _id: "$userId",
@@ -269,16 +286,29 @@ exports.retrieveChatList = async (req, res) => {
             message: { $first: "$chat.message" },
             messageType: { $first: "$chat.messageType" },
             lastChatMessageTime: { $first: "$chat.createdAt" },
-            unreadCount: {
-              $sum: {
-                $cond: [
-                  {
-                    $and: [{ $ne: ["$chat.senderId", hostObjectId] }, { $eq: ["$chat.isRead", false] }],
+          },
+        },
+        {
+          $lookup: {
+            from: "chats",
+            let: { topicId: "$chatTopic" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [{ $eq: ["$chatTopicId", "$$topicId"] }, { $eq: ["$isRead", false] }, { $ne: ["$senderId", hostObjectId] }],
                   },
-                  1,
-                  0,
-                ],
+                },
               },
+              { $count: "unreadCount" },
+            ],
+            as: "unreads",
+          },
+        },
+        {
+          $addFields: {
+            unreadCount: {
+              $cond: [{ $gt: [{ $size: "$unreads" }, 0] }, { $arrayElemAt: ["$unreads.unreadCount", 0] }, 0],
             },
           },
         },
@@ -304,7 +334,10 @@ exports.retrieveChatList = async (req, res) => {
                     $dateToString: { format: "%Y-%m-%d", date: new Date() },
                   },
                   yesterday: {
-                    $dateToString: { format: "%Y-%m-%d", date: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+                    $dateToString: {
+                      format: "%Y-%m-%d",
+                      date: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                    },
                   },
                   dayOfWeek: {
                     $dayOfWeek: "$lastChatMessageTime",
@@ -346,9 +379,16 @@ exports.retrieveChatList = async (req, res) => {
       ]),
     ]);
 
-    return res.status(200).json({ status: true, message: "Success", chatList });
+    return res.status(200).json({
+      status: true,
+      message: "Success",
+      chatList,
+    });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+    console.error("Chat list retrieval error:", error);
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
