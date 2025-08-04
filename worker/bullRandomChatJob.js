@@ -15,8 +15,8 @@ const chatQueue = new Bull("chat-job-queue", {
   },
 });
 
-chatQueue.process(async (job) => {
-  console.log("🆔 Job ID:", job.id); // This is the jobId you set in add()
+chatQueue.process("repeat", async (job) => {
+  console.log("🆔 Job ID:", job.id);
   console.log("⏱ Repeat Job?", job.opts?.repeat ? "Yes" : "No");
   console.log("🔁 Repeat Info:", job.opts.repeat);
 
@@ -236,28 +236,52 @@ chatQueue.on("failed", async (job, err) => {
 });
 
 //⏱ Schedule the job every 10 minutes with a fixed jobId
-const scheduleChatJob = () => {
-  const intervalInMinutes = settingJSON.messageInitiatedAt || 10;
+const scheduleChatJob = async () => {
+  const intervalInMinutes = settingJSON.messageInitiatedAt || 30;
   const intervalMs = intervalInMinutes * 60 * 1000;
 
-  chatQueue.add(
-    {},
-    {
-      // repeat: {
-      //   every: 10 * 60 * 1000,
-      // },
-      repeat: {
-        every: intervalMs,
-      },
-      jobId: "repeat:chat-job-every-10-min",
-      removeOnComplete: true,
-      removeOnFail: {
-        count: 3,
-      },
-    }
-  );
+  const jobName = "repeat";
+  const jobId = `repeat:chat-job-every-${intervalInMinutes}-min`;
 
-  console.log("🔁 Chat job scheduled to run every 10 minutes.", settingJSON.messageInitiatedAt);
+  try {
+    console.log("🧹 Checking and removing outdated or invalid repeatable jobs...");
+
+    // 1️⃣ Get all repeatable jobs in this queue
+    const repeatJobs = await chatQueue.getRepeatableJobs();
+
+    for (const job of repeatJobs) {
+      const isOldInterval = job.every !== intervalMs;
+      const isInvalid = !job.every || job.every === 0;
+
+      if (isOldInterval || isInvalid) {
+        console.log(`🗑 Removing job: key=${job.key}, every=${job.every}`);
+        await chatQueue.removeRepeatableByKey(job.key);
+      }
+    }
+
+    // 2️⃣ Add the new correct repeatable job
+    await chatQueue.add(
+      jobName,
+      {},
+      {
+        repeat: { every: intervalMs }, // Repeat interval
+        jobId,
+        removeOnComplete: true,
+        removeOnFail: { count: 3 },
+      }
+    );
+
+    console.log(`✅ Scheduled chat job every ${intervalInMinutes} minute(s)`);
+
+    // 3️⃣ List current repeatable jobs
+    const updatedJobs = await chatQueue.getRepeatableJobs();
+    console.log("📋 Current Repeatable Jobs:");
+    for (const job of updatedJobs) {
+      console.log(`  - id: ${job.id}, every: ${job.every ?? "null"} ms, next: ${new Date(job.next)}`);
+    }
+  } catch (err) {
+    console.error("❌ Error while scheduling chat job:", err);
+  }
 };
 
 module.exports = scheduleChatJob;

@@ -60,7 +60,7 @@ exports.fetchPayoutRequests = async (req, res) => {
 
       if (personValue === 1) {
         personQuery.person = 1;
-        personQuery.agencyId = { $ne: null };
+        personQuery.agencyId = agencyId;
       } else if (personValue === 2) {
         personQuery.person = 2;
         personQuery.hostId = { $ne: null };
@@ -269,7 +269,7 @@ exports.initiateWithdrawal = async (req, res) => {
 
     const [uniqueId, agency, pendingRequest, declinedRequest] = await Promise.all([
       generateHistoryUniqueId(),
-      Agency.findOne({ _id: agencyId }).select("_id netAvailableEarnings").lean(),
+      Agency.findOne({ _id: agencyId }).select("_id totalEarningsWithCommissionAndHostCoin").lean(),
       WithdrawalRequest.findOne({ agencyId, status: 1 }).select("_id").lean(), // status 1: pending
       WithdrawalRequest.findOne({ agencyId, status: 3 }).select("_id").lean(), // status 3: declined
     ]);
@@ -282,7 +282,11 @@ exports.initiateWithdrawal = async (req, res) => {
       return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
     }
 
-    if (requestedCoins > agency.netAvailableEarnings) {
+    // if (requestedCoins > agency.netAvailableEarnings) {
+    //   return res.status(200).json({ status: false, message: "Insufficient balance to request withdrawal." });
+    // }
+
+    if (requestedCoins > agency.totalEarningsWithCommissionAndHostCoin) {
       return res.status(200).json({ status: false, message: "Insufficient balance to request withdrawal." });
     }
 

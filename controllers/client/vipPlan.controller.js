@@ -16,7 +16,7 @@ const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 //get vipPlan
 exports.fetchVipPlans = async (req, res) => {
   try {
-    const vipPlans = await VipPlan.find({ isActive: true }).select("validity validityType coin price").sort({ createdAt: -1 }).lean();
+    const vipPlans = await VipPlan.find({ isActive: true }).select("validity validityType coin price productId").sort({ createdAt: -1 }).lean();
 
     return res.status(200).json({
       status: true,

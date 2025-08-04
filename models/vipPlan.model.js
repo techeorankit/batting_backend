@@ -6,6 +6,7 @@ const vipPlanSchema = new mongoose.Schema(
     validityType: { type: String, trim: true, lowercase: true, default: "" },
     coin: { type: Number, default: 0 },
     price: { type: Number, default: 0 },
+    productId: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
   },
   {

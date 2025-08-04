@@ -127,16 +127,20 @@ exports.pushChatMessage = async (req, res) => {
             agencyShare = 0;
           }
 
-          agencyUpdate = Agency.updateOne(
-            { _id: agency._id },
+          agencyUpdate = Agency.updateOne({ _id: agency._id }, [
             {
-              $inc: {
-                hostCoins: hostEarnings,
-                totalEarnings: Math.floor(agencyShare),
-                netAvailableEarnings: Math.floor(agencyShare),
+              $set: {
+                hostCoins: { $add: ["$hostCoins", hostEarnings] },
+                totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+                totalEarningsWithCommissionAndHostCoin: {
+                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                },
+                netAvailableEarnings: {
+                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                },
               },
-            }
-          );
+            },
+          ]);
         }
       }
 

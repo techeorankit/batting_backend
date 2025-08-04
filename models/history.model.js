@@ -16,6 +16,7 @@ const historySchema = new mongoose.Schema(
     giftCoin: { type: Number, default: 0 },
     giftType: { type: Number, default: 0 },
     giftImage: { type: String, default: "" },
+    giftsvgaImage: { type: String, default: "" },
     
     callType: { type: String, default: "" }, //1.audio 2.video
     isRandom: { type: Boolean, default: false },

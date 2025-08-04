@@ -69,125 +69,140 @@ async function startServer() {
   scheduleChatJob();
 
   //Step 3: Start Server after all setup is done
-  server.listen(process?.env.PORT, () => {
+  server.listen(process?.env?.PORT, () => {
     console.log("Hello World ! listening on " + process?.env?.PORT);
+  });
+
+  //import model
+  const User = require("./models/user.model");
+  const Block = require("./models/block.model");
+  const Chat = require("./models/chat.model");
+  const ChatTopic = require("./models/chatTopic.model");
+  const CheckIn = require("./models/checkIn.model");
+  const History = require("./models/history.model");
+  const Host = require("./models/host.model");
+  const HostMatchHistory = require("./models/hostMatchHistory.model");
+  const LiveBroadcaster = require("./models/liveBroadcaster.model");
+  const LiveBroadcastView = require("./models/liveBroadcastView.model");
+  const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
+
+  const cron = require("node-cron");
+
+  //private key
+  const admin = require("./util/privateKey");
+
+  //Schedule a task to run at 12 AM every day
+  function deleteFileIfExists(filePath) {
+    if (filePath) {
+      const fullPath = path.resolve(__dirname, filePath);
+
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+        console.log(`File deleted: ${fullPath}`);
+      } else {
+        console.log(`File not found: ${fullPath}`);
+      }
+    } else {
+      console.log("No file path provided to delete.");
+    }
+  }
+
+  cron.schedule("0 0 * * 0", async () => {
+    try {
+      console.log("Cron job running every Sunday at 12:00 AM");
+
+      const users = await User.find({
+        _id: { $ne: "68555d4280ab3d1897a91da7" },
+      });
+
+      if (users.length > 0) {
+        console.log("> 0 at 12 AM every day");
+
+        await Promise.all(
+          users.map(async (user) => {
+            if (user?.image) {
+              const image = user?.image?.split("storage");
+              if (image) {
+                const imagePath = "storage" + image[1];
+                if (fs.existsSync(imagePath)) {
+                  fs.unlinkSync(imagePath);
+                  console.log(`Deleted user image: ${imagePath}`);
+                }
+              }
+            }
+
+            const [chats, hosts] = await Promise.all([
+              Chat.find({ senderId: user?._id }),
+              Host.find({
+                isFake: false,
+                _id: { $ne: "68555e4580ab3d1897a91dfb" },
+              }),
+            ]);
+
+            for (const chat of chats) {
+              deleteFileIfExists(chat?.image);
+              deleteFileIfExists(chat?.audio);
+            }
+
+            for (const host of hosts) {
+              deleteFileIfExists(host?.image);
+
+              if (Array.isArray(host.photoGallery)) {
+                for (const imgPath of host.photoGallery) {
+                  deleteFileIfExists(imgPath);
+                }
+              }
+
+              if (Array.isArray(host.video)) {
+                for (const imgPath of host.video) {
+                  deleteFileIfExists(imgPath);
+                }
+              }
+
+              if (Array.isArray(host.liveVideo)) {
+                for (const imgPath of host.liveVideo) {
+                  deleteFileIfExists(imgPath);
+                }
+              }
+            }
+
+            await Promise.all([
+              ChatTopic.deleteMany({ $or: [{ senderId: user?._id }, { receiverId: user?._id }] }),
+              Chat.deleteMany({ senderId: user?._id }),
+              Block.deleteMany({ userId: user?._id }),
+              CheckIn.deleteMany({ userId: user?._id }),
+              History.deleteMany({ userId: user?._id }),
+              HostMatchHistory.deleteMany({ userId: user?._id }),
+              LiveBroadcaster.deleteMany({ userId: user?._id }),
+              LiveBroadcastHistory.deleteMany({ hostId: user?._id }),
+              LiveBroadcastView.deleteMany({ userId: user?._id }),
+              Host.deleteMany({
+                isFake: false,
+                _id: { $ne: "68555e4580ab3d1897a91dfb" },
+              }),
+              User.deleteOne({ _id: user._id }),
+            ]);
+
+            if (user.firebaseUid) {
+              try {
+                const adminPromise = await admin;
+                adminPromise.auth().deleteUser(user.firebaseUid);
+                console.log(`✅ Firebase user deleted: ${user.firebaseUid}`);
+              } catch (err) {
+                console.error(`❌ Failed to delete Firebase user ${user.firebaseUid}:`, err.message);
+              }
+            }
+          })
+        );
+      }
+    } catch (error) {
+      console.error("Error executing the task: ", error);
+    }
   });
 }
 
 //Run server startup
 startServer();
-
-//import model
-const User = require("./models/user.model");
-const Block = require("./models/block.model");
-const Chat = require("./models/chat.model");
-const ChatTopic = require("./models/chatTopic.model");
-const CheckIn = require("./models/checkIn.model");
-const History = require("./models/history.model");
-const Host = require("./models/host.model");
-const HostMatchHistory = require("./models/hostMatchHistory.model");
-const LiveBroadcaster = require("./models/liveBroadcaster.model");
-const LiveBroadcastView = require("./models/liveBroadcastView.model");
-
-const cron = require("node-cron");
-
-//Schedule a task to run at 12 AM every day
-function deleteFileIfExists(filePath) {
-  if (filePath) {
-    const fullPath = path.resolve(__dirname, filePath);
-
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      console.log(`File deleted: ${fullPath}`);
-    } else {
-      console.log(`File not found: ${fullPath}`);
-    }
-  } else {
-    console.log("No file path provided to delete.");
-  }
-}
-
-cron.schedule("0 0 * * 0", async () => {
-  try {
-    console.log("Cron job running every Sunday at 12:00 AM");
-
-    const users = await User.find({
-      _id: { $ne: "68555d4280ab3d1897a91da7" },
-    });
-
-    if (users.length > 0) {
-      console.log("> 0 at 12 AM every day");
-
-      await Promise.all(
-        users.map(async (user) => {
-          if (user?.image) {
-            const image = user?.image?.split("storage");
-            if (image) {
-              const imagePath = "storage" + image[1];
-              if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
-                console.log(`Deleted user image: ${imagePath}`);
-              }
-            }
-          }
-
-          const [chats, hosts] = await Promise.all([
-            Chat.find({ senderId: user?._id }),
-            Host.find({
-              isFake: false,
-              _id: { $ne: "68555e4580ab3d1897a91dfb" },
-            }),
-          ]);
-
-          for (const chat of chats) {
-            deleteFileIfExists(chat?.image);
-            deleteFileIfExists(chat?.audio);
-          }
-
-          for (const host of hosts) {
-            deleteFileIfExists(host?.image);
-
-            if (Array.isArray(host.photoGallery)) {
-              for (const imgPath of host.photoGallery) {
-                deleteFileIfExists(imgPath);
-              }
-            }
-
-            if (Array.isArray(host.video)) {
-              for (const imgPath of host.video) {
-                deleteFileIfExists(imgPath);
-              }
-            }
-
-            if (Array.isArray(host.liveVideo)) {
-              for (const imgPath of host.liveVideo) {
-                deleteFileIfExists(imgPath);
-              }
-            }
-          }
-
-          await Promise.all([
-            ChatTopic.deleteMany({ $or: [{ senderId: user?._id }, { receiverId: user?._id }] }),
-            Chat.deleteMany({ senderId: user?._id }),
-            Block.deleteMany({ userId: user?._id }),
-            CheckIn.deleteMany({ userId: user?._id }),
-            History.deleteMany({ userId: user?._id }),
-            HostMatchHistory.deleteMany({ userId: user?._id }),
-            LiveBroadcaster.deleteMany({ userId: user?._id }),
-            LiveBroadcastView.deleteMany({ userId: user?._id }),
-            Host.deleteMany({
-              isFake: false,
-              _id: { $ne: "68555e4580ab3d1897a91dfb" },
-            }),
-            User.deleteOne({ _id: user._id }),
-          ]);
-        })
-      );
-    }
-  } catch (error) {
-    console.error("Error executing the task: ", error);
-  }
-});
 
 // const admin = require("firebase-admin");
 // const serviceAccount = {};
@@ -249,19 +264,19 @@ const chatQueue = new Bull("chat-job-queue", {
 // })();
 
 // Remove jobs in each state
-(async () => {
-  const states = ["delayed", "wait", "active", "completed", "failed"];
+// (async () => {
+//   const states = ["delayed", "wait", "active", "completed", "failed"];
 
-  for (const state of states) {
-    const jobs = await chatQueue.getJobs([state]);
-    for (const job of jobs) {
-      await job.remove();
-      console.log(`Removed job ${job.id} from ${state}`);
-    }
-  }
+//   for (const state of states) {
+//     const jobs = await chatQueue.getJobs([state]);
+//     for (const job of jobs) {
+//       await job.remove();
+//       console.log(`Removed job ${job.id} from ${state}`);
+//     }
+//   }
 
-  // Optionally, empty the queue's wait/delayed list entirely
-  await chatQueue.empty(); // This clears only 'wait' and 'paused' jobs
+//   // Optionally, empty the queue's wait/delayed list entirely
+//   await chatQueue.empty(); // This clears only 'wait' and 'paused' jobs
 
-  console.log("All jobs cleared.");
-})();
+//   console.log("All jobs cleared.");
+// })();

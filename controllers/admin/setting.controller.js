@@ -3,27 +3,32 @@ const Setting = require("../../models/setting.model");
 //import model
 const Host = require("../../models/host.model");
 
+//scheduleChatJob
+const scheduleChatJob = require("../../worker/bullRandomChatJob");
+
 //update setting
 exports.updateSetting = async (req, res) => {
   try {
     if (!req.query.settingId) {
-      return res.status(200).json({ status: false, message: "SettingId mumst be requried." });
+      return res.status(200).json({ status: false, message: "SettingId must be required." });
     }
 
     const setting = await Setting.findById(req.query.settingId);
     if (!setting) {
-      return res.status(200).json({ status: false, message: "Setting does not found." });
+      return res.status(200).json({ status: false, message: "Setting not found." });
     }
 
-    setting.agoraAppId = req.body.agoraAppId ? req.body.agoraAppId.trim() : setting.agoraAppId;
-    setting.agoraAppCertificate = req.body.agoraAppCertificate ? req.body.agoraAppCertificate.trim() : setting.agoraAppCertificate;
-    setting.privacyPolicyLink = req.body.privacyPolicyLink ? req.body.privacyPolicyLink.trim() : setting.privacyPolicyLink;
-    setting.termsOfUsePolicyLink = req.body.termsOfUsePolicyLink ? req.body.termsOfUsePolicyLink.trim() : setting.termsOfUsePolicyLink;
-    setting.stripePublishableKey = req.body.stripePublishableKey ? req.body.stripePublishableKey.trim() : setting.stripePublishableKey;
-    setting.stripeSecretKey = req.body.stripeSecretKey ? req.body.stripeSecretKey.trim() : setting.stripeSecretKey;
-    setting.razorpayId = req.body.razorpayId ? req.body.razorpayId.trim() : setting.razorpayId;
-    setting.razorpaySecretKey = req.body.razorpaySecretKey ? req.body.razorpaySecretKey.trim() : setting.razorpaySecretKey;
-    setting.flutterwaveId = req.body.flutterwaveId ? req.body.flutterwaveId.trim() : setting.flutterwaveId;
+    let shouldRescheduleChatJob = false;
+
+    setting.agoraAppId = req.body.agoraAppId?.trim() ?? setting.agoraAppId;
+    setting.agoraAppCertificate = req.body.agoraAppCertificate?.trim() ?? setting.agoraAppCertificate;
+    setting.privacyPolicyLink = req.body.privacyPolicyLink?.trim() ?? setting.privacyPolicyLink;
+    setting.termsOfUsePolicyLink = req.body.termsOfUsePolicyLink?.trim() ?? setting.termsOfUsePolicyLink;
+    setting.stripePublishableKey = req.body.stripePublishableKey?.trim() ?? setting.stripePublishableKey;
+    setting.stripeSecretKey = req.body.stripeSecretKey?.trim() ?? setting.stripeSecretKey;
+    setting.razorpayId = req.body.razorpayId?.trim() ?? setting.razorpayId;
+    setting.razorpaySecretKey = req.body.razorpaySecretKey?.trim() ?? setting.razorpaySecretKey;
+    setting.flutterwaveId = req.body.flutterwaveId?.trim() ?? setting.flutterwaveId;
     setting.loginBonus = req.body.loginBonus ? Number(req.body.loginBonus) : setting.loginBonus;
     setting.adminCommissionRate = req.body.adminCommissionRate ? Number(req.body.adminCommissionRate) : setting.adminCommissionRate;
     setting.minCoinsToConvert = req.body.minCoinsToConvert ? Number(req.body.minCoinsToConvert) : setting.minCoinsToConvert;
@@ -31,8 +36,17 @@ exports.updateSetting = async (req, res) => {
     setting.minCoinsForAgencyPayout = req.body.minCoinsForAgencyPayout ? Number(req.body.minCoinsForAgencyPayout) : setting.minCoinsForAgencyPayout;
     setting.maxFreeChatMessages = req.body.maxFreeChatMessages ? Number(req.body.maxFreeChatMessages) : setting.maxFreeChatMessages;
 
-    setting.messageInitiatedAt = req.body.messageInitiatedAt ? Number(req.body.messageInitiatedAt) : setting.messageInitiatedAt;
-    setting.callInitiatedAt = req.body.callInitiatedAt ? Number(req.body.callInitiatedAt) : setting.callInitiatedAt;
+    if (req.body.messageInitiatedAt !== undefined) {
+      const newVal = Number(req.body.messageInitiatedAt);
+      if (newVal !== setting.messageInitiatedAt) {
+        shouldRescheduleChatJob = true;
+        setting.messageInitiatedAt = newVal;
+      }
+    }
+
+    if (req.body.callInitiatedAt !== undefined) {
+      setting.callInitiatedAt = Number(req.body.callInitiatedAt);
+    }
 
     if (req.body.privateKey) {
       setting.privateKey = typeof req.body.privateKey === "string" ? JSON.parse(req.body.privateKey.trim()) : req.body.privateKey;
@@ -49,7 +63,7 @@ exports.updateSetting = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: "Setting has been Updated.",
+      message: "Setting has been updated.",
       data: setting,
     });
 
@@ -68,8 +82,12 @@ exports.updateSetting = async (req, res) => {
     );
 
     updateSettingFile(setting);
+
+    if (shouldRescheduleChatJob) {
+      scheduleChatJob();
+    }
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
   }
 };

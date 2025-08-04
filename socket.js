@@ -171,16 +171,20 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne(
-                { _id: agency._id },
+              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
                 {
-                  $inc: {
-                    hostCoins: hostEarnings,
-                    totalEarnings: Math.floor(agencyShare),
-                    netAvailableEarnings: Math.floor(agencyShare),
+                  $set: {
+                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
+                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+                    totalEarningsWithCommissionAndHostCoin: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
+                    netAvailableEarnings: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
                   },
-                }
-              );
+                },
+              ]);
             }
           }
 
@@ -283,7 +287,7 @@ io.on("connection", async (socket) => {
     }
 
     const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId");
-    const giftPromise = Gift.findById(parseData?.giftId).lean().select("_id coin image type");
+    const giftPromise = Gift.findById(parseData?.giftId).lean().select("_id coin image svgaImage type");
 
     const [uniqueId, sender, receiver, chatTopic, gift] = await Promise.all([generateHistoryUniqueId(), senderPromise, receiverPromise, chatTopicPromise, giftPromise]);
 
@@ -312,6 +316,7 @@ io.on("connection", async (socket) => {
       messageType: 4,
       message: `🎁 ${sender.name} sent a gift`,
       image: gift.image || "",
+      giftsvgaImage: gift.svgaImage || "",
       senderId: sender._id,
       chatTopicId: chatTopic._id,
       giftCount: giftCount,
@@ -354,16 +359,20 @@ io.on("connection", async (socket) => {
           agencyShare = 0;
         }
 
-        agencyUpdate = Agency.updateOne(
-          { _id: agency._id },
+        agencyUpdate = Agency.updateOne({ _id: agency._id }, [
           {
-            $inc: {
-              hostCoins: hostEarnings,
-              totalEarnings: Math.floor(agencyShare),
-              netAvailableEarnings: Math.floor(agencyShare),
+            $set: {
+              hostCoins: { $add: ["$hostCoins", hostEarnings] },
+              totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+              totalEarningsWithCommissionAndHostCoin: {
+                $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+              },
+              netAvailableEarnings: {
+                $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+              },
             },
-          }
-        );
+          },
+        ]);
       }
     }
 
@@ -387,6 +396,7 @@ io.on("connection", async (socket) => {
         giftId: gift._id,
         giftCoin: gift.coin || 0,
         giftImage: gift.image || "",
+        giftsvgaImage: gift.svgaImage || "",
         giftType: gift.type || 1,
         giftCount: giftCount,
         userCoin: totalGiftCost,
@@ -1253,16 +1263,20 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne(
-                { _id: agency._id },
+              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
                 {
-                  $inc: {
-                    hostCoins: hostEarnings,
-                    totalEarnings: Math.floor(agencyShare),
-                    netAvailableEarnings: Math.floor(agencyShare),
+                  $set: {
+                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
+                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+                    totalEarningsWithCommissionAndHostCoin: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
+                    netAvailableEarnings: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
                   },
-                }
-              );
+                },
+              ]);
             }
           }
 
@@ -1335,16 +1349,20 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne(
-                { _id: agency._id },
+              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
                 {
-                  $inc: {
-                    hostCoins: hostEarnings,
-                    totalEarnings: Math.floor(agencyShare),
-                    netAvailableEarnings: Math.floor(agencyShare),
+                  $set: {
+                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
+                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+                    totalEarningsWithCommissionAndHostCoin: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
+                    netAvailableEarnings: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
                   },
-                }
-              );
+                },
+              ]);
             }
           }
 
@@ -1427,16 +1445,21 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne(
-                { _id: agency._id },
+              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
                 {
-                  $inc: {
-                    hostCoins: hostEarnings,
-                    totalEarnings: Math.floor(agencyShare),
-                    netAvailableEarnings: Math.floor(agencyShare),
+                  $set: {
+                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
+                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+                    totalEarningsWithCommissionAndHostCoin: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
+                    netAvailableEarnings: {
+                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                    },
                   },
-                }
-              );
+                },
+              ]);
+              F;
             }
           }
 
@@ -1548,16 +1571,20 @@ io.on("connection", async (socket) => {
               agencyShare = (hostEarnings * agency.commission) / 100;
             }
 
-            agencyUpdate = Agency.updateOne(
-              { _id: agency._id },
+            agencyUpdate = Agency.updateOne({ _id: agency._id }, [
               {
-                $inc: {
-                  hostCoins: hostEarnings,
-                  totalEarnings: Math.floor(agencyShare),
-                  netAvailableEarnings: Math.floor(agencyShare),
+                $set: {
+                  hostCoins: { $add: ["$hostCoins", hostEarnings] },
+                  totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+                  totalEarningsWithCommissionAndHostCoin: {
+                    $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                  },
+                  netAvailableEarnings: {
+                    $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                  },
                 },
-              }
-            );
+              },
+            ]);
           }
         }
 
@@ -2073,7 +2100,7 @@ io.on("connection", async (socket) => {
         generateHistoryUniqueId(),
         User.findById(giftData.senderId).lean().select("_id coin"),
         Host.findById(giftData.receiverId).lean().select("_id coin totalGifts agencyId"),
-        Gift.findById(giftData.giftId).lean().select("_id coin type"),
+        Gift.findById(giftData.giftId).lean().select("_id coin image type svgaImage"),
       ]);
 
       if (!senderUser) {
@@ -2124,16 +2151,20 @@ io.on("connection", async (socket) => {
             agencyShare = 0;
           }
 
-          agencyUpdate = Agency.updateOne(
-            { _id: agency._id },
+          agencyUpdate = Agency.updateOne({ _id: agency._id }, [
             {
-              $inc: {
-                hostCoins: hostEarnings,
-                totalEarnings: Math.floor(agencyShare),
-                netAvailableEarnings: Math.floor(agencyShare),
+              $set: {
+                hostCoins: { $add: ["$hostCoins", hostEarnings] },
+                totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
+                totalEarningsWithCommissionAndHostCoin: {
+                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                },
+                netAvailableEarnings: {
+                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
+                },
               },
-            }
-          );
+            },
+          ]);
         }
       }
 
@@ -2171,6 +2202,7 @@ io.on("connection", async (socket) => {
           giftId: giftData.giftId,
           giftCoin: gift.coin || 0,
           giftImage: gift.image || "",
+          giftsvgaImage: gift.svgaImage || "",
           giftType: gift.type || 1,
           giftCount: giftCount,
           userCoin: totalCoin,

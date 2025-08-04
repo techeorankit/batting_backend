@@ -3,12 +3,12 @@ const VipPlan = require("../../models/vipPlan.model");
 //create a new VIP plan
 exports.createVipPlan = async (req, res) => {
   try {
-    const { validity, validityType, coin, price } = req.body;
-    if (!validity || !validityType || !coin || !price) {
+    const { validity, validityType, productId, coin, price } = req.body;
+    if (!validity || !validityType || !coin || !price || !productId) {
       return res.status(200).json({ status: false, message: "Invalid details provided." });
     }
 
-    const vipPlan = new VipPlan({ validity, validityType, coin, price });
+    const vipPlan = new VipPlan({ validity, validityType, coin, price, productId });
     await vipPlan.save();
 
     return res.status(200).json({ status: true, message: "VIP plan created successfully.", data: vipPlan });
@@ -33,6 +33,7 @@ exports.updateVipPlan = async (req, res) => {
 
     const updateFields = {
       validity: req.body.validity !== undefined ? Number(req.body.validity) : vipPlan.validity,
+      productId: req.body.productId || vipPlan.productId,
       validityType: req.body.validityType || vipPlan.validityType,
       coin: req.body.coin !== undefined ? Number(req.body.coin) : vipPlan.coin,
       price: req.body.price !== undefined ? Number(req.body.price) : vipPlan.price,
@@ -95,7 +96,7 @@ exports.getVipPlans = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
     const vipPlans = await VipPlan.find()
-      .select("validity validityType coin price isActive")
+      .select("validity validityType coin price isActive productId")
       .sort({ coin: 1, price: 1 })
       .skip((start - 1) * limit)
       .limit(limit)

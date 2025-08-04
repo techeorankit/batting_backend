@@ -17,8 +17,9 @@ const agencySchema = new mongoose.Schema(
     country: { type: String, default: "" },
     isBlock: { type: Boolean, default: false },
     hostCoins: { type: Number, default: 0, min: 0 },
-    totalEarnings: { type: Number, default: 0, min: 0 },
-    netAvailableEarnings: { type: Number, default: 0, min: 0 }, //Net currently earning after withdrawals
+    totalEarnings: { type: Number, default: 0, min: 0 }, //agency's commission
+    totalEarningsWithCommissionAndHostCoin: { type: Number, default: 0, min: 0 }, //hostCoins + totalEarnings
+    netAvailableEarnings: { type: Number, default: 0, min: 0 }, //net currently earning after withdrawals
     totalWithdrawn: { type: Number, default: 0, min: 0 },
     totalWithdrawnAmount: { type: Number, default: 0, min: 0 },
   },

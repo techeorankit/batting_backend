@@ -61,7 +61,7 @@ exports.recordCoinPlanPurchase = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: "Coin plan history created successfully after user purchase.",
+      message: "Coin plan purchased successfully.",
       totalCoins: totalCoins,
     });
 

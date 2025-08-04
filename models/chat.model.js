@@ -12,6 +12,7 @@ const chatSchema = mongoose.Schema(
     audio: { type: String, default: "" },
     giftType: { type: Number, default: 0 },
     giftCount: { type: Number, default: 0 },
+    giftsvgaImage: { type: String, default: "" },
 
     isRead: { type: Boolean, default: false },
 
