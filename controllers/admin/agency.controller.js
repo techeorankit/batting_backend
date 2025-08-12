@@ -17,6 +17,9 @@ const axios = require("axios");
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
+//private key
+const admin = require("../../util/privateKey");
+
 //create agency
 exports.createAgency = async (req, res) => {
   try {
@@ -76,7 +79,7 @@ exports.updateAgency = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency ID is required." });
     }
 
-    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim(), uid: uid.trim() }) : null, Agency.findById(agencyId)]);
+    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim(), uid: uid?.trim?.() }) : null, Agency.findById(agencyId)]);
 
     if (email && existingAgency) {
       if (req.file) deleteFile(req.file);
@@ -86,6 +89,14 @@ exports.updateAgency = async (req, res) => {
     if (!agency) {
       if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Agency not found." });
+    }
+
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        if (req.file) deleteFile(req.file);
+        return res.status(200).json({ status: false, message: "Invalid email format." });
+      }
     }
 
     agency.uid = uid || agency.uid;
@@ -104,14 +115,30 @@ exports.updateAgency = async (req, res) => {
       if (agency.image) {
         const imagePath = agency.image.includes("storage") ? "storage" + agency.image.split("storage")[1] : "";
         if (imagePath && fs.existsSync(imagePath)) {
-          const imageName = imagePath.split("/").pop();
-          if (!["male.png", "female.png"].includes(imageName)) {
-            fs.unlinkSync(imagePath);
-          }
+          fs.unlinkSync(imagePath);
         }
       }
       agency.image = req.file.path;
     }
+
+    // try {
+    //   if (agency.uid && (email || password)) {
+    //     const firebaseAdmin = await admin;
+
+    //     const payload = {};
+    //     if (email) payload.email = email.trim();
+    //     if (password) payload.password = password;
+
+    //     await firebaseAdmin.auth().updateUser(String(agency.uid), payload);
+    //   }
+    // } catch (fbErr) {
+    //   if (req.file) deleteFile(req.file);
+    //   console.error("Firebase update error:", fbErr);
+    //   return res.status(200).json({
+    //     status: false,
+    //     message: fbErr?.message || "Failed to update credentials in Firebase.",
+    //   });
+    // }
 
     await agency.save();
 
