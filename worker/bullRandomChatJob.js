@@ -237,16 +237,20 @@ chatQueue.on("failed", async (job, err) => {
 
 //⏱ Schedule the job every 10 minutes with a fixed jobId
 const scheduleChatJob = async () => {
-  const intervalInMinutes = settingJSON.messageInitiatedAt || 30;
-  const intervalMs = intervalInMinutes * 60 * 1000;
+  const intervalInMinutes = settingJSON.messageInitiatedAt;
 
+  if (!intervalInMinutes || intervalInMinutes === 0) {
+    console.log("⏹ Admin has disabled chat job scheduling (interval set to 0).");
+    return;
+  }
+
+  const intervalMs = intervalInMinutes * 60 * 1000;
   const jobName = "repeat";
   const jobId = `repeat:chat-job-every-${intervalInMinutes}-min`;
 
   try {
     console.log("🧹 Checking and removing outdated or invalid repeatable jobs...");
 
-    // 1️⃣ Get all repeatable jobs in this queue
     const repeatJobs = await chatQueue.getRepeatableJobs();
 
     for (const job of repeatJobs) {
@@ -259,12 +263,11 @@ const scheduleChatJob = async () => {
       }
     }
 
-    // 2️⃣ Add the new correct repeatable job
     await chatQueue.add(
       jobName,
       {},
       {
-        repeat: { every: intervalMs }, // Repeat interval
+        repeat: { every: intervalMs },
         jobId,
         removeOnComplete: true,
         removeOnFail: { count: 3 },
@@ -273,7 +276,6 @@ const scheduleChatJob = async () => {
 
     console.log(`✅ Scheduled chat job every ${intervalInMinutes} minute(s)`);
 
-    // 3️⃣ List current repeatable jobs
     const updatedJobs = await chatQueue.getRepeatableJobs();
     console.log("📋 Current Repeatable Jobs:");
     for (const job of updatedJobs) {

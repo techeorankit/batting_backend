@@ -18,7 +18,7 @@ const axios = require("axios");
 const { deleteFile } = require("../../util/deletefile");
 
 //private key
-const admin = require("../../util/privateKey");
+const firebaseAdminPromise = require("../../util/privateKey");
 
 //create agency
 exports.createAgency = async (req, res) => {
@@ -123,7 +123,7 @@ exports.updateAgency = async (req, res) => {
 
     // try {
     //   if (agency.uid && (email || password)) {
-    //     const firebaseAdmin = await admin;
+    //     const firebaseAdmin = await firebaseAdminPromise;
 
     //     const payload = {};
     //     if (email) payload.email = email.trim();
