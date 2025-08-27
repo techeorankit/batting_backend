@@ -112,7 +112,7 @@ async function startServer() {
       console.log("Cron job running every Sunday at 12:00 AM");
 
       const users = await User.find({
-        _id: { $ne: "68555d4280ab3d1897a91da7" },
+        _id: { $ne: "68aef527b51e52787c1f72e0" },
       });
 
       if (users.length > 0) {
@@ -135,7 +135,7 @@ async function startServer() {
               Chat.find({ senderId: user?._id }),
               Host.find({
                 isFake: false,
-                _id: { $ne: "68555e4580ab3d1897a91dfb" },
+                _id: { $ne: "68aef9c5b51e52787c1f75d1" },
               }),
             ]);
 
