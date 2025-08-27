@@ -249,6 +249,17 @@ const scheduleChatJob = async () => {
   const jobId = `repeat:chat-job-every-${intervalInMinutes}-min`;
 
   try {
+    const [hosts] = await Promise.all([
+      Host.find({ video: { $ne: [] } })
+        .sort({ createdAt: -1 })
+        .select("_id"),
+    ]);
+
+    if (!hosts || hosts.length === 0) {
+      console.log("❌ No active hosts with videos found. Chat job will not be scheduled.");
+      return;
+    }
+
     console.log("🧹 Checking and removing outdated or invalid repeatable jobs...");
 
     const repeatJobs = await chatQueue.getRepeatableJobs();
