@@ -22,6 +22,7 @@ const hostSchema = new mongoose.Schema(
     identityProof: { type: Array, default: [] },
     image: { type: String, default: "" },
     photoGallery: { type: Array, default: [] },
+    profileVideo: { type: Array, default: [] }, //profile video
     video: { type: Array, default: [] }, //videocall video
     liveVideo: { type: Array, default: [] }, //live video
 

@@ -31,6 +31,7 @@ route.post(
     { name: "image", maxCount: 1 },
     { name: "identityProof", maxCount: 2 },
     { name: "photoGallery", maxCount: 10 },
+    { name: "profileVideo", maxCount: 10 },
   ]),
   HostController.initiateHostRequest
 );
@@ -58,17 +59,12 @@ route.patch(
     { name: "image", maxCount: 1 },
     { name: "identityProof", maxCount: 2 },
     { name: "photoGallery", maxCount: 10 },
+    { name: "profileVideo", maxCount: 10 },
   ]),
   HostController.modifyHostDetails
 );
 
 //get host thumblist ( host )
 route.get("/fetchHostsList", checkAccessWithSecretKey(), HostController.fetchHostsList);
-
-//get random fake host ( user ) ( auto call )
-route.get("/getRandomAvailableFakeHost", validateUserToken, checkAccessWithSecretKey(), HostController.getRandomAvailableFakeHost);
-
-//get user ( host ) ( auto call )
-route.get("/getRandomAvailableUser", validateUserToken, checkAccessWithSecretKey(), HostController.getRandomAvailableUser);
 
 module.exports = route;

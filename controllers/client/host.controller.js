@@ -140,6 +140,7 @@ exports.initiateHostRequest = async (req, res) => {
       identityProof: req.files.identityProof?.map((file) => file.path) || [],
       image: req.files.image ? req.files.image[0].path : "",
       photoGallery: req.files.photoGallery?.map((file) => file.path) || [],
+      profileVideo: req.files.profileVideo?.map((file) => file.path) || [],
       uniqueId,
       status: 1,
       date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
@@ -550,7 +551,7 @@ exports.retrieveHostDetails = async (req, res) => {
     const [host, receivedGifts, isFollowing, totalFollower] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
         .select(
-          "name email gender bio uniqueId countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin isFake video liveVideo"
+          "name email gender bio uniqueId countryFlagImage country impression language image photoGallery profileVideo randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin isFake video liveVideo"
         )
         .lean(),
       History.aggregate([
@@ -613,7 +614,7 @@ exports.fetchHostInfo = async (req, res) => {
     const [host] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
         .select(
-          "name email gender dob bio uniqueId countryFlagImage country impression language image photoGallery randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
+          "name email gender dob bio uniqueId countryFlagImage country impression language image photoGallery profileVideo randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
         )
         .lean(),
     ]);
@@ -717,6 +718,9 @@ exports.retrieveAvailableHost = async (req, res) => {
 //update host's info  ( host )
 exports.modifyHostDetails = async (req, res) => {
   try {
+    console.log("📥 req.body modifyHostDetails:", req.body);
+    console.log("📁 req.files modifyHostDetails:", req.files);
+
     const {
       hostId,
       name,
@@ -734,14 +738,50 @@ exports.modifyHostDetails = async (req, res) => {
       privateCallRate,
       audioCallRate,
       chatRate,
+      removePhotoGalleryIndex,
+      removeProfileVideoIndex,
     } = req.body;
+
+    const arrayFields = ["removePhotoGalleryIndex", "removeProfileVideoIndex"];
+    for (const key of arrayFields) {
+      if (req.body[key]) {
+        if (typeof req.body[key] === "string") {
+          try {
+            req.body[key] = JSON.parse(req.body[key]);
+          } catch (e) {
+            if (req.files) deleteFiles(req.files);
+            return res.status(200).json({
+              status: false,
+              message: `Invalid format for ${key}. Expected an array.`,
+            });
+          }
+        }
+        if (!Array.isArray(req.body[key])) {
+          if (req.files) deleteFiles(req.files);
+          return res.status(200).json({
+            status: false,
+            message: `${key} must be an array.`,
+          });
+        }
+      }
+    }
 
     if (!hostId) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({ status: false, message: "Missing or invalid host details. Please check and try again." });
+      return res.status(200).json({
+        status: false,
+        message: "Missing or invalid host details. Please check and try again.",
+      });
     }
 
-    const [host, existingHost] = await Promise.all([Host.findOne({ _id: hostId }), email ? Host.findOne({ email: email?.trim() }).select("_id").lean() : null]);
+    const [host, existingHost] = await Promise.all([
+      Host.findOne({ _id: hostId }),
+      email
+        ? Host.findOne({ email: email?.trim(), _id: { $ne: hostId } })
+            .select("_id")
+            .lean()
+        : null,
+    ]);
 
     if (!host) {
       if (req.files) deleteFiles(req.files);
@@ -750,7 +790,10 @@ exports.modifyHostDetails = async (req, res) => {
 
     if (existingHost) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({ status: false, message: "A host profile with this email already exists." });
+      return res.status(200).json({
+        status: false,
+        message: "A host profile with this email already exists.",
+      });
     }
 
     host.name = name || host.name;
@@ -760,7 +803,6 @@ exports.modifyHostDetails = async (req, res) => {
     host.gender = gender || host.gender;
     host.countryFlagImage = countryFlagImage || host.countryFlagImage;
     host.country = country || host.country;
-    host.countryFlagImage = countryFlagImage || host.countryFlagImage;
     host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host.impression;
     host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host.language;
     host.randomCallRate = randomCallRate || host.randomCallRate;
@@ -770,42 +812,80 @@ exports.modifyHostDetails = async (req, res) => {
     host.audioCallRate = audioCallRate || host.audioCallRate;
     host.chatRate = chatRate || host.chatRate;
 
-    if (req.files.image) {
+    if (req.files?.image) {
       if (host.image) {
         const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
         if (imagePath && fs.existsSync(imagePath)) {
           const imageName = imagePath.split("/").pop();
           if (!["male.png", "female.png"].includes(imageName)) {
             fs.unlinkSync(imagePath);
+            console.log(`🗑️ Deleted existing profile image: ${imagePath}`);
           }
         }
       }
-
       host.image = req.files.image[0].path;
+      console.log(`🆕 Set new profile image: ${host.image}`);
     }
 
-    if (req.files.photoGallery) {
-      if (host.photoGallery.length > 0) {
-        for (const photo of host.photoGallery) {
-          const photoGalleryPath = photo?.split("storage");
-          if (photoGalleryPath?.[1]) {
-            const filePath = "storage" + photoGalleryPath[1];
-            if (fs.existsSync(filePath)) {
-              try {
-                fs.unlinkSync(filePath);
-              } catch (error) {
-                console.error(`Error deleting file: ${filePath}`, error);
-              }
-            }
+    if (Array.isArray(req.body.removePhotoGalleryIndex)) {
+      const sorted = req.body.removePhotoGalleryIndex
+        .map(Number)
+        .filter((i) => !isNaN(i))
+        .sort((a, b) => b - a);
+      for (const i of sorted) {
+        const filePath = host.photoGallery?.[i];
+        if (filePath && fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+            console.log(`🗑️ Deleted photoGallery[${i}]: ${filePath}`);
+          } catch (err) {
+            console.error(`❌ Error deleting photoGallery[${i}]:`, err);
           }
         }
+        host.photoGallery.splice(i, 1);
       }
+    }
 
-      let updatedPhotoGallery = req.files.photoGallery.map((file) => ({ url: file.path }));
-      host.photoGallery = updatedPhotoGallery;
+    if (req.files?.photoGallery) {
+      const newPhotos = req.files.photoGallery.filter((f) => f?.path).map((f) => f.path);
+      host.photoGallery = [...(host.photoGallery || []), ...newPhotos];
+      newPhotos.forEach((p, idx) => {
+        console.log(`🆕 Added photoGallery[${host.photoGallery.length - newPhotos.length + idx}]: ${p}`);
+      });
+    }
+
+    if (Array.isArray(req.body.removeProfileVideoIndex)) {
+      const sorted = req.body.removeProfileVideoIndex
+        .map(Number)
+        .filter((i) => !isNaN(i))
+        .sort((a, b) => b - a);
+      for (const i of sorted) {
+        const filePath = host.profileVideo?.[i];
+        if (filePath && fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+            console.log(`🗑️ Deleted profileVideo[${i}]: ${filePath}`);
+          } catch (err) {
+            console.error(`❌ Error deleting profileVideo[${i}]:`, err);
+          }
+        }
+        host.profileVideo.splice(i, 1);
+      }
+    }
+
+    if (req.files?.profileVideo) {
+      const newVideos = req.files.profileVideo.filter((f) => f?.path).map((f) => f.path);
+      host.profileVideo = [...(host.profileVideo || []), ...newVideos];
+      newVideos.forEach((v, idx) => {
+        console.log(`🆕 Added profileVideo[${host.profileVideo.length - newVideos.length + idx}]: ${v}`);
+      });
     }
 
     await host.save();
+
+    console.log("✅ Final image:", host.image);
+    console.log("✅ Final photoGallery:", host.photoGallery);
+    console.log("✅ Final profileVideo:", host.profileVideo);
 
     return res.status(200).json({
       status: true,
@@ -814,10 +894,10 @@ exports.modifyHostDetails = async (req, res) => {
     });
   } catch (error) {
     if (req.files) deleteFiles(req.files);
-    console.error("Update Host Error:", error);
+    console.error("❌ modifyHostDetails Error:", error);
     return res.status(500).json({
       status: false,
-      message: error.message || "Failed to Update host profile due to server error.",
+      message: error.message || "Failed to update host profile due to server error.",
     });
   }
 };
@@ -933,129 +1013,3 @@ exports.fetchHostsList = async (req, res) => {
   }
 };
 
-//get random fake host ( user ) ( auto call )
-exports.getRandomAvailableFakeHost = async (req, res) => {
-  try {
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ status: false, message: "Unauthorized. Please log in again." });
-    }
-
-    const userId = new mongoose.Types.ObjectId(req.user.userId);
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ status: false, message: "Invalid user ID provided." });
-    }
-
-    const [blockedHosts, lastMatch] = await Promise.all([
-      Block.aggregate([{ $match: { userId, blockedBy: "user" } }, { $project: { _id: 0, hostId: 1 } }, { $group: { _id: null, ids: { $addToSet: "$hostId" } } }]),
-      HostMatchHistory.findOne({ userId }).lean(),
-    ]);
-
-    const blockedHostIds = blockedHosts[0]?.ids || [];
-    const lastMatchedHostId = lastMatch?.lastHostId;
-
-    const query = {
-      isFake: true,
-      _id: { $nin: blockedHostIds.map((id) => new mongoose.Types.ObjectId(id)) },
-    };
-
-    const availableHosts = await Host.find(query).lean();
-
-    let filteredHosts = availableHosts;
-    if (availableHosts.length > 1 && lastMatchedHostId) {
-      filteredHosts = availableHosts.filter((host) => host._id.toString() !== lastMatchedHostId.toString());
-    }
-
-    if (filteredHosts.length === 0) {
-      return res.status(200).json({ status: false, message: "No fake hosts available for matching." });
-    }
-
-    const matchedHost = filteredHosts[Math.floor(Math.random() * filteredHosts.length)];
-
-    res.status(200).json({
-      status: true,
-      message: "Successfully retrieved a random fake host.",
-      data: matchedHost,
-    });
-
-    await HostMatchHistory.findOneAndUpdate({ userId }, { lastHostId: matchedHost._id }, { upsert: true, new: true });
-  } catch (error) {
-    console.error("getRandomAvailableFakeHost Error:", error);
-    return res.status(500).json({ status: false, message: "Internal server error. Please try again later." });
-  }
-};
-
-//get user ( host ) ( auto call )
-exports.getRandomAvailableUser = async (req, res) => {
-  try {
-    const { hostId } = req.query;
-
-    if (!mongoose.Types.ObjectId.isValid(hostId)) {
-      return res.status(200).json({ status: false, message: "Invalid host ID provided." });
-    }
-
-    const hostObjectId = new mongoose.Types.ObjectId(hostId);
-
-    const [blockedUsers, lastMatch] = await Promise.all([
-      Block.find({
-        hostId: hostObjectId,
-        blockedBy: "host",
-      })
-        .select("userId -_id")
-        .lean(), //Get users blocked by this host
-      HostMatchHistory.findOne({ hostId: hostObjectId }).lean(), //Get last matched user
-    ]);
-
-    const blockedUserIds = blockedUsers.map((b) => b.userId.toString());
-    const lastMatchedUserId = lastMatch?.lastUserId?.toString();
-
-    const allEligibleUsers = await User.find({
-      _id: { $nin: blockedUserIds },
-      isHost: false,
-      hostId: null,
-      isBlock: false,
-      isOnline: true,
-      isBusy: false,
-      callId: null,
-    })
-      .select("_id name uniqueId image coin")
-      .lean();
-
-    if (!allEligibleUsers.length) {
-      return res.status(200).json({ status: false, message: "No available user found." });
-    }
-
-    //Apply last match exclusion logic
-    let finalCandidates;
-    if (allEligibleUsers.length === 1) {
-      finalCandidates = allEligibleUsers;
-    } else {
-      const filtered = allEligibleUsers.filter((u) => u._id.toString() !== lastMatchedUserId);
-      finalCandidates = filtered.length > 0 ? filtered : allEligibleUsers;
-    }
-
-    //Select a random user
-    const randomIndex = Math.floor(Math.random() * finalCandidates.length);
-    const selectedUser = finalCandidates[randomIndex];
-
-    res.status(200).json({
-      status: true,
-      message: "Successfully retrieved a random available user.",
-      data: {
-        userId: selectedUser._id,
-        username: selectedUser.name,
-        uniqueId: selectedUser.uniqueId,
-        userImage: selectedUser.image,
-        userCoin: selectedUser.coin,
-      },
-    });
-
-    await HostMatchHistory.findOneAndUpdate({ hostId: hostObjectId }, { lastUserId: selectedUser._id }, { upsert: true, new: true });
-  } catch (error) {
-    console.error("getRandomAvailableUser Error:", error);
-    return res.status(500).json({
-      status: false,
-      message: "Internal server error. Please try again later.",
-    });
-  }
-};

@@ -244,13 +244,13 @@ startServer();
 
 // deleteAllUsers();
 
-const Bull = require("bull");
-const chatQueue = new Bull("chat-job-queue", {
-  redis: {
-    host: "127.0.0.1",
-    port: 6379,
-  },
-});
+// const Bull = require("bull");
+// const chatQueue = new Bull("chat-job-queue", {
+//   redis: {
+//     host: "127.0.0.1",
+//     port: 6379,
+//   },
+// });
 
 // (async () => {
 //   const jobs = await chatQueue.getJobs(["delayed", "waiting", "active", "completed", "failed"]);

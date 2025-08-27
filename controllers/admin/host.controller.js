@@ -414,12 +414,14 @@ exports.createHost = async (req, res) => {
       !Array.isArray(req.files.video) ||
       req.files.video.length === 0 ||
       !Array.isArray(req.files.liveVideo) ||
-      req.files.liveVideo.length === 0
+      req.files.liveVideo.length === 0 ||
+      !Array.isArray(req.files.profileVideo) ||
+      req.files.profileVideo.length === 0
     ) {
       if (req.files) deleteFiles(req.files);
       return res.status(200).json({
         status: false,
-        message: "Missing or invalid host details or required media files (image, video, liveVideo).",
+        message: "Missing or invalid host details or required media files (image, video, liveVideo, profileVideo).",
       });
     }
 
@@ -432,6 +434,7 @@ exports.createHost = async (req, res) => {
         message: "Invalid file(s) uploaded. Ensure files are uploaded properly without 'url' fields.",
       });
     }
+
     const [uniqueId, existingHost] = await Promise.all([generateUniqueId(), Host.findOne({ email: email?.trim() }).select("_id").lean()]);
 
     if (existingHost) {
@@ -455,6 +458,7 @@ exports.createHost = async (req, res) => {
       image: req.files.image ? req.files.image[0].path : "",
       photoGallery: req.files.photoGallery?.map((file) => file.path) || [],
       video: req.files.video?.map((file) => file.path) || [],
+      profileVideo: req.files.profileVideo?.map((file) => file.path) || [],
       liveVideo: req.files.liveVideo?.map((file) => file.path) || [],
       uniqueId,
       status: 2,
@@ -488,6 +492,9 @@ exports.createHost = async (req, res) => {
 //update host
 exports.updateHost = async (req, res) => {
   try {
+    console.log("📥 req.body updateHost:", req.body);
+    console.log("📁 req.files updateHost:", req.files);
+
     const {
       hostId,
       name,
@@ -505,20 +512,47 @@ exports.updateHost = async (req, res) => {
       privateCallRate,
       audioCallRate,
       chatRate,
+      removeProfileVideoIndex,
+      removeLiveVideoIndex,
+      removePhotoGalleryIndex,
+      removeVideoIndexes,
     } = req.body;
+
+    const arrayFields = ["removeProfileVideoIndex", "removeLiveVideoIndex", "removePhotoGalleryIndex", "removeVideoIndexes"];
+
+    for (const key of arrayFields) {
+      if (req.body[key]) {
+        if (typeof req.body[key] === "string") {
+          try {
+            req.body[key] = JSON.parse(req.body[key]);
+          } catch (e) {
+            if (req.files) deleteFiles(req.files);
+            return res.status(200).json({
+              status: false,
+              message: `Invalid format for '${key}'. It must be a valid JSON array.`,
+            });
+          }
+        }
+
+        if (!Array.isArray(req.body[key])) {
+          if (req.files) deleteFiles(req.files);
+          return res.status(200).json({
+            status: false,
+            message: `'${key}' must be an array.`,
+          });
+        }
+      }
+    }
 
     if (!hostId) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({
-        status: false,
-        message: "Missing or invalid host details. Please check and try again.",
-      });
+      return res.status(200).json({ status: false, message: "Missing hostId." });
     }
 
     const [host, existingHost] = await Promise.all([
       Host.findById(hostId),
       email
-        ? Host.findOne({ email: email?.trim(), _id: { $ne: hostId } })
+        ? Host.findOne({ email: email.trim(), _id: { $ne: hostId } })
             .select("_id")
             .lean()
         : null,
@@ -531,10 +565,7 @@ exports.updateHost = async (req, res) => {
 
     if (existingHost) {
       if (req.files) deleteFiles(req.files);
-      return res.status(200).json({
-        status: false,
-        message: "A host profile with this email already exists.",
-      });
+      return res.status(200).json({ status: false, message: "Email already in use." });
     }
 
     host.name = name || host.name;
@@ -558,51 +589,104 @@ exports.updateHost = async (req, res) => {
         const imageName = host.image.split("/").pop();
         if (!["male.png", "female.png"].includes(imageName)) {
           fs.unlinkSync(host.image);
+          console.log("🗑️ Deleted previous image:", host.image);
         }
       }
       host.image = req.files.image[0].path;
+      console.log("🆕 Updated image:", host.image);
+    }
+
+    if (Array.isArray(req.body.removePhotoGalleryIndex)) {
+      const sorted = req.body.removePhotoGalleryIndex
+        .map(Number)
+        .filter((i) => !isNaN(i))
+        .sort((a, b) => b - a);
+      for (const i of sorted) {
+        const filePath = host.photoGallery?.[i];
+        if (filePath && fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Deleted photoGallery[${i}]: ${filePath}`);
+        }
+        host.photoGallery.splice(i, 1);
+      }
     }
 
     if (req.files?.photoGallery) {
-      for (const photo of host.photoGallery) {
-        if (photo && fs.existsSync(photo)) {
-          try {
-            fs.unlinkSync(photo);
-          } catch (err) {
-            console.error(`Failed to delete photoGallery file: ${photo}`, err);
-          }
-        }
-      }
-      host.photoGallery = req.files.photoGallery.filter((file) => file?.path && !file?.url).map((file) => file.path);
+      const newPhotos = req.files.photoGallery.filter((f) => f?.path).map((f) => f.path);
+      host.photoGallery = [...(host.photoGallery || []), ...newPhotos];
+      newPhotos.forEach((path, idx) => console.log(`🆕 Added photoGallery[${host.photoGallery.length - newPhotos.length + idx}]: ${path}`));
     }
 
-    if (req.files?.video) {
-      for (const vid of host.video) {
-        if (vid && fs.existsSync(vid)) {
-          try {
-            fs.unlinkSync(vid);
-          } catch (err) {
-            console.error(`Failed to delete video file: ${vid}`, err);
-          }
+    if (Array.isArray(req.body.removeVideoIndexes)) {
+      const sorted = req.body.removeVideoIndexes
+        .map(Number)
+        .filter((i) => !isNaN(i))
+        .sort((a, b) => b - a);
+      for (const i of sorted) {
+        const videoPath = host.video?.[i];
+        if (videoPath && fs.existsSync(videoPath)) {
+          fs.unlinkSync(videoPath);
+          console.log(`🗑️ Deleted video[${i}]: ${videoPath}`);
         }
+        host.video.splice(i, 1);
       }
-      host.video = req.files.video.filter((file) => file?.path && !file?.url).map((file) => file.path);
+    }
+
+    if (req.files?.video?.length) {
+      const newVideos = req.files.video.map((file) => file.path);
+      host.video = host.video.concat(newVideos);
+      newVideos.forEach((path, idx) => console.log(`🆕 Added video[${host.video.length - newVideos.length + idx}]: ${path}`));
+    }
+
+    if (Array.isArray(req.body.removeLiveVideoIndex)) {
+      const sorted = req.body.removeLiveVideoIndex
+        .map(Number)
+        .filter((i) => !isNaN(i))
+        .sort((a, b) => b - a);
+      for (const i of sorted) {
+        const filePath = host.liveVideo?.[i];
+        if (filePath && fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Deleted liveVideo[${i}]: ${filePath}`);
+        }
+        host.liveVideo.splice(i, 1);
+      }
     }
 
     if (req.files?.liveVideo) {
-      for (const live of host.liveVideo) {
-        if (live && fs.existsSync(live)) {
-          try {
-            fs.unlinkSync(live);
-          } catch (err) {
-            console.error(`Failed to delete liveVideo file: ${live}`, err);
-          }
+      const newVideos = req.files.liveVideo.filter((f) => f?.path).map((f) => f.path);
+      host.liveVideo = [...(host.liveVideo || []), ...newVideos];
+      newVideos.forEach((path, idx) => console.log(`🆕 Added liveVideo[${host.liveVideo.length - newVideos.length + idx}]: ${path}`));
+    }
+
+    if (Array.isArray(req.body.removeProfileVideoIndex)) {
+      const sorted = req.body.removeProfileVideoIndex
+        .map(Number)
+        .filter((i) => !isNaN(i))
+        .sort((a, b) => b - a);
+      for (const i of sorted) {
+        const filePath = host.profileVideo?.[i];
+        if (filePath && fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Deleted profileVideo[${i}]: ${filePath}`);
         }
+        host.profileVideo.splice(i, 1);
       }
-      host.liveVideo = req.files.liveVideo.filter((file) => file?.path && !file?.url).map((file) => file.path);
+    }
+
+    if (req.files?.profileVideo) {
+      const newVideos = req.files.profileVideo.filter((f) => f?.path).map((f) => f.path);
+      host.profileVideo = [...(host.profileVideo || []), ...newVideos];
+      newVideos.forEach((path, idx) => console.log(`🆕 Added profileVideo[${host.profileVideo.length - newVideos.length + idx}]: ${path}`));
     }
 
     await host.save();
+
+    console.log("✅ Final image:", host.image);
+    console.log("✅ Final photoGallery:", host.photoGallery);
+    console.log("✅ Final video:", host.video);
+    console.log("✅ Final liveVideo:", host.liveVideo);
+    console.log("✅ Final profileVideo:", host.profileVideo);
 
     return res.status(200).json({
       status: true,
@@ -611,7 +695,7 @@ exports.updateHost = async (req, res) => {
     });
   } catch (error) {
     if (req.files) deleteFiles(req.files);
-    console.error("Update Host Error:", error);
+    console.error("❌ Update Host Error:", error);
     return res.status(500).json({
       status: false,
       message: error.message || "Failed to update host profile due to server error.",
@@ -782,6 +866,7 @@ exports.fetchHostList = async (req, res) => {
             image: 1,
             video: 1,
             liveVideo: 1,
+            profileVideo: 1,
             impression: 1,
             identityProofType: 1,
             identityProof: 1,
@@ -845,7 +930,7 @@ exports.deleteHost = async (req, res) => {
       });
     }
 
-    const host = await Host.findOne({ _id: hostId }).select("_id image photoGallery video liveVideo").lean();
+    const host = await Host.findOne({ _id: hostId }).select("_id image photoGallery video liveVideo profileVideo").lean();
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host not found." });
@@ -909,6 +994,22 @@ exports.deleteHost = async (req, res) => {
         const liveVideoPath = liveVideo?.split("storage");
         if (liveVideoPath?.[1]) {
           const filePath = "storage" + liveVideoPath[1];
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+            } catch (error) {
+              console.error(`Error deleting gallery image: ${filePath}`, error);
+            }
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(host.profileVideo) && host.profileVideo.length > 0) {
+      for (const profileVideo of host.profileVideo) {
+        const profileVideoPath = profileVideo?.split("storage");
+        if (profileVideoPath?.[1]) {
+          const filePath = "storage" + profileVideoPath[1];
           if (fs.existsSync(filePath)) {
             try {
               fs.unlinkSync(filePath);

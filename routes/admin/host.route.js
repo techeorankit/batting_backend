@@ -34,6 +34,7 @@ route.post(
     { name: "photoGallery", maxCount: 20 },
     { name: "video", maxCount: 20 },
     { name: "liveVideo", maxCount: 20 },
+    { name: "profileVideo", maxCount: 20 },
   ]),
   HostController.createHost
 );
@@ -47,6 +48,7 @@ route.patch(
     { name: "photoGallery", maxCount: 20 },
     { name: "video", maxCount: 20 },
     { name: "liveVideo", maxCount: 20 },
+    { name: "profileVideo", maxCount: 20 },
   ]),
   HostController.updateHost
 );
