@@ -67,4 +67,10 @@ route.patch(
 //get host thumblist ( host )
 route.get("/fetchHostsList", checkAccessWithSecretKey(), HostController.fetchHostsList);
 
+//get random fake host ( user ) ( auto call )
+route.get("/getRandomAvailableFakeHost", validateUserToken, checkAccessWithSecretKey(), HostController.getRandomAvailableFakeHost);
+
+//get user ( host ) ( auto call )
+route.get("/getRandomAvailableUser", validateUserToken, checkAccessWithSecretKey(), HostController.getRandomAvailableUser);
+
 module.exports = route;
