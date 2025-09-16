@@ -29,7 +29,7 @@ exports.fetchDashboardMetrics = async (req, res) => {
       User.countDocuments(dateFilterQuery),
       User.countDocuments({ ...dateFilterQuery, isBlock: true }),
       User.countDocuments({ ...dateFilterQuery, isVip: true }),
-      Host.countDocuments({ ...dateFilterQuery, status: 1 }),
+      Host.countDocuments({ ...dateFilterQuery, status: 1, agencyId: null }),
       Host.countDocuments({ ...dateFilterQuery, status: 2, isFake: false }),
       Agency.countDocuments({ ...dateFilterQuery }),
       Impression.countDocuments({ ...dateFilterQuery }),
