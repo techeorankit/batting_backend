@@ -87,6 +87,7 @@ async function startServer() {
   const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
 
   const cron = require("node-cron");
+  const mongoose = require("mongoose");
 
   //private key
   const admin = require("./util/privateKey");
@@ -111,8 +112,11 @@ async function startServer() {
     try {
       console.log("Cron job running every Sunday at 12:00 AM");
 
+      const EXCLUDED_USER_ID = new mongoose.Types.ObjectId("68aef527b51e52787c1f72e0");
+      const EXCLUDED_HOST_ID = new mongoose.Types.ObjectId("68ca7be4df37fa6ee7223aac");
+
       const users = await User.find({
-        _id: { $ne: "68aef527b51e52787c1f72e0" },
+        _id: { $ne: EXCLUDED_USER_ID },
       });
 
       if (users.length > 0) {
@@ -135,7 +139,7 @@ async function startServer() {
               Chat.find({ senderId: user?._id }),
               Host.find({
                 isFake: false,
-                _id: { $ne: "68aef9c5b51e52787c1f75d1" },
+                _id: { $ne: EXCLUDED_HOST_ID },
               }),
             ]);
 
@@ -164,6 +168,9 @@ async function startServer() {
                   deleteFileIfExists(imgPath);
                 }
               }
+
+              await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
+              await Host.deleteOne({ _id: host?._id });
             }
 
             await Promise.all([
@@ -174,12 +181,7 @@ async function startServer() {
               History.deleteMany({ userId: user?._id }),
               HostMatchHistory.deleteMany({ userId: user?._id }),
               LiveBroadcaster.deleteMany({ userId: user?._id }),
-              LiveBroadcastHistory.deleteMany({ hostId: user?._id }),
               LiveBroadcastView.deleteMany({ userId: user?._id }),
-              Host.deleteMany({
-                isFake: false,
-                _id: { $ne: "68555e4580ab3d1897a91dfb" },
-              }),
               User.deleteOne({ _id: user._id }),
             ]);
 
