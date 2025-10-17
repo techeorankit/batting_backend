@@ -12,12 +12,33 @@ const Host = require("../../models/host.model");
 const ChatTopic = require("../../models/chatTopic.model");
 const Chat = require("../../models/chat.model");
 const Message = require("../../models/message.model");
+const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
+const Block = require("../../models/block.model");
+const CheckIn = require("../../models/checkIn.model");
+const HostMatchHistory = require("../../models/hostMatchHistory.model");
+const LiveBroadcastView = require("../../models/liveBroadcastView.model");
+const LiveBroadcaster = require("../../models/liveBroadcaster.model");
 
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
 //userFunction
 const userFunction = require("../../util/userFunction");
+
+function deleteFileIfExists(filePath) {
+  if (filePath) {
+    const fullPath = path.resolve(__dirname, filePath);
+
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      console.log(`File deleted: ${fullPath}`);
+    } else {
+      console.log(`File not found: ${fullPath}`);
+    }
+  } else {
+    console.log("No file path provided to delete.");
+  }
+}
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
@@ -354,5 +375,97 @@ exports.retrieveUserProfile = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
+//delete user
+exports.deactivateMyAccount = async (req, res) => {
+  try {
+    const userUid = req.headers["x-user-uid"];
+    if (!userUid) {
+      console.warn("⚠️ [AUTH] User UID.");
+      return res.status(401).json({ status: false, message: "User UID required for authentication." });
+    }
+
+    const user = await User.findOne({ firebaseUid: userUid }).lean();
+    if (!user) {
+      return res.status(200).json({ status: false, message: "User not found." });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "User and related data successfully deleted.",
+    });
+
+    if (user.isHost && user.hostId !== null) {
+      const host = await Host.findById(user.hostId).select("_id image photoGallery video liveVideo").lean();
+      if (host) {
+        deleteFileIfExists(host?.image);
+
+        if (Array.isArray(host.photoGallery)) {
+          for (const imgPath of host.photoGallery) {
+            deleteFileIfExists(imgPath);
+          }
+        }
+
+        if (Array.isArray(host.video)) {
+          for (const imgPath of host.video) {
+            deleteFileIfExists(imgPath);
+          }
+        }
+
+        if (Array.isArray(host.liveVideo)) {
+          for (const imgPath of host.liveVideo) {
+            deleteFileIfExists(imgPath);
+          }
+        }
+
+        await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
+        await Host.deleteOne({ _id: host?._id });
+      }
+    }
+
+    if (user?.image) {
+      const image = user?.image?.split("storage");
+      if (image) {
+        const imagePath = "storage" + image[1];
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+          console.log(`Deleted user image: ${imagePath}`);
+        }
+      }
+    }
+
+    const [chats] = await Promise.all([Chat.find({ senderId: user?._id })]);
+
+    for (const chat of chats) {
+      deleteFileIfExists(chat?.image);
+      deleteFileIfExists(chat?.audio);
+    }
+
+    await Promise.all([
+      ChatTopic.deleteMany({ $or: [{ senderId: user?._id }, { receiverId: user?._id }] }),
+      Chat.deleteMany({ senderId: user?._id }),
+      Block.deleteMany({ userId: user?._id }),
+      CheckIn.deleteMany({ userId: user?._id }),
+      History.deleteMany({ userId: user?._id }),
+      HostMatchHistory.deleteMany({ userId: user?._id }),
+      LiveBroadcaster.deleteMany({ userId: user?._id }),
+      LiveBroadcastView.deleteMany({ userId: user?._id }),
+      User.deleteOne({ _id: user._id }),
+    ]);
+
+    if (user.firebaseUid) {
+      try {
+        const adminPromise = await admin;
+        adminPromise.auth().deleteUser(user.firebaseUid);
+        console.log(`✅ Firebase user deleted: ${user.firebaseUid}`);
+      } catch (err) {
+        console.error(`❌ Failed to delete Firebase user ${user.firebaseUid}:`, err.message);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };

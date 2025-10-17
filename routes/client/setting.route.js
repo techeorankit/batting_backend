@@ -14,4 +14,7 @@ const SettingController = require("../../controllers/client/setting.controller")
 //get setting
 route.get("/retrieveAppSettings", validateUserToken, checkAccessWithSecretKey(), SettingController.retrieveAppSettings);
 
+//get setting
+route.get("/getSystemConfiguration", checkAccessWithSecretKey(), SettingController.getSystemConfiguration);
+
 module.exports = route;

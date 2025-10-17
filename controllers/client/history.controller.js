@@ -1,6 +1,10 @@
 const History = require("../../models/history.model");
 const Host = require("../../models/host.model");
 const User = require("../../models/user.model");
+const Gift = require("../../models/gift.model");
+
+//generateHistoryUniqueId
+const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
 const mongoose = require("mongoose");
 
@@ -228,5 +232,117 @@ exports.retrieveHostCoinHistory = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: "Something went wrong. Please try again later." });
+  }
+};
+
+//coin deduct for fake content
+exports.handleCoinTransaction = async (req, res) => {
+  try {
+    console.log("req.body handleCoinTransaction: ", req.body);
+
+    const { type } = req.body;
+
+    if (!type) return res.status(200).json({ status: false, message: "Transaction type is required." });
+
+    const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+
+    if (type === "chatGift") {
+      const { senderId, receiverId, giftId, giftCount } = req.body;
+
+      if (!senderId || !receiverId || !giftId || !giftCount) {
+        return res.status(200).json({ status: false, message: "Missing required fields for chatGift" });
+      }
+
+      if (giftId && !mongoose.Types.ObjectId.isValid(giftId)) {
+        return res.status(200).json({ status: false, message: "Invalid giftId. Please provide a valid ObjectId." });
+      }
+
+      const [uniqueId, sender, receiver, gift] = await Promise.all([
+        generateHistoryUniqueId(),
+        User.findById(senderId).lean().select("_id name coin"),
+        Host.findById(receiverId).lean().select("_id coin totalGifts"),
+        Gift.findById(giftId).lean().select("_id coin image svgaImage type"),
+      ]);
+
+      if (!sender || !gift) return res.status(404).json({ status: false, message: "Invalid sender/receiver/gift" });
+
+      const count = Number(giftCount);
+      const totalCoin = gift.coin * count;
+
+      if (sender.coin < totalCoin) return res.status(200).json({ status: false, message: "Insufficient coins" });
+
+      await Promise.all([
+        User.updateOne({ _id: sender._id }, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }),
+        History.create({
+          uniqueId,
+          type: 10,
+          userId: sender._id,
+          hostId: receiver._id,
+          giftId: gift._id,
+          giftCoin: gift.coin,
+          giftImage: gift.image,
+          giftsvgaImage: gift.svgaImage,
+          giftType: gift.type,
+          giftCount: count,
+          userCoin: totalCoin,
+          hostCoin: totalCoin,
+          adminCoin: 0,
+          agencyCoin: 0,
+          date: now,
+        }),
+      ]);
+
+      return res.status(200).json({ success: true, message: "Chat gift sent successfully" });
+    } else if (type === "liveGift") {
+      const { senderId, receiverId, giftId, giftCount } = req.body;
+
+      if (!senderId || !receiverId || !giftId || !giftCount) return res.status(200).json({ status: false, message: "Missing required fields for liveGift" });
+
+      if (giftId && !mongoose.Types.ObjectId.isValid(giftId)) {
+        return res.status(200).json({ status: false, message: "Invalid giftId. Please provide a valid ObjectId." });
+      }
+
+      const [uniqueId, sender, receiver, gift] = await Promise.all([
+        generateHistoryUniqueId(),
+        User.findById(senderId).lean().select("_id coin"),
+        Host.findById(receiverId).lean().select("_id coin totalGifts"),
+        Gift.findById(giftId).lean().select("_id coin image type svgaImage"),
+      ]);
+
+      if (!sender || !receiver || !gift) return res.status(404).json({ status: false, message: "Invalid sender/receiver/gift" });
+
+      const count = Number(giftCount);
+      const totalCoin = gift.coin * count;
+
+      if (sender.coin < totalCoin) return res.status(200).json({ status: false, message: "Insufficient coins" });
+
+      await Promise.all([
+        User.updateOne({ _id: sender._id }, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }),
+        History.create({
+          uniqueId,
+          type: 2,
+          userId: sender._id,
+          hostId: receiver._id,
+          giftId: gift._id,
+          giftCoin: gift.coin,
+          giftImage: gift.image,
+          giftsvgaImage: gift.svgaImage,
+          giftType: gift.type,
+          giftCount: count,
+          userCoin: totalCoin,
+          hostCoin: totalCoin,
+          adminCoin: 0,
+          agencyCoin: 0,
+          date: now,
+        }),
+      ]);
+
+      return res.status(200).json({ success: true, message: "Live gift sent successfully" });
+    } else {
+      return res.status(200).json({ status: false, message: "Invalid transaction type" });
+    }
+  } catch (error) {
+    console.error("[handleCoinTransaction]status:false, message:", error);
+    return res.status(500).json({ status: false, message: "Internal server error" });
   }
 };

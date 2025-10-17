@@ -31,4 +31,7 @@ route.patch("/modifyUserProfile", validateUserToken, checkAccessWithSecretKey(),
 //get user profile
 route.get("/retrieveUserProfile", validateUserToken, checkAccessWithSecretKey(), UserController.retrieveUserProfile);
 
+//delete user
+route.delete("/deactivateMyAccount", validateUserToken, checkAccessWithSecretKey(), UserController.deactivateMyAccount);
+
 module.exports = route;

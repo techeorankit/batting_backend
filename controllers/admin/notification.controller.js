@@ -48,18 +48,25 @@ exports.sendNotificationToSingleUserByAdmin = async (req, res) => {
         },
       };
 
-      const adminInstance = await admin;
-      await adminInstance.messaging().send(notificationPayload);
-      console.log("Notification sent successfully.");
+      const adminPromise = await admin;
+      adminPromise
+        .messaging()
+        .send(notificationPayload)
+        .then(async (response) => {
+          console.log("Successfully sent with response: ", response);
 
-      await new Notification({
-        user: user._id,
-        notificationPersonType: 1, // 1 = User
-        title: title.trim(),
-        message: message.trim(),
-        image: req.file ? req.file.path : "",
-        date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
-      }).save();
+          await new Notification({
+            user: user._id,
+            notificationPersonType: 1, // 1 = User
+            title: title.trim(),
+            message: message.trim(),
+            image: req.file ? req.file.path : "",
+            date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+          }).save();
+        })
+        .catch((error) => {
+          console.log("Error sending message:      ", error);
+        });
     } catch (error) {
       console.error("Error sending notification:", error);
       res.status(500).json({ status: false, message: "Failed to send notification." });
@@ -108,18 +115,25 @@ exports.sendNotificationToSingleHostByAdmin = async (req, res) => {
         },
       };
 
-      const adminInstance = await admin;
-      const response = adminInstance.messaging().send(notificationPayload);
-      console.log("Notification sent successfully:", response);
+      const adminPromise = await admin;
+      adminPromise
+        .messaging()
+        .send(notificationPayload)
+        .then(async (response) => {
+          console.log("Successfully sent with response: ", response);
 
-      await new Notification({
-        host: host._id,
-        notificationPersonType: 2, // 2 = Host
-        title: title.trim(),
-        message: message.trim(),
-        image: req.file ? req.file.path : "",
-        date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
-      }).save();
+          await new Notification({
+            host: host._id,
+            notificationPersonType: 2, // 2 = Host
+            title: title.trim(),
+            message: message.trim(),
+            image: req.file ? req.file.path : "",
+            date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+          }).save();
+        })
+        .catch((error) => {
+          console.log("Error sending message:      ", error);
+        });
     } catch (error) {
       console.error("Error sending notification:", error);
       res.status(500).json({ status: false, message: "Failed to send notification." });

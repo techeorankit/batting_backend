@@ -17,4 +17,7 @@ route.get("/getCoinTransactionRecords", checkAccessWithSecretKey(), validateUser
 //get coin history ( host )
 route.get("/retrieveHostCoinHistory", checkAccessWithSecretKey(), HistoryController.retrieveHostCoinHistory);
 
+//coin deduct for fake content
+route.post("/handleCoinTransaction", checkAccessWithSecretKey(), HistoryController.handleCoinTransaction);
+
 module.exports = route;

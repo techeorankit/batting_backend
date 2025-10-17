@@ -73,4 +73,7 @@ route.get("/getRandomAvailableFakeHost", validateUserToken, checkAccessWithSecre
 //get user ( host ) ( auto call )
 route.get("/getRandomAvailableUser", validateUserToken, checkAccessWithSecretKey(), HostController.getRandomAvailableUser);
 
+//delete host
+route.delete("/disableHostAccount", checkAccessWithSecretKey(), HostController.disableHostAccount);
+
 module.exports = route;

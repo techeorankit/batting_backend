@@ -315,7 +315,8 @@ io.on("connection", async (socket) => {
     const chat = new Chat({
       messageType: 4,
       message: `🎁 ${sender.name} sent a gift`,
-      image: gift.image || "",
+      image: "",
+      giftImage: gift.image || "",
       giftsvgaImage: gift.svgaImage || "",
       senderId: sender._id,
       chatTopicId: chatTopic._id,

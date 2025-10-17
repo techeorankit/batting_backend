@@ -9,9 +9,11 @@ const Block = require("../../models/block.model");
 const HostMatchHistory = require("../../models/hostMatchHistory.model");
 const FollowerFollowing = require("../../models/followerFollowing.model");
 const User = require("../../models/user.model");
+const Chat = require("../../models/chat.model");
+const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
 
 //deleteFiles
-const { deleteFiles } = require("../../util/deletefile");
+const { deleteFile, deleteFiles } = require("../../util/deletefile");
 
 //generateUniqueId
 const generateUniqueId = require("../../util/generateUniqueId");
@@ -200,6 +202,9 @@ exports.verifyHostRequestStatus = async (req, res) => {
 //get host thumblist ( user )
 exports.retrieveHosts = async (req, res) => {
   try {
+    const start = req.query.start ? parseInt(req.query.start) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
@@ -403,6 +408,9 @@ exports.retrieveHosts = async (req, res) => {
             },
           },
         },
+        { $sort: { createdAt: -1 } },
+        { $skip: (start - 1) * limit },
+        { $limit: limit },
         {
           $project: {
             _id: 1,
@@ -510,16 +518,22 @@ exports.retrieveHosts = async (req, res) => {
     ]);
 
     const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
-    let allHosts;
-    allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
+
+    // Pagination for hosts
+    let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
     allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
+    const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
+
+    // Pagination for liveHost
+    let allLiveHosts = settingJSON.isDemoData ? [...liveHost, ...fakeLiveHost] : liveHost;
+    const paginatedLiveHosts = allLiveHosts.slice((start - 1) * limit, start * limit);
 
     return res.status(200).json({
       status: true,
       message: "Hosts list retrieved successfully.",
       followedHost,
-      liveHost: settingJSON.isDemoData ? [...liveHost, ...fakeLiveHost] : liveHost,
-      hosts: allHosts,
+      liveHost: paginatedLiveHosts,
+      hosts: paginatedHosts,
     });
   } catch (error) {
     return res.status(500).json({
@@ -905,6 +919,9 @@ exports.modifyHostDetails = async (req, res) => {
 //get host thumblist ( host )
 exports.fetchHostsList = async (req, res) => {
   try {
+    const start = req.query.start ? parseInt(req.query.start) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
     if (!req.query.hostId) {
       return res.status(200).json({ status: false, message: "hostId is required." });
     }
@@ -995,13 +1012,25 @@ exports.fetchHostsList = async (req, res) => {
           },
         },
       ]),
-      FollowerFollowing.find({ followingId: hostId }).populate("followerId", "_id name image uniqueId").sort({ createdAt: -1 }).lean(),
+      FollowerFollowing.find({ followingId: hostId })
+        .populate("followerId", "_id name image uniqueId")
+        .sort({ createdAt: -1 })
+        .skip((start - 1) * limit)
+        .limit(limit)
+        .lean(),
     ]);
+
+    const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
+
+    // Pagination for hosts
+    let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
+    allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
+    const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
 
     return res.status(200).json({
       status: true,
       message: "Hosts list retrieved successfully.",
-      hosts: settingJSON.isDemoData ? [...fakeHost, ...host] : host,
+      hosts: paginatedHosts,
       followerList,
     });
   } catch (error) {
@@ -1023,7 +1052,7 @@ exports.getRandomAvailableFakeHost = async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ status: false, message: "Invalid user ID provided." });
+      return res.status(200).json({ status: false, message: "Invalid user ID provided." });
     }
 
     const [blockedHosts, lastMatch] = await Promise.all([
@@ -1137,5 +1166,67 @@ exports.getRandomAvailableUser = async (req, res) => {
       status: false,
       message: "Internal server error. Please try again later.",
     });
+  }
+};
+
+//delete host
+exports.disableHostAccount = async (req, res, next) => {
+  try {
+    const { hostId } = req.query;
+
+    if (!hostId) {
+      return res.status(200).json({ status: false, message: "Missing required query parameter: hostId." });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(hostId)) {
+      return res.status(200).json({ status: false, message: "Invalid hostId. It must be a valid MongoDB ObjectId." });
+    }
+
+    const host = await Host.findOne({ _id: hostId, isFake: false }).lean();
+    if (!host) {
+      return res.status(200).json({ status: false, message: "host not found." });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Host deleted successfully.",
+    });
+
+    const [user, chats] = await Promise.all([User.findOne({ hostId }).select("_id").lean(), Chat.find({ senderId: host?._id })]);
+
+    if (user) {
+      await User.updateOne({ _id: user._id }, { $set: { isHost: false, hostId: null } });
+    }
+
+    for (const chat of chats) {
+      deleteFile(chat?.image);
+      deleteFile(chat?.audio);
+    }
+
+    deleteFile(host?.image);
+
+    if (Array.isArray(host.photoGallery)) {
+      for (const imgPath of host.photoGallery) {
+        deleteFile(imgPath);
+      }
+    }
+
+    if (Array.isArray(host.video)) {
+      for (const imgPath of host.video) {
+        deleteFile(imgPath);
+      }
+    }
+
+    if (Array.isArray(host.liveVideo)) {
+      for (const imgPath of host.liveVideo) {
+        deleteFile(imgPath);
+      }
+    }
+
+    await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
+    await Host.deleteOne({ _id: host?._id });
+  } catch (error) {
+    console.error("Error in disableHostAccount:", error);
+    return res.status(500).json({ status: false, message: "An error occurred in disableHostAccount" });
   }
 };
