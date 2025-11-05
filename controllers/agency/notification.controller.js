@@ -35,7 +35,7 @@ exports.notifyHost = async (req, res) => {
 
       const notificationPayload = {
         token: host.fcmToken,
-        notification: {
+        data: {
           title: title.trim(),
           body: message.trim(),
           image: req.file ? req.file.path : "",
@@ -102,7 +102,7 @@ exports.sendBulkHostNotifications = async (req, res) => {
       const adminInstance = await admin;
       const response = await adminInstance.messaging().sendEachForMulticast({
         tokens,
-        notification: {
+        data: {
           title: title || "Default Title",
           body: message || "Default Message",
           image,

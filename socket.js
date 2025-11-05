@@ -1817,7 +1817,6 @@ io.on("connection", async (socket) => {
 
           const payload = {
             token: receiver.fcmToken,
-            notification: {},
             data: {
               title: notificationTitle,
               body: notificationBody,

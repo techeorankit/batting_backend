@@ -41,7 +41,7 @@ exports.sendNotificationToSingleUserByAdmin = async (req, res) => {
 
       const notificationPayload = {
         token: user.fcmToken,
-        notification: {
+        data: {
           title: title.trim(),
           body: message.trim(),
           image: req.file ? req.file.path : "",
@@ -108,7 +108,7 @@ exports.sendNotificationToSingleHostByAdmin = async (req, res) => {
 
       const notificationPayload = {
         token: host.fcmToken,
-        notification: {
+        data: {
           title: title.trim(),
           body: message.trim(),
           image: req.file ? req.file.path : "",
@@ -195,7 +195,7 @@ exports.sendNotifications = async (req, res) => {
       const adminInstance = await admin;
       const response = await adminInstance.messaging().sendEachForMulticast({
         tokens,
-        notification: {
+        data: {
           title: title || "Default Title",
           body: message || "Default Message",
           image,

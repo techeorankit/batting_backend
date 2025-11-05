@@ -101,11 +101,9 @@ exports.submitWithdrawalRequest = async (req, res) => {
       const adminApp = await admin;
       const notificationPayload = {
         token: host.fcmToken,
-        notification: {
+        data: {
           title: "🔔 Withdrawal Request Submitted",
           body: "We have received your withdrawal request. It will be processed shortly.",
-        },
-        data: {
           type: "WITHDRAWREQUEST",
         },
       };
