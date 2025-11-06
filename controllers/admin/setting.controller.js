@@ -81,11 +81,11 @@ exports.updateSetting = async (req, res) => {
       }
     );
 
-    updateSettingFile(setting);
-
     if (shouldRescheduleChatJob) {
       scheduleChatJob();
     }
+
+    updateSettingFile(setting);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
