@@ -83,7 +83,7 @@ exports.updateSetting = async (req, res) => {
 
     global.settingJSON = setting;
     if (shouldRescheduleChatJob) {
-      console.log("🔁 Rescheduling chat job...", global.settingJSON);
+      console.log("🔁 Rescheduling chat job...", global?.settingJSON?.messageInitiatedAt);
       await scheduleChatJob();
     }
     updateSettingFile(setting);
