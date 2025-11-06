@@ -81,24 +81,24 @@ exports.updateSetting = async (req, res) => {
       }
     );
 
+    global.settingJSON = setting;
+    if (shouldRescheduleChatJob) {
+      console.log("🔁 Rescheduling chat job...", global.settingJSON);
+      await scheduleChatJob();
+    }
     updateSettingFile(setting);
 
-    if (shouldRescheduleChatJob) {
-      console.log("🔁 Rescheduling chat job...");
-      scheduleChatJob();
-    }
-
-    if (req.body.privateKey) {
-      try {
-        setTimeout(() => {
-          console.log("🔐 Private key updated, restarting server...");
-          process.exit(0);
-        }, 500); // 0.5s delay
-        return;
-      } catch (err) {
-        console.error("Failed to update privateKey:", err);
-      }
-    }
+    // if (req.body.privateKey) {
+    //   try {
+    //     setTimeout(() => {
+    //       console.log("🔐 Private key updated, restarting server...");
+    //       process.exit(0);
+    //     }, 500); // 0.5s delay
+    //     return;
+    //   } catch (err) {
+    //     console.error("Failed to update privateKey:", err);
+    //   }
+    // }
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
