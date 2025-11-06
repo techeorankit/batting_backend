@@ -88,7 +88,7 @@ exports.updateSetting = async (req, res) => {
       scheduleChatJob();
     }
 
-    if (privateKey) {
+    if (req.body.privateKey) {
       try {
         setTimeout(() => {
           console.log("🔐 Private key updated, restarting server...");
