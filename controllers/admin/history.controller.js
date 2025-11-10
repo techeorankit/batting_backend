@@ -83,6 +83,8 @@ exports.getCoinTransactionHistory = async (req, res) => {
                   { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
                   { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
                   { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
+                  { case: { $eq: ["$type", 14] }, then: "Admin Add Coin" },
+                  { case: { $eq: ["$type", 15] }, then: "Admin Deduct Coin" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -104,12 +106,12 @@ exports.getCoinTransactionHistory = async (req, res) => {
             receiverName: { $ifNull: ["$receiver.name", ""] },
             isIncome: {
               $cond: {
-                if: { $in: ["$type", [1, 6, 7, 8]] },
+                if: { $in: ["$type", [1, 6, 7, 8, 14]] },
                 then: true,
                 else: {
                   $cond: {
                     if: {
-                      $in: ["$type", [2, 3, 10, 11, 12, 13]],
+                      $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
                     },
                     then: false,
                     else: false,
@@ -136,12 +138,12 @@ exports.getCoinTransactionHistory = async (req, res) => {
           $addFields: {
             isIncome: {
               $cond: {
-                if: { $in: ["$type", [1, 6, 7, 8]] },
+                if: { $in: ["$type", [1, 6, 7, 8, 14]] },
                 then: true,
                 else: {
                   $cond: {
                     if: {
-                      $or: [{ $in: ["$type", [2, 3, 10, 11, 12, 13]] }, { $and: [{ $eq: ["$type", 4] }, { $eq: ["$payoutStatus", 2] }] }],
+                      $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
                     },
                     then: false,
                     else: false,
@@ -637,7 +639,7 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
       Host.findOne({ _id: hostId }).select("_id").lean(),
       History.countDocuments({
         ...dateFilterQuery,
-        type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
+        type: { $in: [2, 3, 5, 9, 10, 11, 12, 13, 14, 15] },
         hostId: hostId,
         hostCoin: { $ne: 0 },
       }),
@@ -645,7 +647,7 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
         {
           $match: {
             ...dateFilterQuery,
-            type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
+            type: { $in: [2, 3, 5, 9, 10, 11, 12, 13, 14, 15] },
             hostId: hostId,
             hostCoin: { $ne: 0 },
           },
@@ -677,6 +679,8 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
                   { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
                   { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
                   { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
+                  { case: { $eq: ["$type", 14] }, then: "Admin Add Coin" },
+                  { case: { $eq: ["$type", 15] }, then: "Admin Deduct Coin" },
                 ],
                 default: "❓ Unknown Type",
               },
@@ -698,7 +702,7 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
             senderName: { $ifNull: ["$sender.name", ""] },
             isIncome: {
               $cond: {
-                if: { $in: ["$type", [2, 3, 9, 10, 11, 12, 13]] },
+                if: { $in: ["$type", [2, 3, 9, 10, 11, 12, 13, 14]] },
                 then: true,
                 else: {
                   $cond: {

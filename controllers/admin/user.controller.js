@@ -1,4 +1,7 @@
 const User = require("../../models/user.model");
+const History = require("../../models/history.model");
+
+const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
 //get users
 exports.retrieveUserList = async (req, res) => {
@@ -144,5 +147,87 @@ exports.fetchUserProfile = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
+
+//admin can add or deduct coins from a user's wallet
+exports.updateUserCoin = async (req, res, next) => {
+  try {
+    const { userId, coin, action } = req.body;
+
+    if (!userId || !coin || !action) {
+      return res.status(400).json({
+        status: false,
+        message: "userId, coin, and action are required fields.",
+      });
+    }
+
+    if (!["add", "deduct"].includes(action)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid action. Must be 'add' or 'deduct'.",
+      });
+    }
+
+    if (isNaN(coin) || coin <= 0) {
+      return res.status(400).json({
+        status: false,
+        message: "Coin must be a positive number.",
+      });
+    }
+
+    const [uniqueId, user] = await Promise.all([generateHistoryUniqueId(), User.findById(userId).lean()]);
+
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: "User not found.",
+      });
+    }
+
+    let newCoinBalance = user.coin;
+    let updatedFields = {};
+
+    if (action === "add") {
+      newCoinBalance += coin;
+      updatedFields = {
+        coin: newCoinBalance,
+        rechargedCoins: (user.rechargedCoins || 0) + coin,
+      };
+    } else {
+      if (user.coin < coin) {
+        return res.status(400).json({
+          status: false,
+          message: "Insufficient balance to deduct coins.",
+        });
+      }
+      newCoinBalance -= coin;
+      updatedFields = {
+        coin: newCoinBalance,
+      };
+    }
+
+    await Promise.all([
+      User.findByIdAndUpdate(userId, updatedFields, { new: true }).lean(),
+      History.create({
+        uniqueId: uniqueId,
+        type: action === "add" ? 14 : 15,
+        userId,
+        userCoin: coin,
+        date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+      }),
+    ]);
+
+    return res.status(200).json({
+      status: true,
+      message: `Successfully ${action === "add" ? "added" : "deducted"} ${coin} coins.`,
+    });
+  } catch (error) {
+    console.error("Admin Coin Update Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
   }
 };

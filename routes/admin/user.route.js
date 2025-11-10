@@ -17,4 +17,7 @@ route.patch("/modifyUserBlockStatus", checkAccessWithSecretKey(), UserController
 //get user's profile
 route.get("/fetchUserProfile", checkAccessWithSecretKey(), UserController.fetchUserProfile);
 
+//admin can add or deduct coins from a user's wallet
+route.patch("/updateUserCoin", checkAccessWithSecretKey(), UserController.updateUserCoin);
+
 module.exports = route;

@@ -20,6 +20,18 @@ exports.updateSetting = async (req, res) => {
 
     let shouldRescheduleChatJob = false;
 
+    // ====== PAYSTACK ======
+    setting.paystackPublicKey = req.body.paystackPublicKey?.trim() ?? setting.paystackPublicKey;
+    setting.paystackSecretKey = req.body.paystackSecretKey?.trim() ?? setting.paystackSecretKey;
+
+    // ====== PAYPAL ======
+    setting.paypalClientId = req.body.paypalClientId?.trim() ?? setting.paypalClientId;
+    setting.paypalSecretKey = req.body.paypalSecretKey?.trim() ?? setting.paypalSecretKey;
+
+    // ====== CASHFREE ======
+    setting.cashfreeClientId = req.body.cashfreeClientId?.trim() ?? setting.cashfreeClientId;
+    setting.cashfreeClientSecret = req.body.cashfreeClientSecret?.trim() ?? setting.cashfreeClientSecret;
+
     setting.agoraAppId = req.body.agoraAppId?.trim() ?? setting.agoraAppId;
     setting.agoraAppCertificate = req.body.agoraAppCertificate?.trim() ?? setting.agoraAppCertificate;
     setting.privacyPolicyLink = req.body.privacyPolicyLink?.trim() ?? setting.privacyPolicyLink;
@@ -133,6 +145,26 @@ exports.updateSettingToggle = async (req, res) => {
       setting.isAppEnabled = !setting.isAppEnabled;
     } else if (type === "isAutoRefreshEnabled") {
       setting.isAutoRefreshEnabled = !setting.isAutoRefreshEnabled;
+    } else if (type === "paystackAndroidEnabled") {
+      setting.paystackAndroidEnabled = !setting.paystackAndroidEnabled;
+    } else if (type === "paystackIosEnabled") {
+      setting.paystackIosEnabled = !setting.paystackIosEnabled;
+    } else if (type === "paypalAndroidEnabled") {
+      setting.paypalAndroidEnabled = !setting.paypalAndroidEnabled;
+    } else if (type === "paypalIosEnabled") {
+      setting.paypalIosEnabled = !setting.paypalIosEnabled;
+    } else if (type === "cashfreeAndroidEnabled") {
+      setting.cashfreeAndroidEnabled = !setting.cashfreeAndroidEnabled;
+    } else if (type === "cashfreeIosEnabled") {
+      setting.cashfreeIosEnabled = !setting.cashfreeIosEnabled;
+    } else if (type === "googlePayIosEnabled") {
+      setting.googlePayIosEnabled = !setting.googlePayIosEnabled;
+    } else if (type === "stripeIosEnabled") {
+      setting.stripeIosEnabled = !setting.stripeIosEnabled;
+    } else if (type === "razorpayIosEnabled") {
+      setting.razorpayIosEnabled = !setting.razorpayIosEnabled;
+    } else if (type === "flutterwaveIosEnabled") {
+      setting.flutterwaveIosEnabled = !setting.flutterwaveIosEnabled;
     } else {
       return res.status(200).json({ status: false, message: "type passed must be valid." });
     }

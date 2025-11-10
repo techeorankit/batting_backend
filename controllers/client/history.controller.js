@@ -96,12 +96,12 @@ exports.getCoinTransactionRecords = async (req, res) => {
             uniqueId: { $ifNull: ["$receiver.uniqueId", ""] },
             isIncome: {
               $cond: {
-                if: { $in: ["$type", [1, 6, 7, 8]] },
+                if: { $in: ["$type", [1, 6, 7, 8, 14]] },
                 then: true,
                 else: {
                   $cond: {
                     if: {
-                      $in: ["$type", [2, 3, 10, 11, 12, 13]],
+                      $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
                     },
                     then: false,
                     else: false,
@@ -238,8 +238,6 @@ exports.retrieveHostCoinHistory = async (req, res) => {
 //coin deduct for fake content
 exports.handleCoinTransaction = async (req, res) => {
   try {
-    console.log("req.body handleCoinTransaction: ", req.body);
-
     const { type } = req.body;
 
     if (!type) return res.status(200).json({ status: false, message: "Transaction type is required." });

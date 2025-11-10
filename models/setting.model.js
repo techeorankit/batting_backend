@@ -6,17 +6,36 @@ const settingSchema = new mongoose.Schema(
     termsOfUsePolicyLink: { type: String, default: "TERMS OF USE POLICY LINK" },
 
     googlePlayEnabled: { type: Boolean, default: false },
+    googlePayIosEnabled: { type: Boolean, default: false },
 
     stripeEnabled: { type: Boolean, default: false },
+    stripeIosEnabled: { type: Boolean, default: false },
     stripePublishableKey: { type: String, default: "STRIPE PUBLISHABLE KEY" },
     stripeSecretKey: { type: String, default: "STRIPE SECRET KEY" },
 
     razorpayEnabled: { type: Boolean, default: false },
+    razorpayIosEnabled: { type: Boolean, default: false },
     razorpayId: { type: String, default: "RAZOR PAY ID" },
     razorpaySecretKey: { type: String, default: "RAZOR SECRET KEY" },
 
     flutterwaveEnabled: { type: Boolean, default: false },
+    flutterwaveIosEnabled: { type: Boolean, default: false },
     flutterwaveId: { type: String, default: "FLUTTER WAVE ID" },
+
+    paystackAndroidEnabled: { type: Boolean, default: false },
+    paystackIosEnabled: { type: Boolean, default: false },
+    paystackPublicKey: { type: String, default: "PAYSTACK PUBLIC KEY" },
+    paystackSecretKey: { type: String, default: "PAYSTACK SECRET KEY" },
+
+    cashfreeAndroidEnabled: { type: Boolean, default: false },
+    cashfreeIosEnabled: { type: Boolean, default: false },
+    cashfreeClientId: { type: String, default: "CASHFREE CLIENT ID" },
+    cashfreeClientSecret: { type: String, default: "CASHFREE CLIENT SECRET" },
+
+    paypalAndroidEnabled: { type: Boolean, default: false },
+    paypalIosEnabled: { type: Boolean, default: false },
+    paypalClientId: { type: String, default: "PAYPAL CLIENT ID" },
+    paypalSecretKey: { type: String, default: "PAYPAL SECRET KEY" },
 
     agoraAppId: { type: String, default: "AGORA APP ID" },
     agoraAppCertificate: { type: String, default: "AGORA APP CERTIFICATE" },
