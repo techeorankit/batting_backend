@@ -432,7 +432,7 @@ exports.retrieveHosts = async (req, res) => {
         {
           $lookup: {
             from: "blocks",
-            let: { hostId: "$_id", userId: userId },
+            let: { hostId: "$hostId", userId: userId },
             pipeline: [
               {
                 $match: {
