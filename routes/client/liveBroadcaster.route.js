@@ -6,9 +6,9 @@ const route = express.Router();
 const checkAccessWithSecretKey = require("../../checkAccess");
 
 //controller
-const LiveBrpadcasterController = require("../../controllers/client/liveBroadcaster.controller");
+const LiveBroadcasterController = require("../../controllers/client/liveBroadcaster.controller");
 
 //live host
-route.post("/HostStreaming", checkAccessWithSecretKey(), LiveBrpadcasterController.HostStreaming);
+route.post("/HostStreaming", checkAccessWithSecretKey(), LiveBroadcasterController.HostStreaming);
 
 module.exports = route;
