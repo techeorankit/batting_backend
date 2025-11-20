@@ -1224,7 +1224,7 @@ io.on("connection", async (socket) => {
       const [caller, receiver, callHistory, vipPrivilege] = await Promise.all([
         User.findById(callerId).select("_id coin").lean(),
         Host.findById(receiverId).select("_id coin privateCallRate audioCallRate randomCallRate randomCallFemaleRate randomCallMaleRate agencyId").lean(),
-        History.findById(callId).select("_id callType isPrivate").lean(),
+        History.findById(callId).select("_id callType isPrivate isRandom").lean(),
         VipPlanPrivilege.findOne().select("audioCallDiscount privateCallDiscount").lean(),
       ]);
 
@@ -1460,7 +1460,6 @@ io.on("connection", async (socket) => {
                   },
                 },
               ]);
-              F;
             }
           }
 
