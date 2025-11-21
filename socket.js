@@ -1233,7 +1233,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      if (callMode === "private" && callHistory.callType === "audio") {
+      if (callMode?.toLowerCase()?.trim() === "private" && callHistory.callType?.toLowerCase()?.trim() === "audio") {
         const adminCommissionRate = settingJSON?.adminCommissionRate;
         let audioCallCharge = Math.abs(receiver.audioCallRate);
         let audioCallDiscount = 0;
@@ -1319,7 +1319,7 @@ io.on("connection", async (socket) => {
         }
       }
 
-      if (callMode === "private" && callHistory.callType === "video" && callHistory.isPrivate) {
+      if (callMode?.toLowerCase()?.trim() === "private" && callHistory.callType?.toLowerCase()?.trim() === "video" && callHistory.isPrivate) {
         const adminCommissionRate = settingJSON?.adminCommissionRate;
         let privateCallCharge = Math.abs(receiver.privateCallRate);
         let privateCallDiscount = 0;
@@ -1405,7 +1405,7 @@ io.on("connection", async (socket) => {
         }
       }
 
-      if (callMode === "random" && callHistory.callType === "video" && callHistory.isRandom) {
+      if (callMode?.toLowerCase()?.trim() === "random" && callHistory.callType?.toLowerCase()?.trim() === "video" && callHistory.isRandom) {
         const genderQuery = gender?.toLowerCase();
 
         let randomCallCharge;
