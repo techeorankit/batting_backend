@@ -101,7 +101,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
 
     const [request, agency] = await Promise.all([
       WithdrawalRequest.findById(requestId).lean().select("_id agencyId coin amount status uniqueId"),
-      Agency.findById(agencyId).lean().select("_id isBlock fcmToken"),
+      Agency.findById(agencyId).lean().select("_id isBlock fcmToken netAvailableEarnings"),
     ]);
 
     if (!request) return res.status(200).json({ status: false, message: "Withdrawal request not found." });
@@ -112,6 +112,15 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
     if (request.status === 3) return res.status(200).json({ status: false, message: "Request already declined." });
 
     if (actionType === "approve") {
+      const agencyBalance = agency.netAvailableEarnings;
+
+      if (!agencyBalance || agencyBalance.netAvailableEarnings < request.coin) {
+        return res.status(200).json({
+          status: false,
+          message: "Insufficient earnings. Agency does not have enough coins to withdraw.",
+        });
+      }
+
       res.status(200).json({
         status: true,
         message: "Withdrawal request approved successfully.",

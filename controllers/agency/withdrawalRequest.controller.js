@@ -118,7 +118,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
 
     const [request, host] = await Promise.all([
       WithdrawalRequest.findById(requestId).lean().select("_id hostId coin amount status uniqueId"),
-      Host.findById(hostId).lean().select("_id isBlock fcmToken"),
+      Host.findById(hostId).lean().select("_id isBlock fcmToken coin"),
     ]);
 
     if (!request) return res.status(200).json({ status: false, message: "Withdrawal request not found." });
@@ -129,6 +129,16 @@ exports.updateWithdrawalStatus = async (req, res) => {
     if (request.status === 3) return res.status(200).json({ status: false, message: "Request already declined." });
 
     if (actionType === "approve") {
+      const hostBalance = host.coin;
+
+      // Check sufficient balance
+      if (!hostBalance || hostBalance.coin < request.coin) {
+        return res.status(200).json({
+          status: false,
+          message: "Insufficient coin balance. Withdrawal cannot be processed.",
+        });
+      }
+
       const [updateRequest, updateHost, updateHistory] = await Promise.all([
         WithdrawalRequest.updateOne(
           { _id: request._id, person: 2, hostId: hostId },
@@ -140,7 +150,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
           }
         ),
         Host.updateOne(
-          { _id: request.hostId, coin: { $gt: 0 } },
+          { _id: request.hostId, coin: { $gte: request.coin } },
           {
             $inc: {
               coin: -request.coin,
@@ -269,7 +279,7 @@ exports.initiateWithdrawal = async (req, res) => {
 
     const [uniqueId, agency, pendingRequest, declinedRequest] = await Promise.all([
       generateHistoryUniqueId(),
-      Agency.findOne({ _id: agencyId }).select("_id totalEarningsWithCommissionAndHostCoin").lean(),
+      Agency.findOne({ _id: agencyId }).select("_id netAvailableEarnings").lean(),
       WithdrawalRequest.findOne({ agencyId, status: 1 }).select("_id").lean(), // status 1: pending
       WithdrawalRequest.findOne({ agencyId, status: 3 }).select("_id").lean(), // status 3: declined
     ]);
