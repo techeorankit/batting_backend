@@ -85,6 +85,7 @@ async function startServer() {
   const LiveBroadcaster = require("./models/liveBroadcaster.model");
   const LiveBroadcastView = require("./models/liveBroadcastView.model");
   const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
+  const Withdrawalrequest = require("./models/withdrawalRequest.model");
 
   const cron = require("node-cron");
   const mongoose = require("mongoose");
@@ -169,8 +170,7 @@ async function startServer() {
                 }
               }
 
-              await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
-              await Host.deleteOne({ _id: host?._id });
+              await Promise.all([LiveBroadcastHistory.deleteMany({ hostId: host?._id }), Withdrawalrequest.deleteMany({ hostId: host?._id }), Host.deleteOne({ _id: host?._id })]);
             }
 
             await Promise.all([

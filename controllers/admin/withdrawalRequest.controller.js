@@ -139,7 +139,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
         Agency.updateOne(
           {
             _id: agencyId,
-            netAvailableEarnings: { $gt: 0 },
+            netAvailableEarnings: { $gte: request.coin },
           },
           {
             $inc: {

@@ -282,11 +282,7 @@ exports.initiateWithdrawal = async (req, res) => {
       return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
     }
 
-    // if (requestedCoins > agency.netAvailableEarnings) {
-    //   return res.status(200).json({ status: false, message: "Insufficient balance to request withdrawal." });
-    // }
-
-    if (requestedCoins > agency.totalEarningsWithCommissionAndHostCoin) {
+    if (requestedCoins > agency.netAvailableEarnings) {
       return res.status(200).json({ status: false, message: "Insufficient balance to request withdrawal." });
     }
 

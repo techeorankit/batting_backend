@@ -11,6 +11,7 @@ const FollowerFollowing = require("../../models/followerFollowing.model");
 const User = require("../../models/user.model");
 const Chat = require("../../models/chat.model");
 const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
+const Withdrawalrequest = require("../../models/withdrawalRequest.model");
 
 //deleteFiles
 const { deleteFile, deleteFiles } = require("../../util/deletefile");
@@ -1223,8 +1224,7 @@ exports.disableHostAccount = async (req, res, next) => {
       }
     }
 
-    await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
-    await Host.deleteOne({ _id: host?._id });
+    await Promise.all([LiveBroadcastHistory.deleteMany({ hostId: host?._id }), Withdrawalrequest.deleteMany({ hostId: host?._id }), Host.deleteOne({ _id: host?._id })]);
   } catch (error) {
     console.error("Error in disableHostAccount:", error);
     return res.status(500).json({ status: false, message: "An error occurred in disableHostAccount" });
