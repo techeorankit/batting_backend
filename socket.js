@@ -240,6 +240,7 @@ io.on("connection", async (socket) => {
               userImage: String(sender?.image ?? ""),
               hostImage: String(receiver?.image ?? ""),
               senderRole: String(parseData?.senderRole ?? ""),
+              isOnline: String(parseData?.isOnline ?? ""),
               isFakeSender: String(parseData?.senderRole === "host" ? !!sender?.isFake : false),
             },
           };
@@ -419,6 +420,9 @@ io.on("connection", async (socket) => {
           body: `💝 You received ${giftCount} gifts worth ${totalGiftCost} coins!`,
           type: "GIFT",
           giftCount: giftCount.toString(),
+          senderId: String(chatTopic?.senderId ?? ""),
+          receiverId: String(chatTopic?.receiverId ?? ""),
+          isOnline: String(parseData?.isOnline ?? ""),
         },
       };
 
