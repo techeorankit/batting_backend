@@ -111,9 +111,9 @@ exports.getCoinTransactionRecords = async (req, res) => {
             },
           },
         },
+        { $sort: { createdAt: -1 } },
         { $skip: (start - 1) * limit },
         { $limit: limit },
-        { $sort: { createdAt: -1 } },
       ]),
     ]);
 
