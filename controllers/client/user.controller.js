@@ -280,14 +280,15 @@ exports.signInOrSignUpUser = async (req, res) => {
               body: `🗨️ ${chat.message}`,
               type: "CHAT",
               senderId: String(host._id),
-              isFake: String(host.isFake),
               receiverId: String(user._id),
               userName: String(host.name),
               hostName: String(user.name),
               userImage: String(host.image || ""),
               hostImage: String(user.image || ""),
+              isOnline: String(user?.isOnline ?? ""),
               senderRole: "host",
               isFakeSender: String(host.isFake || "false"),
+              isFake: String(host.isFake),
             },
           };
 

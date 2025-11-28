@@ -39,8 +39,8 @@ exports.pushChatMessage = async (req, res) => {
     const [uniqueId, sender, receiver, chatTopic] = await Promise.all([
       generateHistoryUniqueId(),
       User.findById(senderId).lean().select("name image coin"),
-      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name image fcmToken chatRate agencyId"),
-      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId messageCount"),
+      Host.findOne({ _id: receiverId, isBlock: false }).lean().select("name image fcmToken chatRate agencyId isOnline"),
+      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId messageCount receiverId senderId"),
     ]);
 
     if (!sender) {
@@ -167,7 +167,7 @@ exports.pushChatMessage = async (req, res) => {
         token: receiver.fcmToken,
         data: {
           title: `${sender.name} sent you a message 📩`,
-          body: `🗨️ ${chat.message}`,
+          body: `${chat.message}`,
           type: "CHAT",
           senderId: String(chatTopic?.senderId || ""),
           receiverId: String(chatTopic?.receiverId || ""),
@@ -175,6 +175,7 @@ exports.pushChatMessage = async (req, res) => {
           hostName: String(receiver?.name || ""),
           userImage: String(sender?.image || ""),
           hostImage: String(receiver?.image || ""),
+          isOnline: String(receiver?.isOnline ?? ""),
           senderRole: "user",
           isFakeSender: "false",
         },
@@ -277,8 +278,8 @@ exports.submitChatMessage = async (req, res) => {
 
     const [sender, receiver, chatTopic] = await Promise.all([
       Host.findOne({ _id: senderId, isBlock: false }).lean().select("name image"),
-      User.findById({ _id: receiverId, isBlock: false }).lean().select("name image fcmToken"),
-      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId"),
+      User.findById({ _id: receiverId, isBlock: false }).lean().select("name image fcmToken isOnline"),
+      ChatTopic.findOne({ _id: chatTopicId }).lean().select("_id chatId senderId receiverId"),
     ]);
 
     if (!sender) {
@@ -336,7 +337,7 @@ exports.submitChatMessage = async (req, res) => {
         token: receiver.fcmToken,
         data: {
           title: `${sender.name} sent you a message 📩`,
-          body: `🗨️ ${chat.message}`,
+          body: `${chat.message}`,
           type: "CHAT",
           senderId: String(chatTopic?.senderId || ""),
           receiverId: String(chatTopic?.receiverId || ""),
@@ -344,6 +345,7 @@ exports.submitChatMessage = async (req, res) => {
           hostName: String(receiver?.name || ""),
           userImage: String(sender?.image || ""),
           hostImage: String(receiver?.image || ""),
+          isOnline: String(receiver?.isOnline ?? ""),
           senderRole: "user",
           isFakeSender: "false",
         },

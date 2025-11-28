@@ -276,15 +276,15 @@ io.on("connection", async (socket) => {
     let senderPromise, receiverPromise;
 
     if (parseData?.senderRole === "user") {
-      senderPromise = User.findById(parseData?.senderId).lean().select("_id name coin");
+      senderPromise = User.findById(parseData?.senderId).lean().select("_id name coin name image");
     } else if (parseData?.senderRole === "host") {
-      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name coin");
+      senderPromise = Host.findById(parseData?.senderId).lean().select("_id name coin name image");
     }
 
     if (parseData?.receiverRole === "host") {
-      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin agencyId");
+      receiverPromise = Host.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin agencyId name image");
     } else if (parseData?.receiverRole === "user") {
-      receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin");
+      receiverPromise = User.findById(parseData?.receiverId).lean().select("_id fcmToken isBlock coin name image");
     }
 
     const chatTopicPromise = ChatTopic.findById(parseData?.chatTopicId).lean().select("_id senderId receiverId chatId");
@@ -423,6 +423,11 @@ io.on("connection", async (socket) => {
           senderId: String(chatTopic?.senderId ?? ""),
           receiverId: String(chatTopic?.receiverId ?? ""),
           isOnline: String(parseData?.isOnline ?? ""),
+          userName: String(sender?.name ?? ""),
+          userImage: String(sender?.image ?? ""),
+          hostName: String(receiver?.name ?? ""),
+          hostImage: String(receiver?.image ?? ""),
+          senderRole: String(parseData?.senderRole ?? ""),
         },
       };
 

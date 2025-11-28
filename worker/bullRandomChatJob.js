@@ -186,14 +186,15 @@ chatQueue.process("repeat", async (job) => {
           body: `🗨️ ${chat.message}`,
           type: "CHAT",
           senderId: String(randomHost._id),
-          isFake: String(randomHost.isFake),
           receiverId: String(user._id),
           userName: String(randomHost.name),
           hostName: String(user.name),
           userImage: String(randomHost.image || ""),
           hostImage: String(user.image || ""),
+          isOnline: String(user?.isOnline ?? ""),
           senderRole: "host",
           isFakeSender: String(randomHost?.isFake) || "false",
+          isFake: String(randomHost.isFake),
         },
       };
 
