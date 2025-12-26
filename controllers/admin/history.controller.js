@@ -573,16 +573,16 @@ exports.fetchCoinPlanTransactionHistory = async (req, res) => {
             image: { $first: "$userDetails.image" },
             totalPlansPurchased: { $sum: 1 },
             totalPriceSpent: { $sum: "$price" },
-            coinPlanPurchase: {
-              $push: {
-                uniqueId: "$uniqueId",
-                coin: "$userCoin",
-                bonusCoins: "$bonusCoins",
-                price: "$price",
-                paymentGateway: "$paymentGateway",
-                date: "$date",
-              },
-            },
+            // coinPlanPurchase: {
+            //   $push: {
+            //     uniqueId: "$uniqueId",
+            //     coin: "$userCoin",
+            //     bonusCoins: "$bonusCoins",
+            //     price: "$price",
+            //     paymentGateway: "$paymentGateway",
+            //     date: "$date",
+            // },
+            // },
           },
         },
         { $sort: { totalPlansPurchased: -1 } },

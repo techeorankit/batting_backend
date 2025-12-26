@@ -26,4 +26,7 @@ route.get("/fetchCoinPlans", checkAccessWithSecretKey(), CoinPlanController.fetc
 //get coinplan histories of users (admin earning)
 route.get("/retrieveUserPurchaseRecords", checkAccessWithSecretKey(), CoinPlanController.retrieveUserPurchaseRecords);
 
+//get coinplan histories of users (admin earning)
+route.get("/retrieveCoinPlanPurchase", checkAccessWithSecretKey(), CoinPlanController.retrieveCoinPlanPurchase);
+
 module.exports = route;

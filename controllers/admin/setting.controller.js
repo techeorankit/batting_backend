@@ -79,19 +79,19 @@ exports.updateSetting = async (req, res) => {
       data: setting,
     });
 
-    await Host.updateMany(
-      {},
-      {
-        $set: {
-          randomCallRate: setting.generalRandomCallRate,
-          randomCallFemaleRate: setting.femaleRandomCallRate,
-          randomCallMaleRate: setting.maleRandomCallRate,
-          privateCallRate: setting.videoPrivateCallRate,
-          audioCallRate: setting.audioPrivateCallRate,
-          chatRate: setting.chatInteractionRate,
-        },
-      }
-    );
+    // await Host.updateMany(
+    //   {},
+    //   {
+    //     $set: {
+    //       randomCallRate: setting.generalRandomCallRate,
+    //       randomCallFemaleRate: setting.femaleRandomCallRate,
+    //       randomCallMaleRate: setting.maleRandomCallRate,
+    //       privateCallRate: setting.videoPrivateCallRate,
+    //       audioCallRate: setting.audioPrivateCallRate,
+    //       chatRate: setting.chatInteractionRate,
+    //     },
+    //   }
+    // );
 
     global.settingJSON = setting;
     if (shouldRescheduleChatJob) {
@@ -100,17 +100,17 @@ exports.updateSetting = async (req, res) => {
     }
     updateSettingFile(setting);
 
-    // if (req.body.privateKey) {
-    //   try {
-    //     setTimeout(() => {
-    //       console.log("🔐 Private key updated, restarting server...");
-    //       process.exit(0);
-    //     }, 500); // 0.5s delay
-    //     return;
-    //   } catch (err) {
-    //     console.error("Failed to update privateKey:", err);
-    //   }
-    // }
+    if (req.body.privateKey) {
+      try {
+        setTimeout(() => {
+          console.log("🔐 Private key updated, restarting server...");
+          process.exit(0);
+        }, 500); // 0.5s delay
+        return;
+      } catch (err) {
+        console.error("Failed to update privateKey:", err);
+      }
+    }
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });

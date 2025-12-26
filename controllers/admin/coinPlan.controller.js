@@ -130,6 +130,12 @@ exports.retrieveUserPurchaseRecords = async (req, res) => {
     const startDate = req?.query?.startDate || "All";
     const endDate = req?.query?.endDate || "All";
 
+    const purchaseType = parseInt(req.query.type);
+
+    if (![7, 8].includes(purchaseType)) {
+      return res.status(400).json({ status: false, message: "Invalid purchase type. Allowed values: 7 (Coin), 8 (VIP)" });
+    } //Accept purchase type dynamically (7 = Coin, 8 = VIP)
+
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
       const formatStartDate = new Date(startDate);
@@ -142,14 +148,19 @@ exports.retrieveUserPurchaseRecords = async (req, res) => {
       };
     }
 
-    const baseFilter = { ...dateFilterQuery, type: 7, price: { $exists: true, $ne: 0 } };
+    const baseFilter = {
+      ...dateFilterQuery,
+      type: purchaseType,
+      price: { $exists: true, $ne: 0 },
+    };
 
     if (req.query.userId && mongoose.Types.ObjectId.isValid(req.query.userId)) {
       baseFilter.userId = new mongoose.Types.ObjectId(req.query.userId);
     }
 
-    const [adminEarnings, history] = await Promise.all([
+    const [adminEarnings, total, history] = await Promise.all([
       History.aggregate([{ $match: baseFilter }, { $group: { _id: null, totalEarnings: { $sum: "$price" } } }]).then((result) => (result.length > 0 ? result[0].totalEarnings : 0)),
+      History.countDocuments(baseFilter),
       History.aggregate([
         { $match: baseFilter },
         {
@@ -160,41 +171,101 @@ exports.retrieveUserPurchaseRecords = async (req, res) => {
             as: "userDetails",
           },
         },
-        { $unwind: "$userDetails" },
+        {
+          $unwind: { path: "$userDetails", preserveNullAndEmptyArrays: true },
+        },
         {
           $group: {
             _id: "$userDetails._id",
             name: { $first: "$userDetails.name" },
             userName: { $first: "$userDetails.userName" },
+            uniqueId: { $first: "$userDetails.uniqueId" },
             image: { $first: "$userDetails.image" },
             totalPlansPurchased: { $sum: 1 },
             totalPriceSpent: { $sum: "$price" },
-            coinPlanPurchase: {
-              $push: {
-                coin: "$userCoin",
-                uniqueId: "$uniqueId",
-                paymentGateway: "$paymentGateway",
-                price: "$price",
-                date: "$date",
-              },
-            },
+            // coinPlanPurchase: {
+            //   $push: {
+            //     coin: "$userCoin",
+            //     uniqueId: "$uniqueId",
+            //     paymentGateway: "$paymentGateway",
+            //     price: "$price",
+            //     date: "$date",
+            //   },
+            // },
           },
         },
         { $sort: { totalPlansPurchased: -1 } },
         { $skip: (start - 1) * limit },
         { $limit: limit },
-      ]).then((result) => result.map((doc) => ({ ...doc, _id: doc._id.toString() }))),
+      ]),
     ]);
 
     return res.status(200).json({
       status: true,
       message: "User coin plan transactions retrieved successfully.",
       adminEarnings,
-      total: history.length || 0,
+      total: total || 0,
       data: history || [],
     });
   } catch (error) {
     console.error("Error fetching coin plan transactions:", error);
+    return res.status(500).json({ status: false, message: "Internal server error" });
+  }
+};
+
+//get coinplan histories of users (admin earning)
+exports.retrieveCoinPlanPurchase = async (req, res) => {
+  try {
+    const page = req.query.start ? parseInt(req.query.start) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const skip = (page - 1) * limit;
+
+    const purchaseType = parseInt(req.query.type); // 7 = Coin, 8 = VIP
+
+    if (![7, 8].includes(purchaseType)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid purchase type. Allowed values: 7 (Coin), 8 (VIP)",
+      });
+    }
+
+    const matchQuery = {
+      type: purchaseType,
+      price: { $exists: true, $ne: 0 },
+    };
+
+    if (req.query.userId && mongoose.Types.ObjectId.isValid(req.query.userId)) {
+      matchQuery.userId = new mongoose.Types.ObjectId(req.query.userId);
+    }
+
+    const [totalRecords, records] = await Promise.all([
+      History.countDocuments(matchQuery),
+      History.aggregate([
+        { $match: matchQuery },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            _id: 0,
+            coin: "$userCoin",
+            uniqueId: "$uniqueId",
+            paymentGateway: "$paymentGateway",
+            price: "$price",
+            date: "$date",
+          },
+        },
+      ]),
+    ]);
+
+    return res.status(200).json({
+      status: true,
+      message: "Purchase records retrieved successfully.",
+      totalRecords,
+      data: records,
+    });
+  } catch (error) {
+    console.error("Error fetching purchase pagination:", error);
     return res.status(500).json({ status: false, message: "Internal server error" });
   }
 };

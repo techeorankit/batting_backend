@@ -25,7 +25,14 @@ exports.fetchDashboardMetrics = async (req, res) => {
       };
     }
 
-    const [totalUsers, totalBlockedUsers, totalVipUsers, totalPendingHosts, totalHosts, totalAgency, totalImpressions, totalCurrentLiveHosts] = await Promise.all([
+    const revenueMatch = {
+      ...dateFilterQuery,
+      type: { $in: [7, 8] }, // COIN + VIP purchases
+      userCoin: { $exists: true, $ne: 0 },
+      price: { $exists: true, $ne: 0 },
+    };
+
+    const [totalUsers, totalBlockedUsers, totalVipUsers, totalPendingHosts, totalHosts, totalAgency, totalImpressions, totalCurrentLiveHosts, revenueResult] = await Promise.all([
       User.countDocuments(dateFilterQuery),
       User.countDocuments({ ...dateFilterQuery, isBlock: true }),
       User.countDocuments({ ...dateFilterQuery, isVip: true }),
@@ -34,7 +41,18 @@ exports.fetchDashboardMetrics = async (req, res) => {
       Agency.countDocuments({ ...dateFilterQuery }),
       Impression.countDocuments({ ...dateFilterQuery }),
       LiveBroadcaster.countDocuments({ ...dateFilterQuery }),
+      History.aggregate([
+        { $match: revenueMatch },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$price" },
+          },
+        },
+      ]),
     ]);
+
+    const totalRevenue = revenueResult?.[0]?.totalRevenue || 0;
 
     return res.status(200).json({
       status: true,
@@ -48,6 +66,7 @@ exports.fetchDashboardMetrics = async (req, res) => {
         totalAgency,
         totalImpressions,
         totalCurrentLiveHosts,
+        totalRevenue,
       },
     });
   } catch (error) {
