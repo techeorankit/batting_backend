@@ -4,6 +4,7 @@ const Host = require("../../models/host.model");
 const Agency = require("../../models/agency.model");
 const History = require("../../models/history.model");
 const LiveBroadcaster = require("../../models/liveBroadcaster.model");
+const WithdrawalRequest = require("../../models/withdrawalRequest.model");
 
 //get dashboard count
 exports.fetchDashboardMetrics = async (req, res) => {
@@ -13,34 +14,44 @@ exports.fetchDashboardMetrics = async (req, res) => {
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
-      const formatStartDate = new Date(startDate);
-      const formatEndDate = new Date(endDate);
-      formatEndDate.setHours(23, 59, 59, 999);
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      e.setHours(23, 59, 59, 999);
 
       dateFilterQuery = {
-        createdAt: {
-          $gte: formatStartDate,
-          $lte: formatEndDate,
-        },
+        createdAt: { $gte: s, $lte: e },
       };
     }
 
     const revenueMatch = {
       ...dateFilterQuery,
-      type: { $in: [7, 8] }, // COIN + VIP purchases
-      userCoin: { $exists: true, $ne: 0 },
-      price: { $exists: true, $ne: 0 },
+      type: { $in: [7, 8] }, // coin + vip
     };
 
-    const [totalUsers, totalBlockedUsers, totalVipUsers, totalPendingHosts, totalHosts, totalAgency, totalImpressions, totalCurrentLiveHosts, revenueResult] = await Promise.all([
+    const [
+      totalUsers,
+      totalBlockedUsers,
+      totalVipUsers,
+      totalPendingHosts,
+      totalHosts,
+      totalAgency,
+      totalImpressions,
+      totalCurrentLiveHosts,
+      revenueAgg,
+      coinSoldAgg,
+      adminCommissionAgg,
+      hostEarningAgg,
+      payoutCompletedAgg,
+      pendingPayoutAgg,
+    ] = await Promise.all([
       User.countDocuments(dateFilterQuery),
       User.countDocuments({ ...dateFilterQuery, isBlock: true }),
       User.countDocuments({ ...dateFilterQuery, isVip: true }),
       Host.countDocuments({ ...dateFilterQuery, status: 1, agencyId: null }),
       Host.countDocuments({ ...dateFilterQuery, status: 2, isFake: false }),
-      Agency.countDocuments({ ...dateFilterQuery }),
-      Impression.countDocuments({ ...dateFilterQuery }),
-      LiveBroadcaster.countDocuments({ ...dateFilterQuery }),
+      Agency.countDocuments(dateFilterQuery),
+      Impression.countDocuments(dateFilterQuery),
+      LiveBroadcaster.countDocuments(dateFilterQuery),
       History.aggregate([
         { $match: revenueMatch },
         {
@@ -49,14 +60,70 @@ exports.fetchDashboardMetrics = async (req, res) => {
             totalRevenue: { $sum: "$price" },
           },
         },
-      ]),
+      ]), // Gross / Net Revenue
+      History.aggregate([
+        { $match: revenueMatch },
+        {
+          $group: {
+            _id: null,
+            coinsSold: { $sum: "$userCoin" },
+          },
+        },
+      ]), // Coins Sold
+      History.aggregate([
+        { $match: dateFilterQuery },
+        {
+          $group: {
+            _id: null,
+            adminCommission: { $sum: "$adminCoin" },
+          },
+        },
+      ]), // Admin Commission
+      History.aggregate([
+        { $match: dateFilterQuery },
+        {
+          $group: {
+            _id: null,
+            hostEarning: { $sum: "$hostCoin" },
+          },
+        },
+      ]), // Host Earnings
+      WithdrawalRequest.aggregate([
+        {
+          $match: {
+            ...dateFilterQuery,
+            status: 2, // APPROVED
+            person: 2, // HOST
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            payoutCompleted: { $sum: "$coin" },
+          },
+        },
+      ]), // Host Payout Completed
+      Host.aggregate([
+        {
+          $match: {
+            status: 2,
+            isFake: false,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            pendingLiability: {
+              $sum: { $subtract: ["$coin", "$redeemedCoins"] },
+            },
+          },
+        },
+      ]), // Pending Payout Liability
     ]);
-
-    const totalRevenue = revenueResult?.[0]?.totalRevenue || 0;
 
     return res.status(200).json({
       status: true,
-      message: "Get admin panel dashboard count.",
+      message: "Admin dashboard metrics fetched successfully",
       data: {
         totalUsers,
         totalBlockedUsers,
@@ -66,12 +133,21 @@ exports.fetchDashboardMetrics = async (req, res) => {
         totalAgency,
         totalImpressions,
         totalCurrentLiveHosts,
-        totalRevenue,
+        grossPaymentsCollected: revenueAgg?.[0]?.totalRevenue || 0,
+        netPaymentsReceived: revenueAgg?.[0]?.totalRevenue || 0, // gateway fee handled UI-side
+        coinsSold: coinSoldAgg?.[0]?.coinsSold || 0,
+        adminCommissionEarned: adminCommissionAgg?.[0]?.adminCommission || 0,
+        hostEarningsGenerated: hostEarningAgg?.[0]?.hostEarning || 0,
+        hostPayoutsCompleted: payoutCompletedAgg?.[0]?.payoutCompleted || 0,
+        pendingPayoutLiability: pendingPayoutAgg?.[0]?.pendingLiability || 0,
       },
     });
   } catch (error) {
     console.error(error);
-    return res.status(200).json({ status: false, message: error.message || "Internal Server Error" });
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
 
