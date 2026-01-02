@@ -470,3 +470,74 @@ exports.deactivateMyAccount = async (req, res) => {
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
+
+// GET Firebase UID using Device UUID
+exports.fetchFirebaseUidByDevice = async (req, res) => {
+  try {
+    const { deviceUuid, loginType } = req.query;
+
+    if (!deviceUuid) {
+      return res.status(400).json({
+        status: false,
+        message: "Device UUID is required.",
+      });
+    }
+
+    if (!loginType) {
+      return res.status(400).json({
+        status: false,
+        message: "Login type is required.",
+      });
+    }
+
+    const user = await User.findOne({ identity: deviceUuid.trim(), loginType: Number(loginType) }, { firebaseUid: 1 }).lean();
+
+    if (!user || !user.firebaseUid) {
+      return res.status(404).json({
+        status: false,
+        message: "Firebase UID not found for this device.",
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Firebase UID fetched successfully.",
+      firebaseUid: user.firebaseUid,
+    });
+  } catch (error) {
+    console.error("Fetch Firebase UID Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Internal Server Error",
+    });
+  }
+};
+
+// CREATE Firebase Custom Token using Firebase UID
+exports.createFirebaseCustomAuthToken = async (req, res) => {
+  try {
+    const { firebaseUid } = req.query;
+
+    if (!firebaseUid) {
+      return res.status(400).json({
+        status: false,
+        message: "Firebase UID is required.",
+      });
+    }
+
+    const firebaseAdmin = await admin;
+    const customToken = await firebaseAdmin.auth().createCustomToken(firebaseUid);
+
+    return res.status(200).json({
+      status: true,
+      message: "Firebase custom auth token created successfully.",
+      customToken,
+    });
+  } catch (error) {
+    console.error("Create Custom Token Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Failed to create Firebase custom auth token.",
+    });
+  }
+};

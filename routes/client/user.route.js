@@ -34,4 +34,10 @@ route.get("/retrieveUserProfile", validateUserToken, checkAccessWithSecretKey(),
 //delete user
 route.delete("/deactivateMyAccount", validateUserToken, checkAccessWithSecretKey(), UserController.deactivateMyAccount);
 
+// GET Firebase UID using Device UUID
+route.get("/fetchFirebaseUidByDevice", checkAccessWithSecretKey(), UserController.fetchFirebaseUidByDevice);
+
+// CREATE Firebase Custom Token using Firebase UID
+route.get("/createFirebaseCustomAuthToken", checkAccessWithSecretKey(), UserController.createFirebaseCustomAuthToken);
+
 module.exports = route;
