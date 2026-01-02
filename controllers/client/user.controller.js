@@ -415,32 +415,58 @@ exports.deactivateMyAccount = async (req, res) => {
       message: "User and related data successfully deleted.",
     });
 
-    if (user.isHost && user.hostId !== null) {
-      const host = await Host.findById(user.hostId).select("_id image photoGallery video liveVideo").lean();
-      if (host) {
-        deleteFileIfExists(host?.image);
+    // if (user.isHost && user.hostId !== null) {
+    //   const host = await Host.findById(user.hostId).select("_id image photoGallery video liveVideo").lean();
+    //   if (host) {
+    //     deleteFileIfExists(host?.image);
 
-        if (Array.isArray(host.photoGallery)) {
-          for (const imgPath of host.photoGallery) {
-            deleteFileIfExists(imgPath);
-          }
+    //     if (Array.isArray(host.photoGallery)) {
+    //       for (const imgPath of host.photoGallery) {
+    //         deleteFileIfExists(imgPath);
+    //       }
+    //     }
+
+    //     if (Array.isArray(host.video)) {
+    //       for (const imgPath of host.video) {
+    //         deleteFileIfExists(imgPath);
+    //       }
+    //     }
+
+    //     if (Array.isArray(host.liveVideo)) {
+    //       for (const imgPath of host.liveVideo) {
+    //         deleteFileIfExists(imgPath);
+    //       }
+    //     }
+
+    //     await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
+    //     await Host.deleteOne({ _id: host?._id });
+    //   }
+    // }
+
+    const host = await Host.findOne({ userId: user?._id }).select("_id image photoGallery video liveVideo profileVideo identityProof").lean();
+    if (host) {
+      deleteFileIfExists(host?.image);
+
+      if (Array.isArray(host.photoGallery)) {
+        for (const imgPath of host.photoGallery) {
+          deleteFileIfExists(imgPath);
         }
-
-        if (Array.isArray(host.video)) {
-          for (const imgPath of host.video) {
-            deleteFileIfExists(imgPath);
-          }
-        }
-
-        if (Array.isArray(host.liveVideo)) {
-          for (const imgPath of host.liveVideo) {
-            deleteFileIfExists(imgPath);
-          }
-        }
-
-        await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
-        await Host.deleteOne({ _id: host?._id });
       }
+
+      if (Array.isArray(host.video)) {
+        for (const imgPath of host.video) {
+          deleteFileIfExists(imgPath);
+        }
+      }
+
+      if (Array.isArray(host.liveVideo)) {
+        for (const imgPath of host.liveVideo) {
+          deleteFileIfExists(imgPath);
+        }
+      }
+
+      await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
+      await Host.deleteOne({ _id: host?._id });
     }
 
     if (user?.image) {
