@@ -81,10 +81,17 @@ chatQueue.process("repeat", async (job) => {
   }
 
   const [hosts, users, latestMessageDoc] = await Promise.all([
-    Host.find({ video: { $ne: [] } })
+    Host.find({
+      isFake: true,
+      video: { $ne: [] },
+    })
       .sort({ createdAt: -1 })
       .select("_id name image video isFake"),
-    User.find({ fcmToken: { $ne: null } })
+    User.find({
+      isHost: false,
+      hostId: null,
+      fcmToken: { $ne: null },
+    })
       .sort({ createdAt: -1 })
       .select("_id name image fcmToken")
       .lean(),
