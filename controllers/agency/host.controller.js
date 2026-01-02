@@ -29,7 +29,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
       Host.countDocuments({ agencyId: agencyId, status: status, isBlock: false, isFake: false }),
       Host.find({ agencyId: agencyId, status: status, isBlock: false, isFake: false })
         .select(
-          "_id name gender image photoGallery impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId reason createdAt"
+          "_id name gender image photoGallery profileVideo impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId reason createdAt"
         )
         .skip((start - 1) * limit)
         .limit(limit)
@@ -224,6 +224,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
             image: 1,
             impression: 1,
             identityProofType: 1,
+            identityProof: 1,
             uniqueId: 1,
             isOnline: 1,
             isBusy: 1,
@@ -232,6 +233,8 @@ exports.retrieveAgencyHosts = async (req, res) => {
             country: 1,
             totalFollowers: 1,
             createdAt: 1,
+            photoGallery: 1,
+            profileVideo: 1,
           },
         },
       ]),
