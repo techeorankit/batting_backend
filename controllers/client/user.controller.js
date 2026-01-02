@@ -98,7 +98,8 @@ exports.signInOrSignUpUser = async (req, res) => {
         if (!identity && !email) {
           return res.status(200).json({ status: false, message: "Either identity or email is required." });
         }
-        userQuery = {};
+        // userQuery = {};
+        userQuery = { firebaseUid: uid, loginType: 3 };
         break;
       default:
         if (req.file) deleteFile(req.file);
@@ -107,11 +108,20 @@ exports.signInOrSignUpUser = async (req, res) => {
 
     let user = null;
     if (Object.keys(userQuery).length > 0) {
-      user = await User.findOne(userQuery).select("_id loginType name image fcmToken lastlogin isBlock isHost hostId");
+      user = await User.findOne(userQuery).select("_id loginType name image fcmToken lastlogin isBlock isHost hostId firebaseUid");
     }
 
     if (user) {
       console.log("✅ User already exists, logging in...");
+
+      if (user.firebaseUid && user.firebaseUid !== uid) {
+        console.log("If a user exists but firebaseUid mismatch");
+        console.warn(`⚠️ UID mismatch — token UID (${uid}) vs user.firebaseUid (${user.firebaseUid})`);
+        return res.status(403).json({
+          status: false,
+          message: "Identity already taken or unauthorized login attempt.",
+        });
+      }
 
       if (user.isBlock) {
         return res.status(403).json({ status: false, message: "🚷 User is blocked by the admin." });
@@ -298,6 +308,13 @@ exports.signInOrSignUpUser = async (req, res) => {
       }
     }
   } catch (error) {
+    if (error.code === 11000 && error?.keyPattern?.firebaseUid) {
+      return res.status(200).json({
+        status: false,
+        message: "User already exists.",
+      });
+    }
+
     if (req.file) deleteFile(req.file);
     console.error("Error:", error);
     res.status(500).json({ status: false, message: "Internal Server Error" });
