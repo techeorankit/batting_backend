@@ -95,14 +95,17 @@ exports.getVipPlans = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const vipPlans = await VipPlan.find()
-      .select("validity validityType coin price isActive productId")
-      .sort({ coin: 1, price: 1 })
-      .skip((start - 1) * limit)
-      .limit(limit)
-      .lean();
+    const [total, vipPlans] = await Promise.all([
+      VipPlan.countDocuments(),
+      VipPlan.find()
+        .select("validity validityType coin price isActive productId")
+        .sort({ coin: 1, price: 1 })
+        .skip((start - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
 
-    return res.status(200).json({ status: true, message: "VIP plans retrieved successfully.", data: vipPlans });
+    return res.status(200).json({ status: true, message: "VIP plans retrieved successfully.", total, data: vipPlans });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });

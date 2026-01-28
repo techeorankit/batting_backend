@@ -24,39 +24,83 @@ exports.fetchHostRequest = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops ! Invalid details!" });
     }
 
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const start = Math.max(parseInt(req.query.start) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 20, 1);
+
+    const statusParam = req.query.status;
+    const search = req.query.search?.trim() || "All";
 
     let matchQuery = { isFake: false };
-
-    if (req.query.status !== "All") {
-      const statusInt = parseInt(req.query.status);
+    if (statusParam !== "All") {
+      const statusInt = parseInt(statusParam);
       matchQuery.status = statusInt;
-
-      if (statusInt === 1) {
-        matchQuery.agencyId = null;
-      }
+      if (statusInt === 1) matchQuery.agencyId = null;
     }
 
-    const [total, request] = await Promise.all([
-      Host.countDocuments(matchQuery),
-      Host.find(matchQuery)
-        .populate("userId", "name image uniqueId")
-        .populate("agencyId", "name image agencyCode")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+    const result = await Host.aggregate([
+      { $match: matchQuery },
+
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "userId",
+          pipeline: [{ $project: { _id: 1, name: 1, image: 1, uniqueId: 1 } }],
+        },
+      },
+      { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
+
+      {
+        $lookup: {
+          from: "agencies",
+          localField: "agencyId",
+          foreignField: "_id",
+          as: "agencyId",
+          pipeline: [{ $project: { _id: 1, name: 1, image: 1, agencyCode: 1 } }],
+        },
+      },
+      { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [
+                  { "userId.name": { $regex: search, $options: "i" } },
+                  { "userId.uniqueId": { $regex: search, $options: "i" } },
+
+                  { "agencyId.name": { $regex: search, $options: "i" } },
+                  { "agencyId.agencyCode": { $regex: search, $options: "i" } },
+
+                  { name: { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                  { email: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+        : []),
+
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [{ $sort: { createdAt: -1 } }, { $skip: (start - 1) * limit }, { $limit: limit }],
+        },
+      },
     ]);
+
+    const total = result[0]?.metadata[0]?.total || 0;
+    const request = result[0]?.data || [];
 
     return res.status(200).json({
       status: true,
       message: "Retrieve host's request for admin.",
-      total: total || 0,
+      total,
       data: request,
     });
   } catch (error) {
-    console.error(error);
+    console.error("fetchHostRequest error:", error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
   }
 };
@@ -269,7 +313,7 @@ exports.assignHostToAgency = async (req, res) => {
             isHost: true,
             hostId: hostRequest._id,
           },
-        }
+        },
       ),
     ]);
 
@@ -299,98 +343,108 @@ exports.assignHostToAgency = async (req, res) => {
 //get agency's hosts
 exports.listAgencyHosts = async (req, res) => {
   try {
-    if (!req.query.agencyId) {
-      return res.status(200).json({ status: false, message: "agencyId must be needed." });
+    if (!req.query.agencyId || !mongoose.Types.ObjectId.isValid(req.query.agencyId)) {
+      return res.status(200).json({
+        status: false,
+        message: "Valid agencyId is required",
+      });
     }
 
     const agencyId = new mongoose.Types.ObjectId(req.query.agencyId);
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const searchString = req.query.search || "";
+    const start = Math.max(parseInt(req.query.start) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 20, 1);
+
+    const search = req.query.search?.trim() || "All";
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
 
-    let dateFilterQuery = {};
-    if (startDate !== "All" && endDate !== "All") {
-      const startDateObj = new Date(startDate);
-      const endDateObj = new Date(endDate);
-      endDateObj.setHours(23, 59, 59, 999);
-
-      dateFilterQuery = {
-        createdAt: {
-          $gte: startDateObj,
-          $lte: endDateObj,
-        },
-      };
+    let dateFilter = {};
+    if (startDate && endDate && startDate !== "All" && endDate !== "All") {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      e.setHours(23, 59, 59, 999);
+      dateFilter.createdAt = { $gte: s, $lte: e };
     }
 
-    let searchQuery = {};
-    if (searchString !== "All" && searchString !== "") {
-      searchQuery = {
-        $or: [{ name: { $regex: searchString, $options: "i" } }, { email: { $regex: searchString, $options: "i" } }, { uniqueId: { $regex: searchString, $options: "i" } }],
-      };
+    let searchFilter = {};
+    if (search && search !== "All") {
+      searchFilter.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }];
     }
 
-    const baseQuery = {
-      ...dateFilterQuery,
-      ...searchQuery,
-      agencyId: agencyId,
+    const matchStage = {
+      agencyId,
       status: 2,
       isFake: false,
+      ...dateFilter,
+      ...searchFilter,
     };
 
-    const [agency, hosts] = await Promise.all([
-      Agency.findOne({ _id: agencyId, isBlock: false }).lean(),
-      Host.aggregate([
-        { $match: baseQuery },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-        {
-          $lookup: {
-            from: "followerfollowings",
-            localField: "_id",
-            foreignField: "followingId",
-            as: "followers",
-          },
+    const result = await Host.aggregate([
+      { $match: matchStage },
+
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+
+          data: [
+            {
+              $lookup: {
+                from: "followerfollowings",
+                let: { hostId: "$_id" },
+                pipeline: [{ $match: { $expr: { $eq: ["$followingId", "$$hostId"] } } }, { $count: "count" }],
+                as: "followers",
+              },
+            },
+            {
+              $addFields: {
+                totalFollowers: {
+                  $ifNull: [{ $arrayElemAt: ["$followers.count", 0] }, 0],
+                },
+              },
+            },
+
+            {
+              $project: {
+                name: 1,
+                gender: 1,
+                image: 1,
+                impression: 1,
+                identityProofType: 1,
+                uniqueId: 1,
+                isOnline: 1,
+                isBusy: 1,
+                isLive: 1,
+                countryFlagImage: 1,
+                country: 1,
+                totalFollowers: 1,
+                createdAt: 1,
+              },
+            },
+
+            { $sort: { createdAt: -1 } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
+          ],
         },
-        {
-          $addFields: {
-            totalFollowers: { $size: "$followers" },
-          },
-        },
-        {
-          $project: {
-            name: 1,
-            gender: 1,
-            image: 1,
-            impression: 1,
-            identityProofType: 1,
-            uniqueId: 1,
-            isOnline: 1,
-            isBusy: 1,
-            isLive: 1,
-            countryFlagImage: 1,
-            country: 1,
-            totalFollowers: 1,
-          },
-        },
-      ]),
+      },
     ]);
 
-    if (!agency) {
-      return res.status(200).json({ status: false, message: "Agency not found!" });
-    }
+    const totalHosts = result[0]?.metadata[0]?.total || 0;
+    const hosts = result[0]?.data || [];
 
     return res.status(200).json({
       status: true,
-      message: "Agency wise hosts fetched successfully!",
+      message: "Agency wise hosts fetched successfully",
+      total: totalHosts,
       hosts,
     });
   } catch (error) {
-    console.error("Error fetching agency wise hosts:", error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    console.error("listAgencyHosts error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+    });
   }
 };
 
@@ -784,137 +838,139 @@ exports.fetchHostList = async (req, res) => {
       return res.status(200).json({ status: false, message: "Host type is required!" });
     }
 
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const start = Math.max(parseInt(req.query.start) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 20, 1);
 
-    const searchString = req.query.search || "";
+    const hostType = parseInt(req.query.type);
+    const search = req.query.search?.trim() || "All";
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
-    const hostType = parseInt(req.query.type);
 
-    let dateFilterQuery = {};
-    if (startDate !== "All" && endDate !== "All") {
-      const startDateObj = new Date(startDate);
-      const endDateObj = new Date(endDate);
-      endDateObj.setHours(23, 59, 59, 999);
-
-      dateFilterQuery = {
-        createdAt: {
-          $gte: startDateObj,
-          $lte: endDateObj,
-        },
-      };
+    let dateFilter = {};
+    if (startDate && endDate && startDate !== "All" && endDate !== "All") {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      e.setHours(23, 59, 59, 999);
+      dateFilter.createdAt = { $gte: s, $lte: e };
     }
 
-    let searchQuery = {};
-    if (searchString !== "All" && searchString !== "") {
-      searchQuery = {
-        $or: [{ name: { $regex: searchString, $options: "i" } }, { email: { $regex: searchString, $options: "i" } }, { uniqueId: { $regex: searchString, $options: "i" } }],
-      };
+    let searchFilter = {};
+    if (search && search !== "All") {
+      searchFilter.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }];
     }
 
     const filter = {
-      ...dateFilterQuery,
-      ...searchQuery,
       status: 2,
       isFake: hostType === 1 ? false : true,
+      ...dateFilter,
+      ...searchFilter,
     };
 
-    const [totalHosts, hostList] = await Promise.all([
-      Host.countDocuments(filter),
-      Host.aggregate([
-        { $match: filter },
-        {
-          $lookup: {
-            from: "followerfollowings",
-            localField: "_id",
-            foreignField: "followingId",
-            as: "followers",
-          },
+    const result = await Host.aggregate([
+      { $match: filter },
+
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+
+          data: [
+            {
+              $lookup: {
+                from: "followerfollowings",
+                let: { hostId: "$_id" },
+                pipeline: [{ $match: { $expr: { $eq: ["$followingId", "$$hostId"] } } }, { $count: "count" }],
+                as: "followers",
+              },
+            },
+            {
+              $addFields: {
+                totalFollowers: {
+                  $ifNull: [{ $arrayElemAt: ["$followers.count", 0] }, 0],
+                },
+              },
+            },
+
+            {
+              $lookup: {
+                from: "users",
+                localField: "userId",
+                foreignField: "_id",
+                pipeline: [{ $project: { _id: 1, name: 1, image: 1, uniqueId: 1 } }],
+                as: "userId",
+              },
+            },
+            { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
+
+            {
+              $lookup: {
+                from: "agencies",
+                localField: "agencyId",
+                foreignField: "_id",
+                pipeline: [{ $project: { _id: 1, name: 1, image: 1, agencyCode: 1 } }],
+                as: "agencyId",
+              },
+            },
+            { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+
+            {
+              $project: {
+                name: 1,
+                gender: 1,
+                bio: 1,
+                age: 1,
+                dob: 1,
+                email: 1,
+                image: 1,
+                video: 1,
+                liveVideo: 1,
+                profileVideo: 1,
+                impression: 1,
+                identityProofType: 1,
+                identityProof: 1,
+                photoGallery: 1,
+                uniqueId: 1,
+                isBlock: 1,
+                isOnline: 1,
+                isBusy: 1,
+                isLive: 1,
+                countryFlagImage: 1,
+                country: 1,
+                randomCallRate: 1,
+                randomCallFemaleRate: 1,
+                randomCallMaleRate: 1,
+                privateCallRate: 1,
+                audioCallRate: 1,
+                chatRate: 1,
+                coin: 1,
+                totalGifts: 1,
+                language: 1,
+                totalFollowers: 1,
+                createdAt: 1,
+                userId: 1,
+                agencyId: 1,
+              },
+            },
+
+            { $sort: { createdAt: -1 } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
+          ],
         },
-        {
-          $lookup: {
-            from: "users",
-            localField: "userId",
-            foreignField: "_id",
-            as: "userId",
-          },
-        },
-        { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: "agencies",
-            localField: "agencyId",
-            foreignField: "_id",
-            as: "agencyId",
-          },
-        },
-        { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
-        {
-          $addFields: {
-            totalFollowers: { $size: "$followers" },
-          },
-        },
-        {
-          $project: {
-            name: 1,
-            gender: 1,
-            bio: 1,
-            age: 1,
-            dob: 1,
-            email: 1,
-            image: 1,
-            video: 1,
-            liveVideo: 1,
-            profileVideo: 1,
-            impression: 1,
-            identityProofType: 1,
-            identityProof: 1,
-            photoGallery: 1,
-            uniqueId: 1,
-            isBlock: 1,
-            isOnline: 1,
-            isBusy: 1,
-            isLive: 1,
-            countryFlagImage: 1,
-            country: 1,
-            photoGallery: 1,
-            randomCallRate: 1,
-            randomCallFemaleRate: 1,
-            randomCallMaleRate: 1,
-            privateCallRate: 1,
-            audioCallRate: 1,
-            chatRate: 1,
-            coin: 1,
-            totalGifts: 1,
-            language: 1,
-            totalFollowers: 1,
-            createdAt: 1,
-            "userId._id": 1,
-            "userId.name": 1,
-            "userId.image": 1,
-            "userId.uniqueId": 1,
-            "agencyId._id": 1,
-            "agencyId.name": 1,
-            "agencyId.image": 1,
-            "agencyId.agencyCode": 1,
-          },
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-      ]),
+      },
     ]);
+
+    const totalHosts = result[0]?.metadata[0]?.total || 0;
+    const hostList = result[0]?.data || [];
 
     return res.status(200).json({
       status: true,
-      message: "Hosts retrieved successfully!",
+      message: "Hosts retrieved successfully",
       totalHosts,
       hostList,
     });
   } catch (error) {
-    console.error("Error fetching hosts:", error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    console.error("fetchHostList error:", error);
+    return res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
 

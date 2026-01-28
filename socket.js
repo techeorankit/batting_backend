@@ -130,7 +130,7 @@ io.on("connection", async (socket) => {
           {
             $set: { chatId: chat._id },
             $inc: { messageCount: 1 },
-          }
+          },
         ),
       ]);
 
@@ -158,6 +158,9 @@ io.on("connection", async (socket) => {
           adminShare = (chatRate * adminCommissionRate) / 100;
           hostEarnings = chatRate - adminShare;
 
+          adminShare = Number(adminShare.toFixed(2));
+          hostEarnings = Number(hostEarnings.toFixed(2));
+
           let agencyUpdate = null;
           if (receiver.agencyId) {
             const agency = await Agency.findById(receiver.agencyId).lean().select("_id commissionType commission");
@@ -171,20 +174,19 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+              agencyShare = Number(agencyShare.toFixed(2));
+
+              agencyUpdate = Agency.updateOne(
+                { _id: agency._id },
                 {
-                  $set: {
-                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
-                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-                    totalEarningsWithCommissionAndHostCoin: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
-                    netAvailableEarnings: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
+                  $inc: {
+                    hostCoins: hostEarnings,
+                    totalEarnings: agencyShare,
+                    netAvailableEarnings: hostEarnings + agencyShare,
+                    totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
                   },
                 },
-              ]);
+              );
             }
           }
 
@@ -196,7 +198,7 @@ io.on("connection", async (socket) => {
                   coin: -deductedCoins,
                   spentCoins: deductedCoins,
                 },
-              }
+              },
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.create({
@@ -208,7 +210,7 @@ io.on("connection", async (socket) => {
               userCoin: chatRate,
               hostCoin: hostEarnings,
               adminCoin: adminShare,
-              agencyCoin: Math.floor(agencyShare),
+              agencyCoin: agencyShare,
               date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
             }),
             agencyUpdate,
@@ -332,7 +334,7 @@ io.on("connection", async (socket) => {
         { _id: chatTopic._id },
         {
           $set: { chatId: chat._id },
-        }
+        },
       ),
     ]);
 
@@ -344,9 +346,15 @@ io.on("connection", async (socket) => {
     io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("chatGiftSent", eventData);
     io.in("globalRoom:" + chatTopic?.receiverId?.toString()).emit("chatGiftSent", eventData);
 
-    let adminShare = (totalGiftCost * adminCommissionRate) / 100;
-    let hostEarnings = totalGiftCost - adminShare;
+    let adminShare = 0;
+    let hostEarnings = 0;
     let agencyShare = 0;
+
+    adminShare = (totalGiftCost * adminCommissionRate) / 100;
+    hostEarnings = totalGiftCost - adminShare;
+
+    adminShare = Number(adminShare.toFixed(2));
+    hostEarnings = Number(hostEarnings.toFixed(2));
 
     let agencyUpdate = null;
     if (receiver.agencyId) {
@@ -361,20 +369,19 @@ io.on("connection", async (socket) => {
           agencyShare = 0;
         }
 
-        agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+        agencyShare = Number(agencyShare.toFixed(2));
+
+        agencyUpdate = Agency.updateOne(
+          { _id: agency._id },
           {
-            $set: {
-              hostCoins: { $add: ["$hostCoins", hostEarnings] },
-              totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-              totalEarningsWithCommissionAndHostCoin: {
-                $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-              },
-              netAvailableEarnings: {
-                $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-              },
+            $inc: {
+              hostCoins: hostEarnings,
+              totalEarnings: agencyShare,
+              netAvailableEarnings: hostEarnings + agencyShare,
+              totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
             },
           },
-        ]);
+        );
       }
     }
 
@@ -386,7 +393,7 @@ io.on("connection", async (socket) => {
             coin: -totalGiftCost,
             spentCoins: totalGiftCost,
           },
-        }
+        },
       ),
       Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings, totalGifts: 1 } }),
       History.create({
@@ -404,13 +411,13 @@ io.on("connection", async (socket) => {
         userCoin: totalGiftCost,
         hostCoin: hostEarnings,
         adminCoin: adminShare,
-        agencyCoin: Math.floor(agencyShare),
+        agencyCoin: agencyShare,
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),
       agencyUpdate,
     ]);
 
-    console.log(`💰 Gift Sent | Cost: ${totalGiftCost} | Admin Share: ${adminShare} | Host Earnings: ${hostEarnings}`);
+    console.log(`💰 Gift Sent | Cost: ${totalGiftCost} | Admin Share: ${adminShare} | Host Earnings: ${hostEarnings} | Agency Earnings: ${agencyShare}`);
 
     if (receiver && !receiver.isBlock && receiver.fcmToken) {
       const payload = {
@@ -463,7 +470,7 @@ io.on("connection", async (socket) => {
     const parsedData = JSON.parse(data);
     console.log("callRinging request received:", parsedData);
 
-    const { callerId, receiverId, agoraUID, channel, callType, callerRole, receiverRole } = parsedData;
+    const { callerId, receiverId, agoraUID, channel, callType, callerRole, receiverRole, audioCallCharge, videoCallCharge } = parsedData;
 
     const validRoles = ["user", "host"];
     if (!validRoles.includes(callerRole?.toLowerCase()) || !validRoles.includes(receiverRole?.toLowerCase())) {
@@ -558,7 +565,7 @@ io.on("connection", async (socket) => {
               isBusy: true,
               callId: callHistory._id.toString(),
             },
-          }
+          },
         ),
         receiverModel.updateOne(
           {
@@ -574,7 +581,7 @@ io.on("connection", async (socket) => {
               isBusy: true,
               callId: callHistory._id.toString(),
             },
-          }
+          },
         ),
       ]);
 
@@ -596,6 +603,8 @@ io.on("connection", async (socket) => {
           receiverRole,
           token,
           channel,
+          audioCallCharge,
+          videoCallCharge,
         };
 
         io.in("globalRoom:" + receiver._id.toString()).emit("callIncoming", dataOfVideoCall); // Notify receiver
@@ -1217,7 +1226,7 @@ io.on("connection", async (socket) => {
             isRead: true,
           },
         },
-        { new: true }
+        { new: true },
       ),
       callHistory.save(),
     ]);
@@ -1255,9 +1264,15 @@ io.on("connection", async (socket) => {
           audioCallCharge = audioCallCharge - discountAmount;
         }
 
-        const adminShare = Math.floor((audioCallCharge * adminCommissionRate) / 100);
-        const hostEarnings = audioCallCharge - adminShare;
+        let adminShare = 0;
+        let hostEarnings = 0;
         let agencyShare = 0;
+
+        adminShare = Math.floor((audioCallCharge * adminCommissionRate) / 100);
+        hostEarnings = audioCallCharge - adminShare;
+
+        adminShare = Number(adminShare.toFixed(2));
+        hostEarnings = Number(hostEarnings.toFixed(2));
 
         if (caller.coin >= audioCallCharge) {
           let agencyUpdate = null;
@@ -1273,20 +1288,19 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+              agencyShare = Number(agencyShare.toFixed(2));
+
+              agencyUpdate = Agency.updateOne(
+                { _id: agency._id },
                 {
-                  $set: {
-                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
-                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-                    totalEarningsWithCommissionAndHostCoin: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
-                    netAvailableEarnings: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
+                  $inc: {
+                    hostCoins: hostEarnings,
+                    totalEarnings: agencyShare,
+                    netAvailableEarnings: hostEarnings + agencyShare,
+                    totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
                   },
                 },
-              ]);
+              );
             }
           }
 
@@ -1300,7 +1314,7 @@ io.on("connection", async (socket) => {
                   coin: -audioCallCharge,
                   spentCoins: audioCallCharge,
                 },
-              }
+              },
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.updateOne(
@@ -1314,9 +1328,9 @@ io.on("connection", async (socket) => {
                   userCoin: audioCallCharge,
                   hostCoin: hostEarnings,
                   adminCoin: adminShare,
-                  agencyCoin: Math.floor(agencyShare),
+                  agencyCoin: agencyShare,
                 },
-              }
+              },
             ),
             agencyUpdate,
           ]);
@@ -1341,9 +1355,15 @@ io.on("connection", async (socket) => {
           privateCallCharge = privateCallCharge - discountAmount;
         }
 
-        const adminShare = Math.floor((privateCallCharge * adminCommissionRate) / 100);
-        const hostEarnings = privateCallCharge - adminShare;
+        let adminShare = 0;
+        let hostEarnings = 0;
         let agencyShare = 0;
+
+        adminShare = Math.floor((privateCallCharge * adminCommissionRate) / 100);
+        hostEarnings = privateCallCharge - adminShare;
+
+        adminShare = Number(adminShare.toFixed(2));
+        hostEarnings = Number(hostEarnings.toFixed(2));
 
         if (caller.coin >= privateCallCharge) {
           let agencyUpdate = null;
@@ -1359,20 +1379,19 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+              agencyShare = Number(agencyShare.toFixed(2));
+
+              agencyUpdate = Agency.updateOne(
+                { _id: agency._id },
                 {
-                  $set: {
-                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
-                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-                    totalEarningsWithCommissionAndHostCoin: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
-                    netAvailableEarnings: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
+                  $inc: {
+                    hostCoins: hostEarnings,
+                    totalEarnings: agencyShare,
+                    netAvailableEarnings: hostEarnings + agencyShare,
+                    totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
                   },
                 },
-              ]);
+              );
             }
           }
 
@@ -1386,7 +1405,7 @@ io.on("connection", async (socket) => {
                   coin: -privateCallCharge,
                   spentCoins: privateCallCharge,
                 },
-              }
+              },
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.updateOne(
@@ -1400,9 +1419,9 @@ io.on("connection", async (socket) => {
                   userCoin: privateCallCharge,
                   hostCoin: hostEarnings,
                   adminCoin: adminShare,
-                  agencyCoin: Math.floor(agencyShare),
+                  agencyCoin: agencyShare,
                 },
-              }
+              },
             ),
             agencyUpdate,
           ]);
@@ -1437,9 +1456,15 @@ io.on("connection", async (socket) => {
 
         const adminCommissionRate = settingJSON?.adminCommissionRate;
 
-        const adminShare = Math.floor((randomCallCharge * adminCommissionRate) / 100);
-        const hostEarnings = randomCallCharge - adminShare;
+        let adminShare = 0;
+        let hostEarnings = 0;
         let agencyShare = 0;
+
+        adminShare = Math.floor((randomCallCharge * adminCommissionRate) / 100);
+        hostEarnings = randomCallCharge - adminShare;
+
+        adminShare = Number(adminShare.toFixed(2));
+        hostEarnings = Number(hostEarnings.toFixed(2));
 
         if (caller.coin >= randomCallCharge) {
           let agencyUpdate = null;
@@ -1455,20 +1480,19 @@ io.on("connection", async (socket) => {
                 agencyShare = 0;
               }
 
-              agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+              agencyShare = Number(agencyShare.toFixed(2));
+
+              agencyUpdate = Agency.updateOne(
+                { _id: agency._id },
                 {
-                  $set: {
-                    hostCoins: { $add: ["$hostCoins", hostEarnings] },
-                    totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-                    totalEarningsWithCommissionAndHostCoin: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
-                    netAvailableEarnings: {
-                      $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                    },
+                  $inc: {
+                    hostCoins: hostEarnings,
+                    totalEarnings: agencyShare,
+                    netAvailableEarnings: hostEarnings + agencyShare,
+                    totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
                   },
                 },
-              ]);
+              );
             }
           }
 
@@ -1482,7 +1506,7 @@ io.on("connection", async (socket) => {
                   coin: -randomCallCharge,
                   spentCoins: randomCallCharge,
                 },
-              }
+              },
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.updateOne(
@@ -1496,9 +1520,9 @@ io.on("connection", async (socket) => {
                   userCoin: randomCallCharge,
                   hostCoin: hostEarnings,
                   adminCoin: adminShare,
-                  agencyCoin: Math.floor(agencyShare),
+                  agencyCoin: agencyShare,
                 },
-              }
+              },
             ),
             agencyUpdate,
           ]);
@@ -1566,10 +1590,16 @@ io.on("connection", async (socket) => {
         const discountAmount = Math.floor((callCharge * discountPercent) / 100);
         callCharge -= discountAmount;
 
-        const adminShare = Math.floor((callCharge * adminCommissionRate) / 100);
-        const hostEarnings = callCharge - adminShare;
-
+        let adminShare = 0;
+        let hostEarnings = 0;
         let agencyShare = 0;
+
+        adminShare = Math.floor((callCharge * adminCommissionRate) / 100);
+        hostEarnings = callCharge - adminShare;
+
+        adminShare = Number(adminShare.toFixed(2));
+        hostEarnings = Number(hostEarnings.toFixed(2));
+
         let agencyUpdate = null;
 
         if (receiver.agencyId) {
@@ -1580,20 +1610,19 @@ io.on("connection", async (socket) => {
               agencyShare = (hostEarnings * agency.commission) / 100;
             }
 
-            agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+            agencyShare = Number(agencyShare.toFixed(2));
+
+            agencyUpdate = Agency.updateOne(
+              { _id: agency._id },
               {
-                $set: {
-                  hostCoins: { $add: ["$hostCoins", hostEarnings] },
-                  totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-                  totalEarningsWithCommissionAndHostCoin: {
-                    $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                  },
-                  netAvailableEarnings: {
-                    $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                  },
+                $inc: {
+                  hostCoins: hostEarnings,
+                  totalEarnings: agencyShare,
+                  netAvailableEarnings: hostEarnings + agencyShare,
+                  totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
                 },
               },
-            ]);
+            );
           }
         }
 
@@ -1606,7 +1635,7 @@ io.on("connection", async (socket) => {
                   coin: -callCharge,
                   spentCoins: callCharge,
                 },
-              }
+              },
             ),
             Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings } }),
             History.updateOne(
@@ -1620,9 +1649,9 @@ io.on("connection", async (socket) => {
                   userCoin: callCharge,
                   hostCoin: hostEarnings,
                   adminCoin: adminShare,
-                  agencyCoin: Math.floor(agencyShare),
+                  agencyCoin: agencyShare,
                 },
-              }
+              },
             ),
             agencyUpdate,
           ]);
@@ -1763,7 +1792,7 @@ io.on("connection", async (socket) => {
               isBusy: true,
               callId: callHistory._id.toString(),
             },
-          }
+          },
         ),
         receiverModel.updateOne(
           {
@@ -1779,7 +1808,7 @@ io.on("connection", async (socket) => {
               isBusy: true,
               callId: callHistory._id.toString(),
             },
-          }
+          },
         ),
       ]);
 
@@ -1820,8 +1849,8 @@ io.on("connection", async (socket) => {
               ? `${callerName} wants to randomly video chat with you! Tap to join 🔗`
               : `${callerName} is inviting you to a video call. Tap to connect now! 👥`
             : isRandom
-            ? `${callerName} wants a random audio chat! Tap to talk 🎙️`
-            : `${callerName} is calling you for an audio chat. Tap to join the conversation! 📞`;
+              ? `${callerName} wants a random audio chat! Tap to talk 🎙️`
+              : `${callerName} is calling you for an audio chat. Tap to join the conversation! 📞`;
 
           const payload = {
             token: receiver.fcmToken,
@@ -2015,13 +2044,13 @@ io.on("connection", async (socket) => {
         { _id: liveUser?._id },
         {
           $set: { view: totalViews },
-        }
+        },
       ),
       LiveBroadcastHistory.updateOne(
         { _id: liveHistoryId },
         {
           $set: { audienceCount: totalViews },
-        }
+        },
       ),
     ]);
   });
@@ -2142,9 +2171,16 @@ io.on("connection", async (socket) => {
       io.in(giftData.liveHistoryId).emit("liveGiftReceived", giftData);
 
       const adminCommissionRate = settingJSON.adminCommissionRate;
-      let adminShare = (totalCoin * adminCommissionRate) / 100;
-      let hostEarnings = totalCoin - adminShare;
+
+      let adminShare = 0;
+      let hostEarnings = 0;
       let agencyShare = 0;
+
+      adminShare = (totalCoin * adminCommissionRate) / 100;
+      hostEarnings = totalCoin - adminShare;
+
+      adminShare = Number(adminShare.toFixed(2));
+      hostEarnings = Number(hostEarnings.toFixed(2));
 
       let agencyUpdate = null;
       if (receiver.agencyId) {
@@ -2159,20 +2195,19 @@ io.on("connection", async (socket) => {
             agencyShare = 0;
           }
 
-          agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+          agencyShare = Number(agencyShare.toFixed(2));
+
+          agencyUpdate = Agency.updateOne(
+            { _id: agency._id },
             {
-              $set: {
-                hostCoins: { $add: ["$hostCoins", hostEarnings] },
-                totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-                totalEarningsWithCommissionAndHostCoin: {
-                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                },
-                netAvailableEarnings: {
-                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                },
+              $inc: {
+                hostCoins: hostEarnings,
+                totalEarnings: agencyShare,
+                netAvailableEarnings: hostEarnings + agencyShare,
+                totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
               },
             },
-          ]);
+          );
         }
       }
 
@@ -2186,7 +2221,7 @@ io.on("connection", async (socket) => {
                   gifts: giftCount,
                 },
               },
-              { new: true }
+              { new: true },
             )
           : Promise.resolve();
 
@@ -2198,7 +2233,7 @@ io.on("connection", async (socket) => {
               coin: -totalCoin,
               spentCoins: totalCoin,
             },
-          }
+          },
         ),
         Host.updateOne({ _id: receiver._id }, { $inc: { coin: hostEarnings, totalGifts: 1 } }),
         History.create({
@@ -2216,7 +2251,7 @@ io.on("connection", async (socket) => {
           userCoin: totalCoin,
           hostCoin: hostEarnings,
           adminCoin: adminShare,
-          agencyCoin: Math.floor(agencyShare),
+          agencyCoin: agencyShare,
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
         agencyUpdate,
@@ -2336,7 +2371,7 @@ io.on("connection", async (socket) => {
                       isRead: true,
                     },
                   },
-                  { new: true }
+                  { new: true },
                 ),
               ]);
             }
@@ -2375,7 +2410,7 @@ io.on("connection", async (socket) => {
                 liveHistoryId: null,
                 callId: null,
               },
-            }
+            },
           );
         } else {
           const user = await User.findById(personId).select("_id callId").lean();
@@ -2400,7 +2435,7 @@ io.on("connection", async (socket) => {
                       callId: null,
                       liveHistoryId: null,
                     },
-                  }
+                  },
                 ),
               ]);
 
@@ -2423,7 +2458,7 @@ io.on("connection", async (socket) => {
                         callType: 1, // 1 = Received Call
                         isRead: true,
                       },
-                    }
+                    },
                   ),
                 ]);
               }
@@ -2439,7 +2474,7 @@ io.on("connection", async (socket) => {
                   liveHistoryId: null,
                   callId: null,
                 },
-              }
+              },
             );
           }
         }

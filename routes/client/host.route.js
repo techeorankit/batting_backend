@@ -33,7 +33,7 @@ route.post(
     { name: "photoGallery", maxCount: 10 },
     { name: "profileVideo", maxCount: 10 },
   ]),
-  HostController.initiateHostRequest
+  HostController.initiateHostRequest,
 );
 
 //get host's request status ( user )
@@ -61,7 +61,7 @@ route.patch(
     { name: "photoGallery", maxCount: 10 },
     { name: "profileVideo", maxCount: 10 },
   ]),
-  HostController.modifyHostDetails
+  HostController.modifyHostDetails,
 );
 
 //get host thumblist ( host )

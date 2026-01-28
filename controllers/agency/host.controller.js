@@ -29,7 +29,7 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
       Host.countDocuments({ agencyId: agencyId, status: status, isBlock: false, isFake: false }),
       Host.find({ agencyId: agencyId, status: status, isBlock: false, isFake: false })
         .select(
-          "_id name gender image photoGallery profileVideo impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId reason createdAt"
+          "_id name gender image photoGallery profileVideo impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId reason createdAt",
         )
         .skip((start - 1) * limit)
         .limit(limit)
@@ -178,34 +178,45 @@ exports.manageHostRequest = async (req, res) => {
 exports.retrieveAgencyHosts = async (req, res) => {
   try {
     if (!req.agency || !req.agency._id) {
-      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+      return res.status(401).json({
+        status: false,
+        message: "Unauthorized access. Invalid token.",
+      });
     }
 
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const start = Math.max(parseInt(req.query.start) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 20, 1);
+    const search = req.query.search?.trim() || "All";
+
     const agencyId = new mongoose.Types.ObjectId(req.agency._id);
 
-    const [agency, total, hosts] = await Promise.all([
+    const matchStage = {
+      agencyId,
+      status: 2,
+      isFake: false,
+    };
+
+    if (search !== "All") {
+      matchStage.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { bio: { $regex: search, $options: "i" } },
+        { country: { $regex: search, $options: "i" } },
+        { uniqueId: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const [agency, totalResult, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId }).select("_id isBlock").lean(),
-      Host.countDocuments({
-        agencyId,
-        status: 2,
-        isFake: false,
-      }),
+      Host.countDocuments(matchStage),
       Host.aggregate([
-        {
-          $match: {
-            agencyId,
-            status: 2,
-            isFake: false,
-          },
-        },
+        { $match: matchStage },
         { $sort: { createdAt: -1 } },
         { $skip: (start - 1) * limit },
         { $limit: limit },
         {
           $lookup: {
-            from: "followerfollowings", // must match collection name
+            from: "followerfollowings",
             localField: "_id",
             foreignField: "followingId",
             as: "followers",
@@ -251,7 +262,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Agency wise hosts fetched successfully!",
-      total,
+      total: totalResult,
       hosts,
     });
   } catch (error) {

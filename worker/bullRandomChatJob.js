@@ -20,6 +20,17 @@ chatQueue.process("repeat", async (job) => {
   console.log("⏱ Repeat Job?", job.opts?.repeat ? "Yes" : "No");
   console.log("🔁 Repeat Info:", job.opts.repeat);
 
+  const isAutoMessageEnabled = typeof settingJSON?.isAutoMessageEnabled === "boolean" ? settingJSON.isAutoMessageEnabled : true;
+  if (!isAutoMessageEnabled) {
+    console.log("⛔ Auto-message disabled at runtime. Skipping execution.");
+
+    const repeatJobs = await chatQueue.getRepeatableJobs();
+    for (const job of repeatJobs) {
+      await chatQueue.removeRepeatableByKey(job.key);
+    }
+    return;
+  }
+
   const usersWithManyTopics = await ChatTopic.aggregate([
     {
       $match: {
@@ -64,17 +75,51 @@ chatQueue.process("repeat", async (job) => {
       receiverId: userId,
       chatId: { $ne: null },
     })
-      .sort({ _id: -1 }) // newest first
-      .select("_id")
+      .sort({ _id: -1 })
+      .select("_id senderId receiverId chatId")
+      .lean();
+    console.log(`🔍 Processing user: ${userId}, total topics: ${allTopics.length}`);
+
+    if (!allTopics || allTopics.length === 0) {
+      console.log(`✅ No topics found for user ${userId}`);
+      continue;
+    }
+
+    const hostIds = allTopics.map((t) => t.senderId).filter(Boolean);
+
+    const hosts = await Host.find({ _id: { $in: hostIds } })
+      .select("_id isFake")
       .lean();
 
-    const topicsToKeep = allTopics.slice(0, 4).map((t) => t._id); // keep latest 4
-    const topicsToDelete = allTopics.slice(4).map((t) => t._id); // delete the rest
+    const hostMap = new Map(hosts.map((h) => [String(h._id), !!h.isFake]));
+
+    const realTopics = [];
+    const fakeTopics = [];
+
+    for (const t of allTopics) {
+      const isFakeHost = hostMap.get(String(t.senderId)) === true;
+
+      if (isFakeHost) fakeTopics.push(t);
+      else realTopics.push(t);
+    }
+
+    // If user has any real-host topic -> delete ALL fake topics
+    let topicsToDelete = [];
+    if (realTopics.length > 0) {
+      topicsToDelete = fakeTopics.map((t) => t._id);
+
+      console.log(`🧠 User ${userId} has ${realTopics.length} real topic(s). Deleting ALL fake topics: ${topicsToDelete.length}`);
+    } else {
+      const fakeToDelete = fakeTopics.slice(4).map((t) => t._id);
+      topicsToDelete = fakeToDelete;
+
+      console.log(`🧠 User ${userId} has NO real topics. Keeping max 4 fake topics. Deleting: ${topicsToDelete.length}`);
+    }
 
     if (topicsToDelete.length > 0) {
       await Promise.all([Chat.deleteMany({ chatTopicId: { $in: topicsToDelete } }), ChatTopic.deleteMany({ _id: { $in: topicsToDelete } })]);
 
-      console.log(`🗑 Deleted ${topicsToDelete.length} old topics for user ${userId}`);
+      console.log(`🗑 Deleted ${topicsToDelete.length} topic(s) for user ${userId}`);
     } else {
       console.log(`✅ Nothing to delete for user ${userId}`);
     }
@@ -82,8 +127,10 @@ chatQueue.process("repeat", async (job) => {
 
   const [hosts, users, latestMessageDoc] = await Promise.all([
     Host.find({
-      isFake: true,
-      video: { $ne: [] },
+      $or: [
+        { isFake: true, video: { $ne: [] } }, // fake hosts with at least one video
+        { isFake: false, isBlock: false, isOnline: true }, // real hosts, video optional
+      ],
     })
       .sort({ createdAt: -1 })
       .select("_id name image video isFake"),
@@ -113,8 +160,11 @@ chatQueue.process("repeat", async (job) => {
     "I’d love to get to know you better! 😄",
   ];
 
+  const randomHost = hosts[Math.floor(Math.random() * hosts.length)];
+  console.log(`random host: ${randomHost}`);
+
   for (const user of users) {
-    const randomHost = hosts[Math.floor(Math.random() * hosts.length)];
+    console.log(`Selected random host: ${randomHost.name} for user: ${user.name}`);
 
     const [chatTopic] = await Promise.all([
       ChatTopic.findOne({
@@ -142,14 +192,6 @@ chatQueue.process("repeat", async (job) => {
     console.log(`Sending message to user: ${user._id} from host: ${randomHost._id}`);
     console.log(`Selected message: ${messageText}`);
     console.log(`Message type: ${messageType === 1 ? "Text" : "Image"}`);
-
-    await Chat.deleteMany({
-      $or: [
-        { senderId: randomHost._id, receiverId: user._id },
-        { senderId: user._id, receiverId: randomHost._id },
-      ],
-    });
-    console.log(`🗑 Deleted all existing chats between ${randomHost._id} and ${user._id}`);
 
     let chat;
     if (chatTopic) {
@@ -245,20 +287,42 @@ chatQueue.on("failed", async (job, err) => {
 
 //⏱ Schedule the job every 10 minutes with a fixed jobId
 const scheduleChatJob = async () => {
-  const intervalInMinutes = settingJSON.messageInitiatedAt;
-
-  if (!intervalInMinutes || intervalInMinutes === 0) {
-    console.log("⏹ Admin has disabled chat job scheduling (interval set to 0).");
-    return;
-  }
-
-  const intervalMs = intervalInMinutes * 60 * 1000;
-  const jobName = "repeat";
-  const jobId = `repeat:chat-job-every-${intervalInMinutes}-min`;
-
   try {
+    const { messageInitiatedAt } = settingJSON;
+    const isAutoMessageEnabled = typeof settingJSON?.isAutoMessageEnabled === "boolean" ? settingJSON.isAutoMessageEnabled : true;
+
+    if (!isAutoMessageEnabled) {
+      console.log("⏹ Auto-message disabled. Removing existing repeat jobs.");
+
+      const repeatJobs = await chatQueue.getRepeatableJobs();
+      for (const job of repeatJobs) {
+        await chatQueue.removeRepeatableByKey(job.key);
+      }
+
+      return;
+    }
+
+    if (!messageInitiatedAt || messageInitiatedAt === 0) {
+      console.log("⏹ Interval set to 0. Auto-message scheduling skipped.");
+      return;
+    }
+
+    if (!intervalInMinutes || intervalInMinutes === 0) {
+      console.log("⏹ Admin has disabled chat job scheduling (interval set to 0).");
+      return;
+    }
+
+    const intervalMs = messageInitiatedAt * 60 * 1000;
+    const jobName = "repeat";
+    const jobId = `repeat:chat-job-every-${intervalInMinutes}-min`;
+
     const [hosts] = await Promise.all([
-      Host.find({ video: { $ne: [] } })
+      Host.find({
+        $or: [
+          { isFake: true, video: { $ne: [] } }, // fake hosts with at least one video
+          { isFake: false, isBlock: false, isOnline: true }, // real hosts, video optional
+        ],
+      })
         .sort({ createdAt: -1 })
         .select("_id"),
     ]);
@@ -290,7 +354,7 @@ const scheduleChatJob = async () => {
         jobId,
         removeOnComplete: true,
         removeOnFail: { count: 3 },
-      }
+      },
     );
 
     console.log(`✅ Scheduled chat job every ${intervalInMinutes} minute(s)`);

@@ -201,10 +201,355 @@ exports.verifyHostRequestStatus = async (req, res) => {
 };
 
 //get host thumblist ( user )
+// exports.retrieveHosts = async (req, res) => {
+//   try {
+//     const start = req.query.start ? parseInt(req.query.start) : 1;
+//     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
+//     if (!req.user || !req.user.userId) {
+//       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+//     }
+
+//     if (!settingJSON) {
+//       return res.status(200).json({ status: false, message: "Configuration settings not found." });
+//     }
+
+//     if (!req.query.country) {
+//       return res.status(200).json({ status: false, message: "Please provide a country name." });
+//     }
+
+//     const userId = new mongoose.Types.ObjectId(req.user.userId);
+//     const country = req.query.country.trim().toLowerCase();
+//     const isGlobal = country === "global";
+
+//     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
+//     const fakeLiveMatchQuery = isGlobal
+//       ? {
+//           isFake: true,
+//           isBlock: false,
+//           userId: { $ne: userId },
+//           video: { $ne: [] },
+//         }
+//       : {
+//           country: country,
+//           isFake: true,
+//           isBlock: false,
+//           userId: { $ne: userId },
+//           video: { $ne: [] },
+//         };
+//     const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
+
+//     const [fakeHost, host, followedHost, liveHost, fakeLiveHost] = await Promise.all([
+//       Host.aggregate([
+//         { $match: fakeMatchQuery },
+//         {
+//           $lookup: {
+//             from: "blocks",
+//             let: { hostId: "$_id", userId: userId },
+//             pipeline: [
+//               {
+//                 $match: {
+//                   $expr: {
+//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+//                   },
+//                 },
+//               },
+//             ],
+//             as: "blockInfo",
+//           },
+//         },
+//         { $match: { blockInfo: { $eq: [] } } },
+//         {
+//           $addFields: {
+//             status: {
+//               $switch: {
+//                 branches: [
+//                   { case: { $lte: [{ $rand: {} }, 0.33] }, then: "Live" },
+//                   { case: { $lte: [{ $rand: {} }, 0.66] }, then: "Busy" },
+//                 ],
+//                 default: "Online",
+//               },
+//             },
+//             audioCallRate: 0,
+//             privateCallRate: 0,
+//             liveHistoryId: "",
+//             token: "",
+//             channel: "",
+//             randomSort: { $rand: {} },
+//           },
+//         },
+//         { $sort: { randomSort: 1 } },
+//         {
+//           $project: {
+//             _id: 1,
+//             name: 1,
+//             countryFlagImage: 1,
+//             country: 1,
+//             image: 1,
+//             audioCallRate: 1,
+//             privateCallRate: 1,
+//             isFake: 1,
+//             status: 1,
+//             video: 1,
+//             liveVideo: 1,
+//             liveHistoryId: 1,
+//             token: 1,
+//             channel: 1,
+//             uniqueId: 1,
+//             gender: 1,
+//           },
+//         },
+//       ]),
+//       Host.aggregate([
+//         { $match: matchQuery },
+//         {
+//           $lookup: {
+//             from: "blocks",
+//             let: { hostId: "$_id", userId: userId },
+//             pipeline: [
+//               {
+//                 $match: {
+//                   $expr: {
+//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+//                   },
+//                 },
+//               },
+//             ],
+//             as: "blockInfo",
+//           },
+//         },
+//         { $match: { blockInfo: { $eq: [] } } },
+//         {
+//           $addFields: {
+//             status: {
+//               $switch: {
+//                 branches: [
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+//                 ],
+//                 default: "Offline",
+//               },
+//             },
+//             randomSort: { $rand: {} },
+//           },
+//         },
+//         { $sort: { randomSort: 1 } },
+//         {
+//           $project: {
+//             _id: 1,
+//             name: 1,
+//             countryFlagImage: 1,
+//             country: 1,
+//             image: 1,
+//             audioCallRate: 1,
+//             privateCallRate: 1,
+//             isFake: 1,
+//             status: 1,
+//             liveHistoryId: 1,
+//             token: 1,
+//             channel: 1,
+//           },
+//         },
+//       ]),
+//       Host.aggregate([
+//         {
+//           $lookup: {
+//             from: "followerfollowings",
+//             let: { hostId: "$_id" },
+//             pipeline: [
+//               {
+//                 $match: {
+//                   $expr: {
+//                     $and: [{ $eq: ["$followerId", userId] }, { $eq: ["$followingId", "$$hostId"] }],
+//                   },
+//                 },
+//               },
+//             ],
+//             as: "followInfo",
+//           },
+//         },
+//         {
+//           $match: {
+//             followInfo: { $ne: [] },
+//             isBlock: false,
+//             status: 2,
+//             userId: { $ne: userId },
+//           },
+//         },
+//         {
+//           $lookup: {
+//             from: "blocks",
+//             let: { hostId: "$_id", userId: userId },
+//             pipeline: [
+//               {
+//                 $match: {
+//                   $expr: {
+//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+//                   },
+//                 },
+//               },
+//             ],
+//             as: "blockInfo",
+//           },
+//         },
+//         { $match: { blockInfo: { $eq: [] } } },
+//         {
+//           $addFields: {
+//             isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
+//             status: {
+//               $switch: {
+//                 branches: [
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+//                 ],
+//                 default: "Offline",
+//               },
+//             },
+//           },
+//         },
+//         { $sort: { createdAt: -1 } },
+//         { $skip: (start - 1) * limit },
+//         { $limit: limit },
+//         {
+//           $project: {
+//             _id: 1,
+//             name: 1,
+//             countryFlagImage: 1,
+//             country: 1,
+//             image: 1,
+//             audioCallRate: 1,
+//             privateCallRate: 1,
+//             isFake: 1,
+//             status: 1,
+//             uniqueId: 1,
+//             gender: 1,
+//           },
+//         },
+//       ]),
+//       LiveBroadcaster.aggregate([
+//         { $match: { userId: { $ne: userId } } },
+//         {
+//           $lookup: {
+//             from: "blocks",
+//             let: { hostId: "$hostId", userId: userId },
+//             pipeline: [
+//               {
+//                 $match: {
+//                   $expr: {
+//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+//                   },
+//                 },
+//               },
+//             ],
+//             as: "blockInfo",
+//           },
+//         },
+//         { $match: { blockInfo: { $eq: [] } } },
+//         {
+//           $addFields: {
+//             video: [],
+//             liveVideo: [],
+//             randomSort: { $rand: {} },
+//           },
+//         },
+//         { $sort: { randomSort: 1 } },
+//         {
+//           $project: {
+//             _id: 1,
+//             hostId: 1,
+//             name: 1,
+//             countryFlagImage: 1,
+//             country: 1,
+//             image: 1,
+//             isFake: 1,
+//             liveHistoryId: 1,
+//             channel: 1,
+//             token: 1,
+//             view: 1,
+//             video: 1,
+//             liveVideo: 1,
+//           },
+//         },
+//       ]),
+//       Host.aggregate([
+//         { $match: fakeLiveMatchQuery },
+//         {
+//           $lookup: {
+//             from: "blocks",
+//             let: { hostId: "$_id", userId: userId },
+//             pipeline: [
+//               {
+//                 $match: {
+//                   $expr: {
+//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+//                   },
+//                 },
+//               },
+//             ],
+//             as: "blockInfo",
+//           },
+//         },
+//         { $match: { blockInfo: { $eq: [] } } },
+//         {
+//           $addFields: {
+//             randomSort: { $rand: {} },
+//           },
+//         },
+//         { $sort: { randomSort: 1 } },
+//         {
+//           $project: {
+//             _id: 1,
+//             hostId: "$_id",
+//             name: 1,
+//             countryFlagImage: 1,
+//             country: 1,
+//             image: 1,
+//             isFake: 1,
+//             liveHistoryId: 1,
+//             channel: 1,
+//             token: 1,
+//             view: 1,
+//             video: 1,
+//             liveVideo: 1,
+//           },
+//         },
+//       ]),
+//     ]);
+
+//     const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
+
+//     // Pagination for hosts
+//     let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
+//     allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
+//     const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
+
+//     // Pagination for liveHost
+//     let allLiveHosts = settingJSON.isDemoData ? [...liveHost, ...fakeLiveHost] : liveHost;
+//     const paginatedLiveHosts = allLiveHosts.slice((start - 1) * limit, start * limit);
+
+//     return res.status(200).json({
+//       status: true,
+//       message: "Hosts list retrieved successfully.",
+//       followedHost,
+//       liveHost: paginatedLiveHosts,
+//       hosts: paginatedHosts,
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       status: false,
+//       message: "An error occurred while fetching the hosts list.",
+//       error: error.message || "Internal Server Error",
+//     });
+//   }
+// };
+
 exports.retrieveHosts = async (req, res) => {
   try {
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const start = parseInt(req.query.start || 1);
+    const limit = parseInt(req.query.limit || 20);
+    const skip = (start - 1) * limit;
 
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
@@ -215,14 +560,29 @@ exports.retrieveHosts = async (req, res) => {
     }
 
     if (!req.query.country) {
-      return res.status(200).json({ status: false, message: "Please provide a country name." });
+      return res.status(400).json({ status: false, message: "Country required" });
     }
 
+    // const userId = new mongoose.Types.ObjectId("696e086ef2b8f44c6a8449d4");
     const userId = new mongoose.Types.ObjectId(req.user.userId);
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
 
-    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
+    const now = new Date();
+    const timeBlock = Math.floor(now.getMinutes() / 1);
+    const userSeed =
+      userId
+        .toString()
+        .split("")
+        .reduce((a, c) => a + c.charCodeAt(0), 0) + timeBlock;
+
+    const baseMatch = {
+      isBlock: false,
+      userId: { $ne: userId },
+      ...(isGlobal ? {} : { country }),
+      ...(settingJSON.isDemoData ? {} : { isFake: false, status: 2 }),
+    };
+
     const fakeLiveMatchQuery = isGlobal
       ? {
           isFake: true,
@@ -237,121 +597,141 @@ exports.retrieveHosts = async (req, res) => {
           userId: { $ne: userId },
           video: { $ne: [] },
         };
-    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
 
-    const [fakeHost, host, followedHost, liveHost, fakeLiveHost] = await Promise.all([
-      Host.aggregate([
-        { $match: fakeMatchQuery },
-        {
-          $lookup: {
-            from: "blocks",
-            let: { hostId: "$_id", userId: userId },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+    let [hosts, followedHost, liveHost, fakeLiveHost] = await Promise.all([
+      Host.aggregate(
+        [
+          { $match: baseMatch },
+          {
+            $lookup: {
+              from: "blocks",
+              let: { hostId: "$_id", userId },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $or: [
+                        {
+                          $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }],
+                        },
+                        {
+                          $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }],
+                        },
+                      ],
+                    },
                   },
                 },
-              },
-            ],
-            as: "blockInfo",
-          },
-        },
-        { $match: { blockInfo: { $eq: [] } } },
-        {
-          $addFields: {
-            status: {
-              $switch: {
-                branches: [
-                  { case: { $lte: [{ $rand: {} }, 0.33] }, then: "Live" },
-                  { case: { $lte: [{ $rand: {} }, 0.66] }, then: "Busy" },
-                ],
-                default: "Online",
-              },
+              ],
+              as: "blockInfo",
             },
-            audioCallRate: 0,
-            privateCallRate: 0,
-            liveHistoryId: "",
-            token: "",
-            channel: "",
-            randomSort: { $rand: {} },
           },
-        },
-        { $sort: { randomSort: 1 } },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            countryFlagImage: 1,
-            country: 1,
-            image: 1,
-            audioCallRate: 1,
-            privateCallRate: 1,
-            isFake: 1,
-            status: 1,
-            video: 1,
-            liveVideo: 1,
-            liveHistoryId: 1,
-            token: 1,
-            channel: 1,
-            uniqueId: 1,
-            gender: 1,
-          },
-        },
-      ]),
-      Host.aggregate([
-        { $match: matchQuery },
-        {
-          $lookup: {
-            from: "blocks",
-            let: { hostId: "$_id", userId: userId },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+          { $match: { blockInfo: { $eq: [] } } },
+
+          {
+            $addFields: {
+              status: {
+                $cond: [
+                  { $eq: ["$isFake", true] },
+                  {
+                    $switch: {
+                      branches: [
+                        { case: { $lte: [{ $rand: {} }, 0.33] }, then: "Live" },
+                        { case: { $lte: [{ $rand: {} }, 0.66] }, then: "Busy" },
+                      ],
+                      default: "Online",
+                    },
                   },
+                  {
+                    $switch: {
+                      branches: [
+                        {
+                          case: {
+                            $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                          },
+                          then: "Live",
+                        },
+                        {
+                          case: {
+                            $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                          },
+                          then: "Busy",
+                        },
+                        {
+                          case: { $eq: ["$isOnline", true] },
+                          then: "Online",
+                        },
+                      ],
+                      default: "Offline",
+                    },
+                  },
+                ],
+              },
+
+              audioCallRate: { $ifNull: ["$audioCallRate", 0] },
+              privateCallRate: { $ifNull: ["$privateCallRate", 0] },
+              liveHistoryId: { $ifNull: ["$liveHistoryId", ""] },
+              token: { $ifNull: ["$token", ""] },
+              channel: { $ifNull: ["$channel", ""] },
+
+              randomSortField: {
+                $mod: [
+                  {
+                    $abs: {
+                      $multiply: [{ $toLong: { $toDate: "$_id" } }, userSeed],
+                    },
+                  },
+                  1234567,
+                ],
+              },
+
+              statusRank: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ["$status", "Live"] }, then: 1 },
+                    { case: { $eq: ["$status", "Online"] }, then: 2 },
+                    { case: { $eq: ["$status", "Busy"] }, then: 3 },
+                    { case: { $eq: ["$status", "Offline"] }, then: 4 },
+                  ],
+                  default: 5,
                 },
               },
-            ],
-            as: "blockInfo",
-          },
-        },
-        { $match: { blockInfo: { $eq: [] } } },
-        {
-          $addFields: {
-            status: {
-              $switch: {
-                branches: [
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
-                ],
-                default: "Offline",
-              },
             },
-            randomSort: { $rand: {} },
           },
-        },
-        { $sort: { randomSort: 1 } },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            countryFlagImage: 1,
-            country: 1,
-            image: 1,
-            audioCallRate: 1,
-            privateCallRate: 1,
-            isFake: 1,
-            status: 1,
-            liveHistoryId: 1,
-            token: 1,
-            channel: 1,
+
+          {
+            $sort: {
+              statusRank: 1,
+              randomSortField: 1,
+              _id: 1,
+            },
           },
-        },
-      ]),
+
+          { $skip: skip },
+          { $limit: limit },
+
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              image: 1,
+              country: 1,
+              countryFlagImage: 1,
+              audioCallRate: 1,
+              privateCallRate: 1,
+              isFake: 1,
+              status: 1,
+              video: 1,
+              liveVideo: 1,
+              liveHistoryId: 1,
+              token: 1,
+              channel: 1,
+              uniqueId: 1,
+              gender: 1,
+            },
+          },
+        ],
+        { allowDiskUse: true },
+      ),
       Host.aggregate([
         {
           $lookup: {
@@ -380,12 +760,19 @@ exports.retrieveHosts = async (req, res) => {
         {
           $lookup: {
             from: "blocks",
-            let: { hostId: "$_id", userId: userId },
+            let: { hostId: "$_id", userId },
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                    $or: [
+                      {
+                        $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }],
+                      },
+                      {
+                        $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }],
+                      },
+                    ],
                   },
                 },
               },
@@ -400,9 +787,18 @@ exports.retrieveHosts = async (req, res) => {
             status: {
               $switch: {
                 branches: [
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Live",
+                  },
+                  {
+                    case: {
+                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                    },
+                    then: "Busy",
+                  },
                 ],
                 default: "Offline",
               },
@@ -410,7 +806,7 @@ exports.retrieveHosts = async (req, res) => {
           },
         },
         { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
+        { $skip: skip },
         { $limit: limit },
         {
           $project: {
@@ -449,12 +845,26 @@ exports.retrieveHosts = async (req, res) => {
         { $match: { blockInfo: { $eq: [] } } },
         {
           $addFields: {
+            randomSortField: {
+              $mod: [
+                {
+                  $abs: {
+                    $multiply: [{ $toLong: { $toDate: "$_id" } }, userSeed],
+                  },
+                },
+                1234567,
+              ],
+            },
             video: [],
             liveVideo: [],
-            randomSort: { $rand: {} },
           },
         },
-        { $sort: { randomSort: 1 } },
+        {
+          $sort: {
+            randomSortField: 1,
+            _id: 1,
+          },
+        },
         {
           $project: {
             _id: 1,
@@ -494,10 +904,24 @@ exports.retrieveHosts = async (req, res) => {
         { $match: { blockInfo: { $eq: [] } } },
         {
           $addFields: {
-            randomSort: { $rand: {} },
+            randomSortField: {
+              $mod: [
+                {
+                  $abs: {
+                    $multiply: [{ $toLong: { $toDate: "$_id" } }, userSeed],
+                  },
+                },
+                1234567,
+              ],
+            },
           },
         },
-        { $sort: { randomSort: 1 } },
+        {
+          $sort: {
+            randomSortField: 1,
+            _id: 1,
+          },
+        },
         {
           $project: {
             _id: 1,
@@ -518,30 +942,21 @@ exports.retrieveHosts = async (req, res) => {
       ]),
     ]);
 
-    const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
+    // hosts = hosts.sort(() => Math.random() - 0.5);
 
-    // Pagination for hosts
-    let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
-    allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
-    const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
-
-    // Pagination for liveHost
     let allLiveHosts = settingJSON.isDemoData ? [...liveHost, ...fakeLiveHost] : liveHost;
     const paginatedLiveHosts = allLiveHosts.slice((start - 1) * limit, start * limit);
 
-    return res.status(200).json({
+    return res.json({
       status: true,
       message: "Hosts list retrieved successfully.",
       followedHost,
       liveHost: paginatedLiveHosts,
-      hosts: paginatedHosts,
+      hosts: hosts,
     });
   } catch (error) {
-    return res.status(500).json({
-      status: false,
-      message: "An error occurred while fetching the hosts list.",
-      error: error.message || "Internal Server Error",
-    });
+    console.error("Retrieve Hosts Error:", error);
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
 };
 
@@ -566,7 +981,7 @@ exports.retrieveHostDetails = async (req, res) => {
     const [host, receivedGifts, isFollowing, totalFollower] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
         .select(
-          "name email gender bio uniqueId countryFlagImage country impression language image photoGallery profileVideo randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin isFake video liveVideo"
+          "name email gender bio uniqueId countryFlagImage country impression language image photoGallery profileVideo randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin isFake video liveVideo",
         )
         .lean(),
       History.aggregate([
@@ -629,7 +1044,7 @@ exports.fetchHostInfo = async (req, res) => {
     const [host] = await Promise.all([
       Host.findOne({ _id: hostId, isBlock: false })
         .select(
-          "name email gender dob bio uniqueId countryFlagImage country impression language image photoGallery profileVideo randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin"
+          "name email gender dob bio uniqueId countryFlagImage country impression language image photoGallery profileVideo randomCallRate randomCallFemaleRate randomCallMaleRate privateCallRate audioCallRate chatRate coin",
         )
         .lean(),
     ]);
@@ -918,10 +1333,136 @@ exports.modifyHostDetails = async (req, res) => {
 };
 
 //get host thumblist ( host )
+// exports.fetchHostsList = async (req, res) => {
+//   try {
+//     const start = req.query.start ? parseInt(req.query.start) : 1;
+//     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
+//     if (!req.query.hostId) {
+//       return res.status(200).json({ status: false, message: "hostId is required." });
+//     }
+
+//     if (!settingJSON) {
+//       return res.status(200).json({ status: false, message: "Configuration settings not found." });
+//     }
+
+//     if (!req.query.country) {
+//       return res.status(200).json({ status: false, message: "Please provide a country name." });
+//     }
+
+//     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
+//     const country = req.query.country.trim().toLowerCase();
+//     const isGlobal = country === "global";
+
+//     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, _id: { $ne: hostId } } : { country: country, isFake: true, isBlock: false, _id: { $ne: hostId } };
+//     const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } } : { country: country, isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } };
+
+//     const [fakeHost, host, followerList] = await Promise.all([
+//       Host.aggregate([
+//         { $match: fakeMatchQuery },
+//         {
+//           $addFields: {
+//             status: {
+//               $switch: {
+//                 branches: [
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+//                 ],
+//                 default: "Offline",
+//               },
+//             },
+//             audioCallRate: 0,
+//             privateCallRate: 0,
+//             liveHistoryId: "",
+//             token: "",
+//             channel: "",
+//           },
+//         },
+//         {
+//           $project: {
+//             _id: 1,
+//             name: 1,
+//             countryFlagImage: 1,
+//             country: 1,
+//             image: 1,
+//             audioCallRate: 1,
+//             privateCallRate: 1,
+//             isFake: 1,
+//             status: 1,
+//             video: 1,
+//             liveVideo: 1,
+//             liveHistoryId: 1,
+//             token: 1,
+//             channel: 1,
+//           },
+//         },
+//       ]),
+//       Host.aggregate([
+//         { $match: matchQuery },
+//         {
+//           $addFields: {
+//             status: {
+//               $switch: {
+//                 branches: [
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
+//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+//                 ],
+//                 default: "Offline",
+//               },
+//             },
+//           },
+//         },
+//         {
+//           $project: {
+//             _id: 1,
+//             name: 1,
+//             countryFlagImage: 1,
+//             country: 1,
+//             image: 1,
+//             audioCallRate: 1,
+//             privateCallRate: 1,
+//             isFake: 1,
+//             status: 1,
+//           },
+//         },
+//       ]),
+//       FollowerFollowing.find({ followingId: hostId })
+//         .populate("followerId", "_id name image uniqueId")
+//         .sort({ createdAt: -1 })
+//         .skip((start - 1) * limit)
+//         .limit(limit)
+//         .lean(),
+//     ]);
+
+//     const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
+
+//     // Pagination for hosts
+//     let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
+//     allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
+//     const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
+
+//     return res.status(200).json({
+//       status: true,
+//       message: "Hosts list retrieved successfully.",
+//       hosts: paginatedHosts,
+//       followerList,
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       status: false,
+//       message: "An error occurred while fetching the hosts list.",
+//       error: error.message || "Internal Server Error",
+//     });
+//   }
+// };
+
 exports.fetchHostsList = async (req, res) => {
   try {
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const start = parseInt(req.query.start || 1);
+    const limit = parseInt(req.query.limit || 20);
+    const skip = (start - 1) * limit;
 
     if (!req.query.hostId) {
       return res.status(200).json({ status: false, message: "hostId is required." });
@@ -939,99 +1480,136 @@ exports.fetchHostsList = async (req, res) => {
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
 
-    const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, _id: { $ne: hostId } } : { country: country, isFake: true, isBlock: false, _id: { $ne: hostId } };
-    const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } } : { country: country, isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } };
+    const now = new Date();
+    const timeBlock = Math.floor(now.getMinutes() / 1);
+    const hostSeed =
+      hostId
+        .toString()
+        .split("")
+        .reduce((a, c) => a + c.charCodeAt(0), 0) + timeBlock;
 
-    const [fakeHost, host, followerList] = await Promise.all([
-      Host.aggregate([
-        { $match: fakeMatchQuery },
-        {
-          $addFields: {
-            status: {
-              $switch: {
-                branches: [
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
+    const baseMatch = {
+      isBlock: false,
+      _id: { $ne: hostId },
+      ...(isGlobal ? {} : { country }),
+      ...(settingJSON.isDemoData ? {} : { isFake: false, status: 2 }),
+    };
+
+    const [hosts, followerList] = await Promise.all([
+      Host.aggregate(
+        [
+          { $match: baseMatch },
+
+          {
+            $addFields: {
+              status: {
+                $cond: [
+                  { $eq: ["$isFake", true] },
+                  {
+                    $switch: {
+                      branches: [
+                        { case: { $lte: [{ $rand: {} }, 0.33] }, then: "Live" },
+                        { case: { $lte: [{ $rand: {} }, 0.66] }, then: "Busy" },
+                      ],
+                      default: "Online",
+                    },
+                  },
+                  {
+                    $switch: {
+                      branches: [
+                        {
+                          case: {
+                            $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                          },
+                          then: "Live",
+                        },
+                        {
+                          case: {
+                            $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                          },
+                          then: "Busy",
+                        },
+                        {
+                          case: { $eq: ["$isOnline", true] },
+                          then: "Online",
+                        },
+                      ],
+                      default: "Offline",
+                    },
+                  },
                 ],
-                default: "Offline",
+              },
+
+              audioCallRate: { $ifNull: ["$audioCallRate", 0] },
+              privateCallRate: { $ifNull: ["$privateCallRate", 0] },
+              liveHistoryId: { $ifNull: ["$liveHistoryId", ""] },
+              token: { $ifNull: ["$token", ""] },
+              channel: { $ifNull: ["$channel", ""] },
+
+              randomSortField: {
+                $mod: [
+                  {
+                    $abs: {
+                      $multiply: [{ $toLong: { $toDate: "$_id" } }, hostSeed],
+                    },
+                  },
+                  1234567,
+                ],
+              },
+
+              statusRank: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ["$status", "Live"] }, then: 1 },
+                    { case: { $eq: ["$status", "Online"] }, then: 2 },
+                    { case: { $eq: ["$status", "Busy"] }, then: 3 },
+                    { case: { $eq: ["$status", "Offline"] }, then: 4 },
+                  ],
+                  default: 5,
+                },
               },
             },
-            audioCallRate: 0,
-            privateCallRate: 0,
-            liveHistoryId: "",
-            token: "",
-            channel: "",
           },
-        },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            countryFlagImage: 1,
-            country: 1,
-            image: 1,
-            audioCallRate: 1,
-            privateCallRate: 1,
-            isFake: 1,
-            status: 1,
-            video: 1,
-            liveVideo: 1,
-            liveHistoryId: 1,
-            token: 1,
-            channel: 1,
-          },
-        },
-      ]),
-      Host.aggregate([
-        { $match: matchQuery },
-        {
-          $addFields: {
-            status: {
-              $switch: {
-                branches: [
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-                  { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
-                ],
-                default: "Offline",
-              },
+
+          {
+            $sort: {
+              statusRank: 1,
+              randomSortField: 1,
+              _id: 1,
             },
           },
-        },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            countryFlagImage: 1,
-            country: 1,
-            image: 1,
-            audioCallRate: 1,
-            privateCallRate: 1,
-            isFake: 1,
-            status: 1,
+
+          { $skip: skip },
+          { $limit: limit },
+
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              countryFlagImage: 1,
+              country: 1,
+              image: 1,
+              audioCallRate: 1,
+              privateCallRate: 1,
+              isFake: 1,
+              status: 1,
+              video: 1,
+              liveVideo: 1,
+              liveHistoryId: 1,
+              token: 1,
+              channel: 1,
+            },
           },
-        },
-      ]),
-      FollowerFollowing.find({ followingId: hostId })
-        .populate("followerId", "_id name image uniqueId")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+        ],
+        { allowDiskUse: true },
+      ),
+      FollowerFollowing.find({ followingId: hostId }).populate("followerId", "_id name image uniqueId").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     ]);
-
-    const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
-
-    // Pagination for hosts
-    let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
-    allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
-    const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
 
     return res.status(200).json({
       status: true,
       message: "Hosts list retrieved successfully.",
-      hosts: paginatedHosts,
+      hosts,
       followerList,
     });
   } catch (error) {

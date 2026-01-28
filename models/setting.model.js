@@ -70,7 +70,9 @@ const settingSchema = new mongoose.Schema(
     maxFreeChatMessages: { type: Number, default: 0 }, //maximum free messages allowed
     chatInteractionRate: { type: Number, default: 0 },
 
+    isAutoMessageEnabled: { type: Boolean, default: false },
     messageInitiatedAt: { type: Number, default: 0 }, //in min
+    isAutoCallEnabled: { type: Boolean, default: false },
     callInitiatedAt: { type: Number, default: 0 }, //in min
 
     adminCommissionRate: { type: Number, default: 0 }, //in %

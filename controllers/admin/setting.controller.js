@@ -170,6 +170,10 @@ exports.updateSettingToggle = async (req, res) => {
       setting.razorpayIosEnabled = !setting.razorpayIosEnabled;
     } else if (type === "flutterwaveIosEnabled") {
       setting.flutterwaveIosEnabled = !setting.flutterwaveIosEnabled;
+    } else if (type === "isAutoMessageEnabled") {
+      setting.isAutoMessageEnabled = !setting.isAutoMessageEnabled;
+    } else if (type === "isAutoCallEnabled") {
+      setting.isAutoCallEnabled = !setting.isAutoCallEnabled;
     } else {
       return res.status(200).json({ status: false, message: "type passed must be valid." });
     }

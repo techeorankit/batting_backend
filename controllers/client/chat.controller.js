@@ -99,7 +99,7 @@ exports.pushChatMessage = async (req, res) => {
         {
           $set: { chatId: chat._id },
           $inc: { messageCount: 1 },
-        }
+        },
       ),
     ]);
 
@@ -127,20 +127,19 @@ exports.pushChatMessage = async (req, res) => {
             agencyShare = 0;
           }
 
-          agencyUpdate = Agency.updateOne({ _id: agency._id }, [
+          agencyShare = Number(agencyShare.toFixed(2));
+
+          agencyUpdate = Agency.updateOne(
+            { _id: agency._id },
             {
-              $set: {
-                hostCoins: { $add: ["$hostCoins", hostEarnings] },
-                totalEarnings: { $add: ["$totalEarnings", Math.floor(agencyShare)] },
-                totalEarningsWithCommissionAndHostCoin: {
-                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                },
-                netAvailableEarnings: {
-                  $add: [{ $add: ["$hostCoins", hostEarnings] }, { $add: ["$totalEarnings", Math.floor(agencyShare)] }],
-                },
+              $inc: {
+                hostCoins: hostEarnings,
+                totalEarnings: agencyShare,
+                netAvailableEarnings: hostEarnings + agencyShare,
+                totalEarningsWithCommissionAndHostCoin: hostEarnings + agencyShare,
               },
             },
-          ]);
+          );
         }
       }
 
@@ -322,7 +321,7 @@ exports.submitChatMessage = async (req, res) => {
         { _id: chatTopic._id },
         {
           $set: { chatId: chat._id },
-        }
+        },
       ),
     ]);
 
