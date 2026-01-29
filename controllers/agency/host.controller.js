@@ -246,6 +246,7 @@ exports.retrieveAgencyHosts = async (req, res) => {
             createdAt: 1,
             photoGallery: 1,
             profileVideo: 1,
+            isBlock: 1,
           },
         },
       ]),

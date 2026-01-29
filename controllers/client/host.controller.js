@@ -560,10 +560,9 @@ exports.retrieveHosts = async (req, res) => {
     }
 
     if (!req.query.country) {
-      return res.status(400).json({ status: false, message: "Country required" });
+      return res.status(200).json({ status: false, message: "Country required" });
     }
 
-    // const userId = new mongoose.Types.ObjectId("696e086ef2b8f44c6a8449d4");
     const userId = new mongoose.Types.ObjectId(req.user.userId);
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
@@ -580,7 +579,17 @@ exports.retrieveHosts = async (req, res) => {
       isBlock: false,
       userId: { $ne: userId },
       ...(isGlobal ? {} : { country }),
-      ...(settingJSON.isDemoData ? {} : { isFake: false, status: 2 }),
+      ...(settingJSON.isDemoData
+        ? {
+            $or: [
+              { isFake: false, status: 2 },
+              { isFake: true, status: 2 },
+            ],
+          }
+        : {
+            isFake: false,
+            status: 2,
+          }),
     };
 
     const fakeLiveMatchQuery = isGlobal
@@ -1492,7 +1501,17 @@ exports.fetchHostsList = async (req, res) => {
       isBlock: false,
       _id: { $ne: hostId },
       ...(isGlobal ? {} : { country }),
-      ...(settingJSON.isDemoData ? {} : { isFake: false, status: 2 }),
+      ...(settingJSON.isDemoData
+        ? {
+            $or: [
+              { isFake: false, status: 2 },
+              { isFake: true, status: 2 },
+            ],
+          }
+        : {
+            isFake: false,
+            status: 2,
+          }),
     };
 
     const [hosts, followerList] = await Promise.all([
