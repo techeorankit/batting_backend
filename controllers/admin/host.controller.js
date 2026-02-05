@@ -28,7 +28,7 @@ exports.fetchHostRequest = async (req, res) => {
     const limit = Math.max(parseInt(req.query.limit) || 20, 1);
 
     const statusParam = req.query.status;
-    const search = req.query.search?.trim() || "All";
+    const search = req.query.search && req.query.search.trim().toLowerCase() !== "all" ? req.query.search.trim() : null;
 
     let matchQuery = { isFake: false };
     if (statusParam !== "All") {

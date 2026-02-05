@@ -20,14 +20,27 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
     }
 
     const status = parseInt(req.query.status);
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const start = Math.max(parseInt(req.query.start) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 20, 1);
     const agencyId = new mongoose.Types.ObjectId(req.agency._id);
+
+    const search = req.query.search && req.query.search.trim().toLowerCase() !== "all" ? req.query.search.trim() : null;
+
+    let matchQuery = {
+      agencyId: agencyId,
+      status: status,
+      isBlock: false,
+      isFake: false,
+    };
+
+    if (search) {
+      matchQuery.$or = [{ name: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+    }
 
     const [agency, totalHosts, hosts] = await Promise.all([
       Agency.findOne({ _id: agencyId }).lean(),
-      Host.countDocuments({ agencyId: agencyId, status: status, isBlock: false, isFake: false }),
-      Host.find({ agencyId: agencyId, status: status, isBlock: false, isFake: false })
+      Host.countDocuments(matchQuery),
+      Host.find(matchQuery)
         .select(
           "_id name gender image photoGallery profileVideo impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId reason createdAt",
         )
