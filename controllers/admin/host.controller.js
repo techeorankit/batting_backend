@@ -854,16 +854,10 @@ exports.fetchHostList = async (req, res) => {
       dateFilter.createdAt = { $gte: s, $lte: e };
     }
 
-    let searchFilter = {};
-    if (search && search !== "All") {
-      searchFilter.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }];
-    }
-
     const filter = {
       status: 2,
       isFake: hostType === 1 ? false : true,
       ...dateFilter,
-      ...searchFilter,
     };
 
     const result = await Host.aggregate([
@@ -911,6 +905,26 @@ exports.fetchHostList = async (req, res) => {
               },
             },
             { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+
+            ...(search && search !== "All"
+              ? [
+                  {
+                    $match: {
+                      $or: [
+                        { "userId.name": { $regex: search, $options: "i" } },
+                        { "userId.uniqueId": { $regex: search, $options: "i" } },
+
+                        { "agencyId.name": { $regex: search, $options: "i" } },
+                        { "agencyId.agencyCode": { $regex: search, $options: "i" } },
+
+                        { name: { $regex: search, $options: "i" } },
+                        { uniqueId: { $regex: search, $options: "i" } },
+                        { email: { $regex: search, $options: "i" } },
+                      ],
+                    },
+                  },
+                ]
+              : []),
 
             {
               $project: {
