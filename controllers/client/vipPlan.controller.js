@@ -1,4 +1,5 @@
 const VipPlan = require("../../models/vipPlan.model");
+const VipPlanPrivilege = require("../../models/vipPlanPrivilege.model");
 
 //import model
 const User = require("../../models/user.model");
@@ -44,10 +45,11 @@ exports.purchaseVipPlan = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    const [uniqueId, user, vipPlan] = await Promise.all([
+    const [uniqueId, user, vipPlan, vipPrivilege] = await Promise.all([
       generateHistoryUniqueId(),
       User.findById(userId).select("_id isVip vipPlanStartDate vipPlanEndDate vipPlan").lean(),
       VipPlan.findById(vipPlanId).select("_id validity validityType price coin").lean(),
+      VipPlanPrivilege.findOne().select("topUpCoinBonus").lean(),
     ]);
 
     if (!user) {
@@ -80,7 +82,7 @@ exports.purchaseVipPlan = async (req, res) => {
       message: "VIP plan purchased successfully.",
     });
 
-    const totalCoins = user.isVip ? vipPlan.coin : vipPlan.coin;
+    const totalCoins = user.isVip ? vipPlan.coin + (vipPrivilege?.topUpCoinBonus || 0) : vipPlan.coin;
 
     await Promise.all([
       User.updateOne(
@@ -99,13 +101,14 @@ exports.purchaseVipPlan = async (req, res) => {
             coin: totalCoins,
             rechargedCoins: totalCoins,
           },
-        }
+        },
       ),
       History.create({
         uniqueId: uniqueId,
         type: 8,
         userId: user._id,
-        userCoin: vipPlan.coin,
+        userCoin: totalCoins,
+        bonusCoins: user.isVip ? vipPrivilege?.topUpCoinBonus || 0 : 0,
         validity: vipPlan.validity,
         validityType: vipPlan.validityType,
         price: vipPlan.price,

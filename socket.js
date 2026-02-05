@@ -725,7 +725,7 @@ io.on("connection", async (socket) => {
       const [caller, receiver, callHistory] = await Promise.all([
         callerModel.findById(callerId).select("_id name isBusy callId").lean(),
         receiverModel.findById(receiverId).select("_id name isBusy callId").lean(),
-        History.findById(callId).select("_id callConnect callEndTime duration"),
+        History.findById(callId).select("_id callConnect"),
       ]);
 
       if (!caller || !receiver || !callHistory) {
@@ -786,11 +786,6 @@ io.on("connection", async (socket) => {
           chatTopic.chatId = chat._id;
 
           callHistory.callConnect = false;
-          callHistory.callEndTime = moment().tz("Asia/Kolkata").format();
-
-          const start = moment.tz(callHistory.callStartTime, "Asia/Kolkata");
-          const end = moment.tz(callHistory.callEndTime, "Asia/Kolkata");
-          callHistory.duration = moment.utc(end.diff(start)).format("HH:mm:ss");
 
           await Promise.all([chat.save(), chatTopic.save(), callHistory?.save()]);
           console.log("✅ Call rejection chat & history saved.");
@@ -934,11 +929,6 @@ io.on("connection", async (socket) => {
           chatTopic.chatId = chat._id;
 
           callHistory.callConnect = false;
-          callHistory.callEndTime = moment().tz("Asia/Kolkata").format();
-
-          const start = moment.tz(callHistory.callStartTime, "Asia/Kolkata");
-          const end = moment.tz(callHistory.callEndTime, "Asia/Kolkata");
-          callHistory.duration = moment.utc(end.diff(start)).format("HH:mm:ss");
 
           await Promise.all([chat.save(), chatTopic.save(), callHistory?.save()]);
           console.log("✅ Call rejection chat & history saved.");
