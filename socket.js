@@ -2132,7 +2132,7 @@ io.on("connection", async (socket) => {
 
       if (!senderUser) {
         console.log("Sender user not found");
-        io.in(`globalRoom:${giftData.senderUserId}`).emit("liveGiftReceived", { error: "Sender user not found" });
+        io.in(`globalRoom:${giftData.senderId}`).emit("liveGiftReceived", { error: "Sender user not found" });
         return;
       }
 
@@ -2144,7 +2144,7 @@ io.on("connection", async (socket) => {
 
       if (!gift) {
         console.log("Gift not found");
-        io.in(`globalRoom:${giftData.senderUserId}`).emit("liveGiftReceived", { error: "Gift not found" });
+        io.in(`globalRoom:${giftData.senderId}`).emit("liveGiftReceived", { error: "Gift not found" });
         return;
       }
 
@@ -2154,7 +2154,7 @@ io.on("connection", async (socket) => {
 
       if (senderUser.coin < totalCoin) {
         console.log("Insufficient coins");
-        io.in(`globalRoom:${giftData.senderUserId}`).emit("liveGiftReceived", { error: "You don't have enough coins" });
+        io.in(`globalRoom:${giftData.senderId}`).emit("liveGiftReceived", { error: "You don't have enough coins" });
         return;
       }
 
