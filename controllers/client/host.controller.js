@@ -597,7 +597,7 @@ exports.retrieveHosts = async (req, res) => {
 
     } else {
       if (!req.query.seed) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: false,
           message: "Seed is required for pagination beyond first page.",
         });
@@ -606,7 +606,7 @@ exports.retrieveHosts = async (req, res) => {
       seed = Number(req.query.seed);
 
       if (!Number.isInteger(seed) || seed <= 0) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: false,
           message: "Invalid seed value.",
         });
@@ -1602,7 +1602,7 @@ exports.fetchHostsList = async (req, res) => {
         + Date.now();
     } else {
       if (!req.query.seed) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: false,
           message: "Seed is required for pagination beyond first page.",
         });
@@ -1611,7 +1611,7 @@ exports.fetchHostsList = async (req, res) => {
       seed = Number(req.query.seed);
 
       if (!Number.isInteger(seed) || seed <= 0) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: false,
           message: "Invalid seed value.",
         });

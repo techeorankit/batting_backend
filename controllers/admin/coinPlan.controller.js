@@ -137,7 +137,7 @@ exports.retrieveUserPurchaseRecords = async (req, res) => {
     const purchaseType = parseInt(req.query.type);
 
     if (![7, 8].includes(purchaseType)) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "Invalid purchase type. Allowed values: 7 (Coin), 8 (VIP)",
       });
@@ -269,7 +269,7 @@ exports.retrieveCoinPlanPurchase = async (req, res) => {
     const purchaseType = parseInt(req.query.type); // 7 = Coin, 8 = VIP
 
     if (![7, 8].includes(purchaseType)) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "Invalid purchase type. Allowed values: 7 (Coin), 8 (VIP)",
       });

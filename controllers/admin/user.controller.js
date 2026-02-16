@@ -156,21 +156,21 @@ exports.updateUserCoin = async (req, res, next) => {
     const { userId, coin, action } = req.body;
 
     if (!userId || !coin || !action) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "userId, coin, and action are required fields.",
       });
     }
 
     if (!["add", "deduct"].includes(action)) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "Invalid action. Must be 'add' or 'deduct'.",
       });
     }
 
     if (isNaN(coin) || coin <= 0) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "Coin must be a positive number.",
       });
@@ -196,7 +196,7 @@ exports.updateUserCoin = async (req, res, next) => {
       };
     } else {
       if (user.coin < coin) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: false,
           message: "Insufficient balance to deduct coins.",
         });

@@ -520,14 +520,14 @@ exports.fetchFirebaseUidByDevice = async (req, res) => {
     const { deviceUuid, loginType } = req.query;
 
     if (!deviceUuid) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "Device UUID is required.",
       });
     }
 
     if (!loginType) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "Login type is required.",
       });
@@ -562,7 +562,7 @@ exports.createFirebaseCustomAuthToken = async (req, res) => {
     const { firebaseUid } = req.query;
 
     if (!firebaseUid) {
-      return res.status(400).json({
+      return res.status(200).json({
         status: false,
         message: "Firebase UID is required.",
       });
