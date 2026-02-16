@@ -40,10 +40,10 @@ route.post(
 route.get("/verifyHostRequestStatus", validateUserToken, checkAccessWithSecretKey(), HostController.verifyHostRequestStatus);
 
 //get host thumblist ( user )
-route.get("/retrieveHosts", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveHosts);
+route.get("/retrieveHosts", checkAccessWithSecretKey(), HostController.retrieveHosts);
 
 //get host profile ( user )
-route.get("/retrieveHostDetails", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveHostDetails);
+route.get("/retrieveHostDetails", checkAccessWithSecretKey(), HostController.retrieveHostDetails);
 
 //get random free host ( random video call ) ( user )
 route.get("/retrieveAvailableHost", validateUserToken, checkAccessWithSecretKey(), HostController.retrieveAvailableHost);

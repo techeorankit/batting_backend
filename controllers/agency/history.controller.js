@@ -168,60 +168,91 @@ exports.getCallTransactions = async (req, res) => {
           $match: {
             ...dateFilterQuery,
             type: { $in: [11, 12, 13] },
-            hostId: hostId,
+            hostId,
             hostCoin: { $ne: 0 },
           },
         },
         {
-          $lookup: {
-            from: "users",
-            localField: "userId",
-            foreignField: "_id",
-            as: "sender",
-          },
-        },
-        {
-          $unwind: {
-            path: "$sender",
-            preserveNullAndEmptyArrays: false,
-          },
-        },
-        {
           $addFields: {
-            typeDescription: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
-                ],
-                default: "❓ Unknown Type",
-              },
+            durationInSeconds: {
+              $cond: [
+                { $regexMatch: { input: "$duration", regex: /^\d{2}:\d{2}:\d{2}$/ } },
+                {
+                  $add: [
+                    { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 0] } }, 3600] },
+                    { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 1] } }, 60] },
+                    { $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 2] } },
+                  ],
+                },
+                0,
+              ],
             },
           },
         },
         {
-          $project: {
-            _id: 1,
-            uniqueId: 1,
-            type: 1,
-            typeDescription: 1,
-            userCoin: 1,
-            hostCoin: 1,
-            adminCoin: 1,
-            callType: 1,
-            isRandom: 1,
-            isPrivate: 1,
-            callStartTime: 1,
-            callEndTime: 1,
-            duration: 1,
-            createdAt: 1,
-            senderName: { $ifNull: ["$sender.name", ""] },
+          $facet: {
+            data: [
+              {
+                $lookup: {
+                  from: "users",
+                  localField: "userId",
+                  foreignField: "_id",
+                  as: "sender",
+                },
+              },
+              {
+                $unwind: {
+                  path: "$sender",
+                  preserveNullAndEmptyArrays: false,
+                },
+              },
+              {
+                $addFields: {
+                  typeDescription: {
+                    $switch: {
+                      branches: [
+                        { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                        { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                        { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
+                      ],
+                      default: "❓ Unknown Type",
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  uniqueId: 1,
+                  type: 1,
+                  typeDescription: 1,
+                  userCoin: 1,
+                  hostCoin: 1,
+                  adminCoin: 1,
+                  callType: 1,
+                  isRandom: 1,
+                  isPrivate: 1,
+                  callStartTime: 1,
+                  callEndTime: 1,
+                  duration: 1,
+                  createdAt: 1,
+                  senderName: { $ifNull: ["$sender.name", ""] },
+                },
+              },
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+            ],
+            durationSummary: [
+              {
+                $group: {
+                  _id: null,
+                  totalSeconds: { $sum: "$durationInSeconds" },
+                },
+              },
+            ],
           },
         },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
       ]),
     ]);
 
@@ -229,11 +260,24 @@ exports.getCallTransactions = async (req, res) => {
       return res.status(200).json({ status: false, message: "Host does not found." });
     }
 
+    const data = transactionHistory[0]?.data || [];
+    const totalSeconds = transactionHistory[0]?.durationSummary[0]?.totalSeconds || 0;
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const totalDuration =
+      `${String(hours).padStart(2, "0")}:` +
+      `${String(minutes).padStart(2, "0")}:` +
+      `${String(seconds).padStart(2, "0")}`;
+
     return res.status(200).json({
       status: true,
       message: "✅ Transaction history fetched successfully.",
       total: total,
-      data: transactionHistory,
+      totalDuration,
+      data,
     });
   } catch (error) {
     console.error(error);

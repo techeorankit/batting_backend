@@ -56,11 +56,11 @@ exports.fetchHostRequest = async (req, res) => {
           from: "agencies",
           localField: "agencyId",
           foreignField: "_id",
-          as: "agencyId",
+          as: "agency",
           pipeline: [{ $project: { _id: 1, name: 1, image: 1, agencyCode: 1 } }],
         },
       },
-      { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$agency", preserveNullAndEmptyArrays: true } },
 
       ...(search
         ? [
@@ -70,8 +70,8 @@ exports.fetchHostRequest = async (req, res) => {
                   { "userId.name": { $regex: search, $options: "i" } },
                   { "userId.uniqueId": { $regex: search, $options: "i" } },
 
-                  { "agencyId.name": { $regex: search, $options: "i" } },
-                  { "agencyId.agencyCode": { $regex: search, $options: "i" } },
+                  { "agency.name": { $regex: search, $options: "i" } },
+                  { "agency.agencyCode": { $regex: search, $options: "i" } },
 
                   { name: { $regex: search, $options: "i" } },
                   { uniqueId: { $regex: search, $options: "i" } },

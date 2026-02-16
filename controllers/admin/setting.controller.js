@@ -48,10 +48,18 @@ exports.updateSetting = async (req, res) => {
     setting.minCoinsForAgencyPayout = req.body.minCoinsForAgencyPayout ? Number(req.body.minCoinsForAgencyPayout) : setting.minCoinsForAgencyPayout;
     setting.maxFreeChatMessages = req.body.maxFreeChatMessages ? Number(req.body.maxFreeChatMessages) : setting.maxFreeChatMessages;
 
-    setting.androidAppVersion = req.body.androidAppVersion ? req.body.androidAppVersion.trim() : setting.androidAppVersion;
-    setting.iosAppVersion = req.body.iosAppVersion ? req.body.iosAppVersion.trim() : setting.iosAppVersion;
-    setting.androidAppLink = req.body.androidAppLink ? req.body.androidAppLink.trim() : setting.androidAppLink;
-    setting.iosAppLink = req.body.iosAppLink ? req.body.iosAppLink.trim() : setting.iosAppLink;
+    if ("androidAppVersion" in req.body) {
+      setting.androidAppVersion = req.body.androidAppVersion.trim();
+    }
+    if ("iosAppVersion" in req.body) {
+      setting.iosAppVersion = req.body.iosAppVersion.trim();
+    }
+    if ("androidAppLink" in req.body) {
+      setting.androidAppLink = req.body.androidAppLink.trim();
+    }
+    if ("iosAppLink" in req.body) {
+      setting.iosAppLink = req.body.iosAppLink.trim();
+    }
 
     if (req.body.messageInitiatedAt !== undefined) {
       const newVal = Number(req.body.messageInitiatedAt);

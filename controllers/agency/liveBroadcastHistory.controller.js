@@ -38,26 +38,86 @@ exports.getLiveSessionHistory = async (req, res) => {
       };
     }
 
-    const [host, total, liveHistoryData] = await Promise.all([
+    const [host, total, liveHistoryAgg] = await Promise.all([
       Host.findOne({ _id: hostId }).lean().select("_id"),
       LiveBroadcastHistory.countDocuments({ hostId, ...dateFilterQuery }),
-      LiveBroadcastHistory.find({ hostId, ...dateFilterQuery })
-        .select("coins gifts audienceCount liveComments startTime endTime duration createdAt")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+      LiveBroadcastHistory.aggregate([
+        {
+          $match: { hostId, ...dateFilterQuery },
+        },
+        {
+          $addFields: {
+            durationInSeconds: {
+              $cond: [
+                { $regexMatch: { input: "$duration", regex: /^\d{2}:\d{2}:\d{2}$/ } },
+                {
+                  $add: [
+                    { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 0] } }, 3600] },
+                    { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 1] } }, 60] },
+                    { $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 2] } },
+                  ],
+                },
+                0,
+              ],
+            },
+          },
+        },
+
+        {
+          $facet: {
+            data: [
+              {
+                $project: {
+                  coins: 1,
+                  gifts: 1,
+                  audienceCount: 1,
+                  liveComments: 1,
+                  startTime: 1,
+                  endTime: 1,
+                  duration: 1,
+                  createdAt: 1,
+                },
+              },
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+            ],
+
+            durationSummary: [
+              {
+                $group: {
+                  _id: null,
+                  totalSeconds: { $sum: "$durationInSeconds" },
+                },
+              },
+            ],
+          },
+        },
+      ]),
     ]);
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host not found." });
     }
 
+    const data = liveHistoryAgg[0]?.data || [];
+    const totalSeconds = liveHistoryAgg[0]?.durationSummary[0]?.totalSeconds || 0;
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const totalDuration =
+      `${String(hours).padStart(2, "0")}:` +
+      `${String(minutes).padStart(2, "0")}:` +
+      `${String(seconds).padStart(2, "0")}`;
+
     return res.status(200).json({
       status: true,
       message: "User live history retrieved successfully.",
       total,
-      data: liveHistoryData,
+      totalDuration, // added (frontend-safe)
+      data,
     });
   } catch (error) {
     console.error(error);

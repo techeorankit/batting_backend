@@ -550,10 +550,26 @@ exports.retrieveHosts = async (req, res) => {
     const start = parseInt(req.query.start || 1);
     const limit = parseInt(req.query.limit || 20);
     const skip = (start - 1) * limit;
+    const search = req.query.search?.trim();
 
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    // if (!req.user || !req.user.userId) {
+    //   return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    // }
+
+    let userId = null;
+
+    if (req.query?.userId && mongoose.Types.ObjectId.isValid(req.query.userId)) {
+      userId = new mongoose.Types.ObjectId(req.query.userId);
+
+      const user = await User.exists({ _id: userId });
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({ status: false, message: "Provided user does not exist" });
+      }
     }
+
 
     if (!settingJSON) {
       return res.status(200).json({ status: false, message: "Configuration settings not found." });
@@ -563,78 +579,100 @@ exports.retrieveHosts = async (req, res) => {
       return res.status(200).json({ status: false, message: "Country required" });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.user.userId);
+    // const userId = new mongoose.Types.ObjectId(req.user.userId);
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
 
-    const now = new Date();
-    const timeBlock = Math.floor(now.getMinutes() / 1);
-    const userSeed =
-      userId
-        .toString()
-        .split("")
-        .reduce((a, c) => a + c.charCodeAt(0), 0) + timeBlock;
+    let seed;
+
+    if (start === 1) {
+      seed =
+        (userId
+          ? userId
+            .toString()
+            .split("")
+            .reduce((a, c) => a + c.charCodeAt(0), 0)
+          : Math.floor(Math.random() * 1000000))
+        + Date.now();
+
+    } else {
+      if (!req.query.seed) {
+        return res.status(400).json({
+          status: false,
+          message: "Seed is required for pagination beyond first page.",
+        });
+      }
+
+      seed = Number(req.query.seed);
+
+      if (!Number.isInteger(seed) || seed <= 0) {
+        return res.status(400).json({
+          status: false,
+          message: "Invalid seed value.",
+        });
+      }
+    }
 
     const baseMatch = {
       isBlock: false,
-      userId: { $ne: userId },
+      ...(userId ? { userId: { $ne: userId } } : {}),
       ...(isGlobal ? {} : { country }),
       ...(settingJSON.isDemoData
         ? {
-            $or: [
-              { isFake: false, status: 2 },
-              { isFake: true, status: 2 },
-            ],
-          }
+          $or: [
+            { isFake: false, status: 2 },
+            { isFake: true, status: 2 },
+          ],
+        }
         : {
-            isFake: false,
-            status: 2,
-          }),
+          isFake: false,
+          status: 2,
+        }),
     };
 
     const fakeLiveMatchQuery = isGlobal
       ? {
-          isFake: true,
-          isBlock: false,
-          userId: { $ne: userId },
-          video: { $ne: [] },
-        }
+        isFake: true,
+        isBlock: false,
+        ...(userId ? { userId: { $ne: userId } } : {}),
+        video: { $ne: [] },
+      }
       : {
-          country: country,
-          isFake: true,
-          isBlock: false,
-          userId: { $ne: userId },
-          video: { $ne: [] },
-        };
+        country: country,
+        isFake: true,
+        isBlock: false,
+        ...(userId ? { userId: { $ne: userId } } : {}),
+        video: { $ne: [] },
+      };
 
-    let [hosts, followedHost, liveHost, fakeLiveHost] = await Promise.all([
+    let [hostsAgg, followedHostAgg, liveHost, fakeLiveHost] = await Promise.all([
       Host.aggregate(
         [
           { $match: baseMatch },
-          {
-            $lookup: {
-              from: "blocks",
-              let: { hostId: "$_id", userId },
-              pipeline: [
-                {
-                  $match: {
-                    $expr: {
-                      $or: [
-                        {
-                          $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }],
+          ...(userId
+            ? [
+              {
+                $lookup: {
+                  from: "blocks",
+                  let: { hostId: "$_id", userId },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $or: [
+                            { $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] },
+                            { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] },
+                          ],
                         },
-                        {
-                          $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }],
-                        },
-                      ],
+                      },
                     },
-                  },
+                  ],
+                  as: "blockInfo",
                 },
-              ],
-              as: "blockInfo",
-            },
-          },
-          { $match: { blockInfo: { $eq: [] } } },
+              },
+              { $match: { blockInfo: { $eq: [] } } },
+            ]
+            : []),
 
           {
             $addFields: {
@@ -686,7 +724,7 @@ exports.retrieveHosts = async (req, res) => {
                 $mod: [
                   {
                     $abs: {
-                      $multiply: [{ $toLong: { $toDate: "$_id" } }, userSeed],
+                      $multiply: [{ $toLong: { $toDate: "$_id" } }, seed],
                     },
                   },
                   1234567,
@@ -707,158 +745,198 @@ exports.retrieveHosts = async (req, res) => {
             },
           },
 
-          {
-            $sort: {
-              statusRank: 1,
-              randomSortField: 1,
-              _id: 1,
-            },
-          },
+          ...(search && search !== "All"
+            ? [
+              {
+                $match: {
+                  $or: [
+                    { name: { $regex: search, $options: "i" } },
+                    { uniqueId: { $regex: search, $options: "i" } },
+                    { bio: { $regex: search, $options: "i" } },
+                  ],
+                },
+              },
+            ]
+            : []),
 
-          { $skip: skip },
-          { $limit: limit },
 
           {
-            $project: {
-              _id: 1,
-              name: 1,
-              image: 1,
-              country: 1,
-              countryFlagImage: 1,
-              audioCallRate: 1,
-              privateCallRate: 1,
-              isFake: 1,
-              status: 1,
-              video: 1,
-              liveVideo: 1,
-              liveHistoryId: 1,
-              token: 1,
-              channel: 1,
-              uniqueId: 1,
-              gender: 1,
-            },
+            $facet: {
+              data: [
+                {
+                  $sort: {
+                    statusRank: 1,
+                    randomSortField: 1,
+                    _id: 1,
+                  },
+                },
+
+                { $skip: skip },
+                { $limit: limit },
+
+                {
+                  $project: {
+                    _id: 1,
+                    name: 1,
+                    image: 1,
+                    country: 1,
+                    countryFlagImage: 1,
+                    audioCallRate: 1,
+                    privateCallRate: 1,
+                    isFake: 1,
+                    status: 1,
+                    video: 1,
+                    liveVideo: 1,
+                    liveHistoryId: 1,
+                    token: 1,
+                    channel: 1,
+                    uniqueId: 1,
+                    gender: 1,
+                  },
+                },
+              ],
+              totalCount: [
+                { $count: "count" }
+              ]
+            }
           },
         ],
         { allowDiskUse: true },
       ),
-      Host.aggregate([
-        {
-          $lookup: {
-            from: "followerfollowings",
-            let: { hostId: "$_id" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [{ $eq: ["$followerId", userId] }, { $eq: ["$followingId", "$$hostId"] }],
+      userId
+        ? Host.aggregate([
+          {
+            $lookup: {
+              from: "followerfollowings",
+              let: { hostId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [{ $eq: ["$followerId", userId] }, { $eq: ["$followingId", "$$hostId"] }],
+                    },
                   },
                 },
-              },
-            ],
-            as: "followInfo",
+              ],
+              as: "followInfo",
+            },
           },
-        },
-        {
-          $match: {
-            followInfo: { $ne: [] },
-            isBlock: false,
-            status: 2,
-            userId: { $ne: userId },
+          {
+            $match: {
+              followInfo: { $ne: [] },
+              isBlock: false,
+              status: 2,
+              ...(userId ? { userId: { $ne: userId } } : {}),
+            },
           },
-        },
-        {
-          $lookup: {
-            from: "blocks",
-            let: { hostId: "$_id", userId },
-            pipeline: [
+          ...(userId
+            ? [
               {
-                $match: {
-                  $expr: {
-                    $or: [
-                      {
-                        $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }],
+                $lookup: {
+                  from: "blocks",
+                  let: { hostId: "$_id", userId },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $or: [
+                            { $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] },
+                            { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] },
+                          ],
+                        },
                       },
-                      {
-                        $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }],
-                      },
-                    ],
-                  },
+                    },
+                  ],
+                  as: "blockInfo",
                 },
               },
-            ],
-            as: "blockInfo",
-          },
-        },
-        { $match: { blockInfo: { $eq: [] } } },
-        {
-          $addFields: {
-            isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
-            status: {
-              $switch: {
-                branches: [
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+              { $match: { blockInfo: { $eq: [] } } },
+            ]
+            : []),
+          {
+            $addFields: {
+              isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
+              status: {
+                $switch: {
+                  branches: [
+                    {
+                      case: {
+                        $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                      },
+                      then: "Live",
                     },
-                    then: "Live",
-                  },
-                  {
-                    case: {
-                      $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                    {
+                      case: {
+                        $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                      },
+                      then: "Busy",
                     },
-                    then: "Busy",
-                  },
-                ],
-                default: "Offline",
+                  ],
+                  default: "Offline",
+                },
               },
             },
           },
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: skip },
-        { $limit: limit },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            countryFlagImage: 1,
-            country: 1,
-            image: 1,
-            audioCallRate: 1,
-            privateCallRate: 1,
-            isFake: 1,
-            status: 1,
-            uniqueId: 1,
-            gender: 1,
-          },
-        },
-      ]),
-      LiveBroadcaster.aggregate([
-        { $match: { userId: { $ne: userId } } },
-        {
-          $lookup: {
-            from: "blocks",
-            let: { hostId: "$hostId", userId: userId },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+          {
+            $facet: {
+              data: [
+                { $sort: { createdAt: -1 } },
+                { $skip: skip },
+                { $limit: limit },
+                {
+                  $project: {
+                    _id: 1,
+                    name: 1,
+                    countryFlagImage: 1,
+                    country: 1,
+                    image: 1,
+                    audioCallRate: 1,
+                    privateCallRate: 1,
+                    isFake: 1,
+                    status: 1,
+                    uniqueId: 1,
+                    gender: 1,
                   },
                 },
-              },
-            ],
-            as: "blockInfo",
+              ],
+              totalCount: [{ $count: "count" }],
+            }
           },
+
+        ])
+        : Promise.resolve([]),
+      LiveBroadcaster.aggregate([
+        {
+          $match: userId ? { userId: { $ne: userId } } : {}
         },
-        { $match: { blockInfo: { $eq: [] } } },
+        ...(userId
+          ? [
+            {
+              $lookup: {
+                from: "blocks",
+                let: { hostId: "$hostId", userId },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                      },
+                    },
+                  },
+                ],
+                as: "blockInfo",
+              },
+            },
+            { $match: { blockInfo: { $eq: [] } } },
+          ]
+          : []),
         {
           $addFields: {
             randomSortField: {
               $mod: [
                 {
                   $abs: {
-                    $multiply: [{ $toLong: { $toDate: "$_id" } }, userSeed],
+                    $multiply: [{ $toLong: { $toDate: "$_id" } }, seed],
                   },
                 },
                 1234567,
@@ -894,30 +972,34 @@ exports.retrieveHosts = async (req, res) => {
       ]),
       Host.aggregate([
         { $match: fakeLiveMatchQuery },
-        {
-          $lookup: {
-            from: "blocks",
-            let: { hostId: "$_id", userId: userId },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+        ...(userId
+          ? [
+            {
+              $lookup: {
+                from: "blocks",
+                let: { hostId: "$_id", userId },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                      },
+                    },
                   },
-                },
+                ],
+                as: "blockInfo",
               },
-            ],
-            as: "blockInfo",
-          },
-        },
-        { $match: { blockInfo: { $eq: [] } } },
+            },
+            { $match: { blockInfo: { $eq: [] } } },
+          ]
+          : []),
         {
           $addFields: {
             randomSortField: {
               $mod: [
                 {
                   $abs: {
-                    $multiply: [{ $toLong: { $toDate: "$_id" } }, userSeed],
+                    $multiply: [{ $toLong: { $toDate: "$_id" } }, seed],
                   },
                 },
                 1234567,
@@ -951,17 +1033,26 @@ exports.retrieveHosts = async (req, res) => {
       ]),
     ]);
 
-    // hosts = hosts.sort(() => Math.random() - 0.5);
+    const hosts = hostsAgg[0].data;
+    const totalHosts = hostsAgg[0].totalCount[0]?.count || 0;
+
+    const followedHost = followedHostAgg?.[0]?.data || [];
+    const totalFollowedHosts = followedHostAgg?.[0]?.totalCount?.[0]?.count || 0;
 
     let allLiveHosts = settingJSON.isDemoData ? [...liveHost, ...fakeLiveHost] : liveHost;
+    const totalLiveHosts = allLiveHosts.length;
     const paginatedLiveHosts = allLiveHosts.slice((start - 1) * limit, start * limit);
 
     return res.json({
       status: true,
       message: "Hosts list retrieved successfully.",
-      followedHost,
+      seed,
+      followedHost: followedHost || [],
       liveHost: paginatedLiveHosts,
       hosts: hosts,
+      totalHosts,
+      totalFollowedHosts,
+      totalLiveHosts,
     });
   } catch (error) {
     console.error("Retrieve Hosts Error:", error);
@@ -972,19 +1063,29 @@ exports.retrieveHosts = async (req, res) => {
 //get host profile ( user )
 exports.retrieveHostDetails = async (req, res) => {
   try {
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
-    }
+    // if (!req.user || !req.user.userId) {
+    //   return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
+    // }
 
     if (!req.query.hostId) {
       return res.status(200).json({ status: false, message: "Invalid details." });
     }
 
-    const userId = new mongoose.Types.ObjectId(req.user.userId);
+    // const userId = new mongoose.Types.ObjectId(req.user.userId);
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(200).json({ status: false, message: "Valid userId is required." });
+    let userId = null;
+
+    if (req.query?.userId && mongoose.Types.ObjectId.isValid()) {
+      userId = new mongoose.Types.ObjectId(req.query.userId);
+
+      const user = await User.exists({ _id: userId });
+
+      if (!user) {
+        return res
+          .status(200)
+          .json({ status: false, message: "Provided user does not exist" });
+      }
     }
 
     const [host, receivedGifts, isFollowing, totalFollower] = await Promise.all([
@@ -1018,7 +1119,7 @@ exports.retrieveHostDetails = async (req, res) => {
           },
         },
       ]),
-      FollowerFollowing.exists({ followerId: userId, followingId: hostId }),
+      userId ? FollowerFollowing.exists({ followerId: userId, followingId: hostId }) : false,
       FollowerFollowing.countDocuments({ followingId: hostId }),
     ]);
 
@@ -1217,8 +1318,8 @@ exports.modifyHostDetails = async (req, res) => {
       Host.findOne({ _id: hostId }),
       email
         ? Host.findOne({ email: email?.trim(), _id: { $ne: hostId } })
-            .select("_id")
-            .lean()
+          .select("_id")
+          .lean()
         : null,
     ]);
 
@@ -1472,6 +1573,7 @@ exports.fetchHostsList = async (req, res) => {
     const start = parseInt(req.query.start || 1);
     const limit = parseInt(req.query.limit || 20);
     const skip = (start - 1) * limit;
+    const search = req.query.search?.trim();
 
     if (!req.query.hostId) {
       return res.status(200).json({ status: false, message: "hostId is required." });
@@ -1489,13 +1591,32 @@ exports.fetchHostsList = async (req, res) => {
     const country = req.query.country.trim().toLowerCase();
     const isGlobal = country === "global";
 
-    const now = new Date();
-    const timeBlock = Math.floor(now.getMinutes() / 1);
-    const hostSeed =
-      hostId
-        .toString()
-        .split("")
-        .reduce((a, c) => a + c.charCodeAt(0), 0) + timeBlock;
+    let seed;
+
+    if (start === 1) {
+      seed =
+        hostId
+          .toString()
+          .split("")
+          .reduce((a, c) => a + c.charCodeAt(0), 0)
+        + Date.now();
+    } else {
+      if (!req.query.seed) {
+        return res.status(400).json({
+          status: false,
+          message: "Seed is required for pagination beyond first page.",
+        });
+      }
+
+      seed = Number(req.query.seed);
+
+      if (!Number.isInteger(seed) || seed <= 0) {
+        return res.status(400).json({
+          status: false,
+          message: "Invalid seed value.",
+        });
+      }
+    }
 
     const baseMatch = {
       isBlock: false,
@@ -1503,15 +1624,15 @@ exports.fetchHostsList = async (req, res) => {
       ...(isGlobal ? {} : { country }),
       ...(settingJSON.isDemoData
         ? {
-            $or: [
-              { isFake: false, status: 2 },
-              { isFake: true, status: 2 },
-            ],
-          }
+          $or: [
+            { isFake: false, status: 2 },
+            { isFake: true, status: 2 },
+          ],
+        }
         : {
-            isFake: false,
-            status: 2,
-          }),
+          isFake: false,
+          status: 2,
+        }),
     };
 
     const [hosts, followerList] = await Promise.all([
@@ -1569,7 +1690,7 @@ exports.fetchHostsList = async (req, res) => {
                 $mod: [
                   {
                     $abs: {
-                      $multiply: [{ $toLong: { $toDate: "$_id" } }, hostSeed],
+                      $multiply: [{ $toLong: { $toDate: "$_id" } }, seed],
                     },
                   },
                   1234567,
@@ -1589,6 +1710,20 @@ exports.fetchHostsList = async (req, res) => {
               },
             },
           },
+
+          ...(search && search !== "All"
+            ? [
+              {
+                $match: {
+                  $or: [
+                    { name: { $regex: search, $options: "i" } },
+                    { uniqueId: { $regex: search, $options: "i" } },
+                    { bio: { $regex: search, $options: "i" } },
+                  ],
+                },
+              },
+            ]
+            : []),
 
           {
             $sort: {
@@ -1628,6 +1763,7 @@ exports.fetchHostsList = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Hosts list retrieved successfully.",
+      seed,
       hosts,
       followerList,
     });
