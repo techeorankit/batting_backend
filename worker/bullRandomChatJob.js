@@ -309,7 +309,7 @@ const scheduleChatJob = async () => {
 
     const intervalMs = messageInitiatedAt * 60 * 1000;
     const jobName = "repeat";
-    const jobId = `repeat:chat-job-every-${intervalInMinutes}-min`;
+    const jobId = `repeat:chat-job-every-${messageInitiatedAt}-min`;
 
     const [hosts] = await Promise.all([
       Host.find({
@@ -352,7 +352,7 @@ const scheduleChatJob = async () => {
       },
     );
 
-    console.log(`✅ Scheduled chat job every ${intervalInMinutes} minute(s)`);
+    console.log(`✅ Scheduled chat job every ${messageInitiatedAt} minute(s)`);
 
     const updatedJobs = await chatQueue.getRepeatableJobs();
     console.log("📋 Current Repeatable Jobs:");
