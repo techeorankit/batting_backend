@@ -307,11 +307,6 @@ const scheduleChatJob = async () => {
       return;
     }
 
-    if (!intervalInMinutes || intervalInMinutes === 0) {
-      console.log("⏹ Admin has disabled chat job scheduling (interval set to 0).");
-      return;
-    }
-
     const intervalMs = messageInitiatedAt * 60 * 1000;
     const jobName = "repeat";
     const jobId = `repeat:chat-job-every-${intervalInMinutes}-min`;
