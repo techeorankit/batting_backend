@@ -25,6 +25,8 @@ const { deleteFile } = require("../../util/deletefile");
 //userFunction
 const userFunction = require("../../util/userFunction");
 
+const path = require("path");
+
 function deleteFileIfExists(filePath) {
   if (filePath) {
     const fullPath = path.resolve(__dirname, filePath);
