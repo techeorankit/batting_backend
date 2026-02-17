@@ -443,7 +443,11 @@ exports.deactivateMyAccount = async (req, res) => {
     //   }
     // }
 
+    console.log("user: ", user);
+
     const host = await Host.findOne({ userId: user?._id }).select("_id image photoGallery video liveVideo profileVideo identityProof").lean();
+    console.log("host: ", host);
+
     if (host) {
       deleteFileIfExists(host?.image);
 
