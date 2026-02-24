@@ -79,7 +79,7 @@ exports.sendNotificationToSingleUserByAdmin = async (req, res) => {
     } catch (error) {
       if (req.file) deleteFile(req.file);
       console.error("Error sending notification:", error);
-      res.status(500).json({ status: false, message: "Failed to send notification." });
+      return res.status(200).json({ status: false, message: "Failed to send notification." });
     }
   } catch (error) {
     if (req.file) deleteFile(req.file);
@@ -154,7 +154,7 @@ exports.sendNotificationToSingleHostByAdmin = async (req, res) => {
     } catch (error) {
       if (req.file) deleteFile(req.file);
       console.error("Error sending notification:", error);
-      res.status(500).json({ status: false, message: "Failed to send notification." });
+      return res.status(200).json({ status: false, message: "Failed to send notification." });
     }
   } catch (error) {
     if (req.file) deleteFile(req.file);
@@ -180,6 +180,7 @@ exports.sendNotifications = async (req, res) => {
       const [users, hosts] = await Promise.all([User.find({ isBlock: false }, "_id fcmToken"), Host.find({ isBlock: false }, "_id fcmToken")]);
       targets = [...users.map((u) => ({ ...u.toObject(), isUser: true })), ...hosts.map((h) => ({ ...h.toObject(), isHost: true }))];
     } else {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Please pass a valid notificationType!" });
     }
 
@@ -206,6 +207,8 @@ exports.sendNotifications = async (req, res) => {
       await Notification.insertMany(notifications);
     }
 
+    res.status(200).json({ status: true, message: "Notification sent successfully." });
+
     if (tokens.length > 0) {
       const adminInstance = await admin;
       const chunkSize = 500;
@@ -215,17 +218,12 @@ exports.sendNotifications = async (req, res) => {
         batches.push(
           adminInstance.messaging().sendEachForMulticast({
             tokens: tokens.slice(i, i + chunkSize),
-            notification: {
-              title: title || "Default Title",
-              body: message || "Default Message",
-              image,
-            },
             data: {
               title: title || "Default Title",
               body: message || "Default Message",
               image,
             },
-          })
+          }),
         );
       }
 
@@ -240,7 +238,6 @@ exports.sendNotifications = async (req, res) => {
 
         batchResult.responses.forEach((resp, idx) => {
           if (!resp.success) {
-            if (req.file) deleteFile(req.file);
             console.error(`FCM TOKEN FAILED (batch ${batchIndex}):`, resp.error?.message);
           }
         });
@@ -255,8 +252,6 @@ exports.sendNotifications = async (req, res) => {
       if (req.file) deleteFile(req.file);
       console.warn("No valid FCM tokens to send.");
     }
-
-    return res.status(200).json({ status: true, message: "Notifications sent successfully." });
   } catch (error) {
     if (req.file) deleteFile(req.file);
     console.error("sendNotifications error:", error);
