@@ -4,29 +4,37 @@ const Host = require("../../models/host.model");
 //private key
 const admin = require("../../util/privateKey");
 
+//deletefile
+const { deleteFile } = require("../../util/deletefile");
+
 //sending a notification from agency to a specific host
 exports.notifyHost = async (req, res) => {
   try {
     const { hostId, title, message } = req.body;
 
     if (!hostId) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Host ID is required." });
     }
 
     if (!title || !message) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Both title and message are required." });
     }
 
     const host = await Host.findById(hostId).select("_id isBlock fcmToken").lean();
     if (!host) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Host not found." });
     }
 
     if (host.isBlock) {
+      if (req.file) deleteFile(req.file);
       return res.status(403).json({ status: false, message: "This host has been blocked by the admin." });
     }
 
     if (!host.fcmToken) {
+      if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Host does not have a valid FCM token." });
     }
 
@@ -55,10 +63,12 @@ exports.notifyHost = async (req, res) => {
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }).save();
     } catch (error) {
+      if (req.file) deleteFile(req.file);
       console.error("Error sending notification:", error);
       res.status(500).json({ status: false, message: "Failed to send notification." });
     }
   } catch (error) {
+    if (req.file) deleteFile(req.file);
     console.error("Error in sendNotificationToSingleHostByAdmin:", error);
     return res.status(500).json({ status: false, message: "Internal server error." });
   }
@@ -77,22 +87,18 @@ exports.sendBulkHostNotifications = async (req, res) => {
     const notifications = [];
     const tokens = [];
 
-    await Promise.all(
-      targets.map(async (item) => {
-        notifications.push({
-          host: item._id,
-          notificationPersonType: 2,
-          title,
-          message,
-          image,
-          date,
-        });
+    targets.forEach((item) => {
+      notifications.push({
+        host: item._id,
+        notificationPersonType: 2,
+        title,
+        message,
+        image,
+        date,
+      });
 
-        if (item.fcmToken && typeof item.fcmToken === "string" && item.fcmToken.trim()) {
-          tokens.push(item.fcmToken);
-        }
-      })
-    );
+      if (item.fcmToken?.trim()) tokens.push(item.fcmToken);
+    });
 
     if (notifications.length) {
       await Notification.insertMany(notifications);
@@ -100,30 +106,57 @@ exports.sendBulkHostNotifications = async (req, res) => {
 
     if (tokens.length > 0) {
       const adminInstance = await admin;
-      const response = await adminInstance.messaging().sendEachForMulticast({
-        tokens,
-        data: {
-          title: title || "Default Title",
-          body: message || "Default Message",
-          image,
-        },
-      });
+      const chunkSize = 500;
+      const batches = [];
 
-      console.log("Notification sent:", response);
+      for (let i = 0; i < tokens.length; i += chunkSize) {
+        batches.push(
+          adminInstance.messaging().sendEachForMulticast({
+            tokens: tokens.slice(i, i + chunkSize),
+            notification: {
+              title: title || "Default Title",
+              body: message || "Default Message",
+              image,
+            },
+            data: {
+              title: title || "Default Title",
+              body: message || "Default Message",
+              image,
+            },
+          })
+        );
+      }
 
-      if (response.failureCount > 0) {
-        response.responses.forEach((res, idx) => {
-          if (!res.success) {
-            console.error(`Failed token ${tokens[idx]}: ${res.error.message}`);
+      const results = await Promise.all(batches);
+
+      let totalSuccess = 0;
+      let totalFailure = 0;
+
+      results.forEach((batchResult, batchIndex) => {
+        totalSuccess += batchResult.successCount;
+        totalFailure += batchResult.failureCount;
+
+        batchResult.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            if (req.file) deleteFile(req.file);
+            console.error(`FCM TOKEN FAILED (batch ${batchIndex}):`, resp.error?.message);
           }
         });
-      }
+      });
+
+      console.log("BULK HOST FCM SUMMARY:", {
+        totalTokens: tokens.length,
+        totalSuccess,
+        totalFailure,
+      });
     } else {
+      if (req.file) deleteFile(req.file);
       console.warn("No valid FCM tokens to send.");
     }
 
     return res.status(200).json({ status: true, message: "Notifications sent successfully." });
   } catch (error) {
+    if (req.file) deleteFile(req.file);
     console.error("sendBulkHostNotifications error:", error);
     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
   }
