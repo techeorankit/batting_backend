@@ -91,8 +91,8 @@ exports.purchaseVipPlan = async (req, res) => {
           $set: {
             isVip: true,
             vipPlanStartDate,
-            vipPlanId: vipPlan._id,
             vipPlanEndDate: planEndDate.toISOString(),
+            vipPlanId: vipPlan._id,
             "vipPlan.validity": vipPlan.validity,
             "vipPlan.validityType": vipPlan.validityType,
             "vipPlan.amount": vipPlan.amount,

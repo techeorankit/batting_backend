@@ -20,4 +20,10 @@ route.get("/retrieveHostCoinHistory", checkAccessWithSecretKey(), HistoryControl
 //coin deduct for fake content
 route.post("/handleCoinTransaction", checkAccessWithSecretKey(), HistoryController.handleCoinTransaction);
 
+//purchase plan through stripe (coinPlan / vipPlan) (web)
+route.post("/purchasePlan", checkAccessWithSecretKey(), validateUserToken, HistoryController.purchasePlan);
+
+//create razorpay order (web)
+route.post("/createRazorpayOrder", checkAccessWithSecretKey(), validateUserToken, HistoryController.createRazorpayOrder);
+
 module.exports = route;

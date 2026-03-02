@@ -2,11 +2,16 @@ const History = require("../../models/history.model");
 const Host = require("../../models/host.model");
 const User = require("../../models/user.model");
 const Gift = require("../../models/gift.model");
+const CoinPlan = require("../../models/coinPlan.model");
+const VipPlan = require("../../models/vipPlan.model");
+const VipPlanPrivilege = require("../../models/vipPlanPrivilege.model");
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
 const mongoose = require("mongoose");
+
+const Razorpay = require("razorpay");
 
 //get coin history ( user )
 exports.getCoinTransactionRecords = async (req, res) => {
@@ -238,14 +243,16 @@ exports.retrieveHostCoinHistory = async (req, res) => {
 //coin deduct for fake content
 exports.handleCoinTransaction = async (req, res) => {
   try {
-    const { type } = req.body;
+    const { type } = req.body || {};
 
-    if (!type) return res.status(200).json({ status: false, message: "Transaction type is required." });
+    if (!type) {
+      return res.status(200).json({ status: false, message: "Transaction type is required." });
+    }
 
     const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
 
     if (type === "chatGift") {
-      const { senderId, receiverId, giftId, giftCount } = req.body;
+      const { senderId, receiverId, giftId, giftCount } = req.body || {};
 
       if (!senderId || !receiverId || !giftId || !giftCount) {
         return res.status(200).json({ status: false, message: "Missing required fields for chatGift" });
@@ -292,7 +299,7 @@ exports.handleCoinTransaction = async (req, res) => {
 
       return res.status(200).json({ success: true, message: "Chat gift sent successfully" });
     } else if (type === "liveGift") {
-      const { senderId, receiverId, giftId, giftCount } = req.body;
+      const { senderId, receiverId, giftId, giftCount } = req.body || {};
 
       if (!senderId || !receiverId || !giftId || !giftCount) return res.status(200).json({ status: false, message: "Missing required fields for liveGift" });
 
@@ -342,5 +349,275 @@ exports.handleCoinTransaction = async (req, res) => {
   } catch (error) {
     console.error("[handleCoinTransaction]status:false, message:", error);
     return res.status(500).json({ status: false, message: "Internal server error" });
+  }
+};
+
+//purchase plan through stripe (coinPlan / vipPlan) (web)
+exports.purchasePlan = async (req, res) => {
+  try {
+    console.log("========== PURCHASE PLAN (STRIPE DIRECT) ==========");
+
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        status: false,
+        message: "Access denied. Invalid authentication token.",
+      });
+    }
+
+    const { planId, planType, currency, billing_details, payment_method_id } = req.body || {};
+
+    if (!planId || !planType || !currency || !billing_details || !payment_method_id) {
+      return res.status(200).json({
+        status: false,
+        message: "planId, planType, currency, billing_details and payment_method_id are required.",
+      });
+    }
+
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
+
+    const stripe = require("stripe")(settingJSON?.stripeSecretKey);
+
+    const [uniqueId, user] = await Promise.all([generateHistoryUniqueId(), User.findById(userId).select("_id isVip isBlock").lean()]);
+
+    if (!user) {
+      return res.status(200).json({ status: false, message: "User not found." });
+    }
+
+    if (user.isBlock) {
+      return res.status(200).json({ status: false, message: "You are blocked by admin." });
+    }
+
+    let plan, vipPrivilege;
+    let finalPrice = 0;
+
+    if (planType === "coinPlan") {
+      plan = await CoinPlan.findById(planId).lean();
+      if (!plan) return res.status(200).json({ status: false, message: "Coin plan not found." });
+
+      finalPrice = plan.price;
+    }
+
+    if (planType === "vipPlan") {
+      [plan, vipPrivilege] = await Promise.all([VipPlan.findById(planId).lean(), VipPlanPrivilege.findOne().select("topUpCoinBonus").lean()]);
+
+      plan = await VipPlan.findById(planId).lean();
+      if (!plan) return res.status(200).json({ status: false, message: "VIP plan not found." });
+
+      finalPrice = plan.price;
+    }
+
+    if (!finalPrice || finalPrice <= 0) {
+      return res.status(200).json({ status: false, message: "Invalid plan price." });
+    }
+
+    const customer = await stripe.customers.create({
+      email: billing_details.email,
+      name: billing_details.name,
+      address: billing_details.address,
+    });
+
+    let intent = await stripe.paymentIntents.create({
+      amount: finalPrice * 100,
+      currency,
+      customer: customer.id,
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "never",
+      },
+      payment_method: payment_method_id,
+      description: `${planType} purchase`,
+    });
+
+    intent = await stripe.paymentIntents.confirm(intent.id);
+    console.log("Stripe Intent Status:", intent.status);
+
+    if (intent.status === "requires_action" && intent.next_action?.type === "use_stripe_sdk") {
+      return res.status(200).json({
+        status: true,
+        requires_action: true,
+        client_secret: intent.client_secret,
+      });
+    }
+
+    if (intent.status !== "succeeded") {
+      return res.status(200).json({
+        status: false,
+        message: "Payment not completed.",
+      });
+    }
+
+    if (planType === "coinPlan") {
+      const totalCoins = user.isVip ? plan.coins + (plan.bonusCoins || 0) : plan.coins;
+
+      await Promise.all([
+        User.updateOne({ _id: userId }, { $inc: { coin: totalCoins, rechargedCoins: totalCoins } }),
+        History.create({
+          uniqueId,
+          type: 7,
+          userId,
+          userCoin: totalCoins,
+          bonusCoins: user.isVip ? plan.bonusCoins || 0 : 0,
+          price: plan.price,
+          paymentGateway: "Stripe",
+          paymentIntentId: intent.id,
+          date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+        }),
+      ]);
+
+      return res.status(200).json({
+        status: true,
+        message: "Coin plan purchased successfully.",
+        client_secret: intent.client_secret,
+      });
+    }
+
+    if (planType === "vipPlan") {
+      const totalCoins = user.isVip ? vipPlan.coin + (vipPrivilege?.topUpCoinBonus || 0) : vipPlan.coin;
+
+      const startDate = moment();
+      let endDate = moment(startDate);
+
+      switch (plan.validityType.toLowerCase()) {
+        case "days":
+          endDate.add(plan.validity, "days");
+          break;
+        case "months":
+          endDate.add(plan.validity, "months");
+          break;
+        case "years":
+          endDate.add(plan.validity, "years");
+          break;
+        default:
+          return res.status(200).json({
+            status: false,
+            message: "Invalid validity type.",
+          });
+      }
+
+      await Promise.all([
+        User.updateOne(
+          { _id: userId },
+          {
+            $set: {
+              isVip: true,
+              vipPlanStartDate: startDate.toISOString(),
+              vipPlanEndDate: endDate.toISOString(),
+              vipPlanId: plan._id,
+              "vipPlan.validity": plan.validity,
+              "vipPlan.validityType": plan.validityType,
+              "vipPlan.amount": plan.amount,
+            },
+            $inc: {
+              coin: totalCoins,
+              rechargedCoins: totalCoins,
+            },
+          },
+        ),
+        History.create({
+          uniqueId,
+          type: 8,
+          userId,
+          userCoin: totalCoins,
+          bonusCoins: user.isVip ? vipPrivilege?.topUpCoinBonus || 0 : 0,
+          validity: plan.validity,
+          validityType: plan.validityType,
+          price: plan.price,
+          paymentGateway: "Stripe",
+          paymentIntentId: intent.id,
+          date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+        }),
+      ]);
+
+      return res.status(200).json({
+        status: true,
+        message: "VIP plan purchased successfully.",
+        client_secret: intent.client_secret,
+      });
+    }
+
+    return res.status(200).json({
+      status: false,
+      message: "Invalid plan type.",
+    });
+  } catch (error) {
+    console.error("PURCHASE PLAN ERROR:", error);
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Internal Server Error",
+    });
+  }
+};
+
+//create razorpay order (web)
+exports.createRazorpayOrder = async (req, res) => {
+  try {
+    console.log("========== CREATE RAZORPAY ORDER ==========", req.body);
+
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        status: false,
+        message: "Access denied. Invalid authentication token.",
+      });
+    }
+
+    let { amount, currency = "INR", receipt } = req.body || {};
+
+    if (!amount || !receipt) {
+      return res.status(200).json({
+        status: false,
+        message: "Amount and receipt are required.",
+      });
+    }
+
+    amount = Number(amount);
+    currency = currency?.toUpperCase() || "INR";
+
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(200).json({
+        status: false,
+        message: "Invalid amount.",
+      });
+    }
+
+    // if (!settingJSON?.razorPayId || !settingJSON?.razorSecretKey) {
+    //   return res.status(200).json({
+    //     status: false,
+    //     message: "Razorpay configuration not found.",
+    //   });
+    // }
+
+    const razorpay = new Razorpay({
+      // key_id: settingJSON.razorPayId,
+      // key_secret: settingJSON.razorSecretKey,
+      key_id: "rzp_test_shidVsmFs8xnJQ",
+      key_secret: "dhmD0mqiNoOHOVHu7UplXzP3",
+    });
+
+    const options = {
+      amount: amount * 100, // convert to paisa
+      currency,
+      receipt,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    console.log("Razorpay Order Created:", order.id);
+
+    return res.status(200).json({
+      status: true,
+      message: "Razorpay order created successfully.",
+      data: {
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+      },
+    });
+  } catch (error) {
+    console.error("RAZORPAY ORDER ERROR:", error);
+
+    return res.status(error.statusCode || 500).json({
+      status: false,
+      message: error?.error?.description || error.message || "Internal Server Error",
+    });
   }
 };

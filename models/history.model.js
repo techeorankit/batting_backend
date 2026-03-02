@@ -17,7 +17,9 @@ const historySchema = new mongoose.Schema(
     giftType: { type: Number, default: 0 },
     giftImage: { type: String, default: "" },
     giftsvgaImage: { type: String, default: "" },
-    
+
+    paymentIntentId: { type: String, default: null },
+
     callType: { type: String, default: "" }, //1.audio 2.video
     isRandom: { type: Boolean, default: false },
     isPrivate: { type: Boolean, default: false },
@@ -46,7 +48,7 @@ const historySchema = new mongoose.Schema(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 historySchema.index({ type: 1 });
