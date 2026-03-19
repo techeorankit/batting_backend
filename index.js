@@ -99,6 +99,7 @@ async function startServer() {
   const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
   const WithdrawalRequest = require("./models/withdrawalRequest.model");
   const FollowerFollowing = require("./models/followerFollowing.model");
+  const Report = require("./models/report.model");
 
   const cron = require("node-cron");
   const mongoose = require("mongoose");
@@ -197,6 +198,12 @@ async function startServer() {
                 HostMatchHistory.deleteMany({ $or: [{ lastHostId: host?._id }, { hostId: hostId }] }),
                 LiveBroadcaster.deleteMany({ hostId: host?._id }),
                 LiveBroadcastHistory.deleteMany({ hostId: host?._id }),
+                Report.deleteMany({
+                  $or: [
+                    { targetId: host?._id, targetRole: "host" },
+                    { reporterId: host?._id, reporterRole: "host" },
+                  ],
+                }),
                 Host.deleteOne({ _id: host?._id }),
               ]);
             }
@@ -210,6 +217,12 @@ async function startServer() {
               HostMatchHistory.deleteMany({ userId: user?._id }),
               LiveBroadcaster.deleteMany({ userId: user?._id }),
               LiveBroadcastView.deleteMany({ userId: user?._id }),
+              Report.deleteMany({
+                $or: [
+                  { targetId: user?._id, targetRole: "user" },
+                  { reporterId: user?._id, reporterRole: "user" },
+                ],
+              }),
               User.deleteOne({ _id: user._id }),
             ]);
 

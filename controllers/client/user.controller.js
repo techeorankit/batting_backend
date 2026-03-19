@@ -20,6 +20,7 @@ const LiveBroadcastView = require("../../models/liveBroadcastView.model");
 const LiveBroadcaster = require("../../models/liveBroadcaster.model");
 const FollowerFollowing = require("../../models/followerFollowing.model");
 const WithdrawalRequest = require("../../models/withdrawalRequest.model");
+const Report = require("../../models/report.model");
 
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
@@ -443,6 +444,12 @@ exports.deactivateMyAccount = async (req, res) => {
       }
       await Promise.all([
         WithdrawalRequest.deleteMany({ hostId: host._id }),
+        Report.deleteMany({
+          $or: [
+            { targetId: host?._id, targetRole: "host" },
+            { reporterId: host?._id, reporterRole: "host" },
+          ],
+        }),
         LiveBroadcastHistory.deleteMany({ hostId: host?._id }),
         Block.deleteMany({ hostId: host?._id }),
         FollowerFollowing.deleteMany({ followingId: host?._id }),
@@ -482,6 +489,12 @@ exports.deactivateMyAccount = async (req, res) => {
       LiveBroadcaster.deleteMany({ userId: user?._id }),
       LiveBroadcastView.deleteMany({ userId: user?._id }),
       FollowerFollowing.deleteMany({ followerId: user?._id }),
+      Report.deleteMany({
+        $or: [
+          { targetId: user?._id, targetRole: "user" },
+          { reporterId: user?._id, reporterRole: "user" },
+        ],
+      }),
     ]);
 
     if (user.firebaseUid) {

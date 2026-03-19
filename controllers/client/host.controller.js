@@ -12,6 +12,7 @@ const User = require("../../models/user.model");
 const Chat = require("../../models/chat.model");
 const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
 const WithdrawalRequest = require("../../models/withdrawalRequest.model");
+const Report = require("../../models/report.model");
 
 //deleteFiles
 const { deleteFile, deleteFiles } = require("../../util/deletefile");
@@ -1550,6 +1551,12 @@ exports.disableHostAccount = async (req, res, next) => {
     await Promise.all([
       WithdrawalRequest.deleteMany({ hostId }),
       Block.deleteMany({ hostId }),
+      Report.deleteMany({
+        $or: [
+          { targetId: host?._id, targetRole: "host" },
+          { reporterId: host?._id, reporterRole: "host" },
+        ],
+      }),
       FollowerFollowing.deleteMany({ followingId: hostId }),
       History.deleteMany({ hostId }),
       HostMatchHistory.deleteMany({ $or: [{ lastHostId: hostId }, { hostId: hostId }] }),

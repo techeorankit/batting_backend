@@ -8,6 +8,7 @@ const History = require("../../models/history.model");
 const HostMatchHistory = require("../../models/hostMatchHistory.model");
 const LiveBroadcaster = require("../../models/liveBroadcaster.model");
 const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
+const Report = require("../../models/report.model");
 
 //private key
 const admin = require("../../util/privateKey");
@@ -1203,6 +1204,12 @@ exports.deleteHost = async (req, res) => {
       HostMatchHistory.deleteMany({ $or: [{ lastHostId: hostId }, { hostId: hostId }] }),
       LiveBroadcaster.deleteMany({ hostId }),
       LiveBroadcastHistory.deleteMany({ hostId }),
+      Report.deleteMany({
+        $or: [
+          { targetId: host?._id, targetRole: "host" },
+          { reporterId: host?._id, reporterRole: "host" },
+        ],
+      }),
       Host.deleteOne({ _id: hostId }),
     ]);
   } catch (error) {
