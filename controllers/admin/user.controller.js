@@ -13,6 +13,14 @@ exports.retrieveUserList = async (req, res) => {
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
 
+    const genderFilter = req.query.gender || "";
+    const isVipFilter = req.query.isVip || false;
+    const isBlockFilter = req.query.isBlock || false;
+    const isOnlineFilter = req.query.isOnline || false;
+    const isBusyFilter = req.query.isBusy || false;
+    const isHostFilter = req.query.isHost || false;
+    const countryFilter = req?.query?.country?.trim().toLowerCase() || "";
+
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
       const startDateObj = new Date(startDate);
@@ -39,58 +47,94 @@ exports.retrieveUserList = async (req, res) => {
       ...searchQuery,
     };
 
-    const [totalActiveUsers, totalVIPUsers, totalMaleUsers, totalFemaleUsers, totalUsers, users] = await Promise.all([
-      User.countDocuments({ isBlock: false, ...dateFilterQuery }),
-      User.countDocuments({ isVip: true, ...dateFilterQuery }),
-      User.countDocuments({ gender: "male", ...dateFilterQuery }),
-      User.countDocuments({ gender: "female", ...dateFilterQuery }),
-      User.countDocuments(filter),
-      User.aggregate([
-        { $match: filter },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-        {
-          $lookup: {
-            from: "followerfollowings",
-            localField: "_id",
-            foreignField: "followerId", // user follows these hosts
-            as: "followings",
-          },
+    if (genderFilter) {
+      filter.gender = genderFilter;
+    }
+
+    if (isVipFilter) {
+      filter.isVip = isVipFilter === "true";
+    }
+
+    if (isBlockFilter) {
+      filter.isBlock = isBlockFilter === "true";
+    }
+
+    if (isOnlineFilter) {
+      filter.isOnline = isOnlineFilter === "true";
+    }
+
+    if (isBusyFilter) {
+      filter.isBusy = isBusyFilter === "true";
+    }
+
+    if (isHostFilter) {
+      filter.isHost = isHostFilter === "true";
+    }
+
+    if (countryFilter) {
+      filter.country = { $regex: `^${countryFilter}$`, $options: "i" };
+    }
+
+    const result = await User.aggregate([
+      {
+        $facet: {
+          // totalActiveUsers: [{ $match: { isBlock: false, ...dateFilterQuery } }, { $count: "count" }],
+          // totalVIPUsers: [{ $match: { isVip: true, ...dateFilterQuery } }, { $count: "count" }],
+          // totalMaleUsers: [{ $match: { gender: "male", ...dateFilterQuery } }, { $count: "count" }],
+          // totalFemaleUsers: [{ $match: { gender: "female", ...dateFilterQuery } }, { $count: "count" }],
+          totalUsers: [{ $match: filter }, { $count: "count" }],
+          users: [
+            { $match: filter },
+            { $sort: { createdAt: -1 } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: "followerfollowings",
+                localField: "_id",
+                foreignField: "followerId",
+                pipeline: [{ $count: "count" }],
+                as: "followings",
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                uniqueId: 1,
+                name: 1,
+                email: 1,
+                image: 1,
+                countryFlagImage: 1,
+                country: 1,
+                gender: 1,
+                coin: 1,
+                rechargedCoins: 1,
+                isHost: 1,
+                isVip: 1,
+                isBlock: 1,
+                isOnline: 1,
+                loginType: 1,
+                createdAt: 1,
+                lastlogin: 1,
+                totalFollowings: { $ifNull: [{ $arrayElemAt: ["$followings.count", 0] }, 0] },
+              },
+            },
+          ],
         },
-        {
-          $project: {
-            _id: 1,
-            uniqueId: 1,
-            name: 1,
-            email: 1,
-            image: 1,
-            countryFlagImage: 1,
-            country: 1,
-            gender: 1,
-            coin: 1,
-            rechargedCoins: 1,
-            isHost: 1,
-            isVip: 1,
-            isBlock: 1,
-            isOnline: 1,
-            loginType: 1,
-            createdAt: 1,
-            totalFollowings: { $size: "$followings" },
-          },
-        },
-      ]),
+      },
     ]);
+
+    const data = result[0];
 
     return res.status(200).json({
       status: true,
       message: "Retrieved real users!",
-      totalActiveUsers,
-      totalVIPUsers,
-      totalMaleUsers,
-      totalFemaleUsers,
-      total: totalUsers,
-      data: users,
+      // totalActiveUsers: data.totalActiveUsers[0]?.count || 0,
+      // totalVIPUsers: data.totalVIPUsers[0]?.count || 0,
+      // totalMaleUsers: data.totalMaleUsers[0]?.count || 0,
+      // totalFemaleUsers: data.totalFemaleUsers[0]?.count || 0,
+      total: data.totalUsers[0]?.count || 0,
+      data: data.users,
     });
   } catch (error) {
     console.error(error);

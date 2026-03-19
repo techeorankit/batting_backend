@@ -55,14 +55,18 @@ exports.getAllGiftCategories = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const [total, categories] = await Promise.all([
-      GiftCategory.countDocuments({ isDelete: false }),
-      GiftCategory.find({ isDelete: false })
-        .select("_id name createdAt updatedAt")
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+    const result = await GiftCategory.aggregate([
+      { $match: { isDelete: false } },
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          categories: [{ $sort: { createdAt: -1 } }, { $skip: (start - 1) * limit }, { $limit: limit }, { $project: { _id: 1, name: 1, createdAt: 1, updatedAt: 1 } }],
+        },
+      },
     ]);
+
+    const total = result[0].total[0]?.count || 0;
+    const categories = result[0].categories;
 
     return res.status(200).json({
       status: true,

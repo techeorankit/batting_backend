@@ -11,7 +11,7 @@ const FollowerFollowing = require("../../models/followerFollowing.model");
 const User = require("../../models/user.model");
 const Chat = require("../../models/chat.model");
 const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
-const Withdrawalrequest = require("../../models/withdrawalRequest.model");
+const WithdrawalRequest = require("../../models/withdrawalRequest.model");
 
 //deleteFiles
 const { deleteFile, deleteFiles } = require("../../util/deletefile");
@@ -33,14 +33,14 @@ exports.getPersonalityImpressions = async (req, res) => {
   try {
     const personalityImpressions = await Impression.find({}).select("name").sort({ createdAt: -1 }).lean();
 
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
       message: `Personality impressions retrieved successfully.`,
       personalityImpressions,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Failed to retrieve personality impressions." });
+    return res.status(500).json({ status: false, message: "Failed to retrieve personality impressions." });
   }
 };
 
@@ -97,12 +97,27 @@ exports.initiateHostRequest = async (req, res) => {
       return res.status(200).json({ status: false, message: "Image is missing. Please upload a valid image." });
     }
 
-    const [uniqueId, agencyDetails, existingHost, declineHostRequest] = await Promise.all([
+    const [uniqueId, agencyDetails, hostData] = await Promise.all([
       generateUniqueId(),
       agencyCode ? Agency.findOne({ agencyCode: agencyCode }).select("_id").lean() : null,
-      Host.findOne({ status: 1, userId: userId }).select("_id").lean(),
-      Host.findOne({ status: 3, userId: userId }).select("_id").lean(),
+      Host.aggregate([
+        {
+          $match: {
+            userId: userId,
+            status: { $in: [1, 3] },
+          },
+        },
+        {
+          $facet: {
+            pendingHost: [{ $match: { status: 1 } }, { $project: { _id: 1 } }],
+            declinedHost: [{ $match: { status: 3 } }, { $project: { _id: 1 } }],
+          },
+        },
+      ]),
     ]);
+
+    const existingHost = hostData[0]?.pendingHost[0] || null;
+    const declineHostRequest = hostData[0]?.declinedHost[0] || null;
 
     if (existingHost) {
       if (req.files) deleteFiles(req.files);
@@ -136,7 +151,7 @@ exports.initiateHostRequest = async (req, res) => {
       dob,
       gender,
       countryFlagImage,
-      country,
+      country: country.trim().toLowerCase(),
       language: languages,
       impression: impressions,
       identityProofType,
@@ -201,350 +216,6 @@ exports.verifyHostRequestStatus = async (req, res) => {
 };
 
 //get host thumblist ( user )
-// exports.retrieveHosts = async (req, res) => {
-//   try {
-//     const start = req.query.start ? parseInt(req.query.start) : 1;
-//     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
-
-//     if (!req.user || !req.user.userId) {
-//       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
-//     }
-
-//     if (!settingJSON) {
-//       return res.status(200).json({ status: false, message: "Configuration settings not found." });
-//     }
-
-//     if (!req.query.country) {
-//       return res.status(200).json({ status: false, message: "Please provide a country name." });
-//     }
-
-//     const userId = new mongoose.Types.ObjectId(req.user.userId);
-//     const country = req.query.country.trim().toLowerCase();
-//     const isGlobal = country === "global";
-
-//     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, userId: { $ne: userId } } : { country: country, isFake: true, isBlock: false, userId: { $ne: userId } };
-//     const fakeLiveMatchQuery = isGlobal
-//       ? {
-//           isFake: true,
-//           isBlock: false,
-//           userId: { $ne: userId },
-//           video: { $ne: [] },
-//         }
-//       : {
-//           country: country,
-//           isFake: true,
-//           isBlock: false,
-//           userId: { $ne: userId },
-//           video: { $ne: [] },
-//         };
-//     const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, userId: { $ne: userId } } : { country: country, isFake: false, isBlock: false, status: 2, userId: { $ne: userId } };
-
-//     const [fakeHost, host, followedHost, liveHost, fakeLiveHost] = await Promise.all([
-//       Host.aggregate([
-//         { $match: fakeMatchQuery },
-//         {
-//           $lookup: {
-//             from: "blocks",
-//             let: { hostId: "$_id", userId: userId },
-//             pipeline: [
-//               {
-//                 $match: {
-//                   $expr: {
-//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
-//                   },
-//                 },
-//               },
-//             ],
-//             as: "blockInfo",
-//           },
-//         },
-//         { $match: { blockInfo: { $eq: [] } } },
-//         {
-//           $addFields: {
-//             status: {
-//               $switch: {
-//                 branches: [
-//                   { case: { $lte: [{ $rand: {} }, 0.33] }, then: "Live" },
-//                   { case: { $lte: [{ $rand: {} }, 0.66] }, then: "Busy" },
-//                 ],
-//                 default: "Online",
-//               },
-//             },
-//             audioCallRate: 0,
-//             privateCallRate: 0,
-//             liveHistoryId: "",
-//             token: "",
-//             channel: "",
-//             randomSort: { $rand: {} },
-//           },
-//         },
-//         { $sort: { randomSort: 1 } },
-//         {
-//           $project: {
-//             _id: 1,
-//             name: 1,
-//             countryFlagImage: 1,
-//             country: 1,
-//             image: 1,
-//             audioCallRate: 1,
-//             privateCallRate: 1,
-//             isFake: 1,
-//             status: 1,
-//             video: 1,
-//             liveVideo: 1,
-//             liveHistoryId: 1,
-//             token: 1,
-//             channel: 1,
-//             uniqueId: 1,
-//             gender: 1,
-//           },
-//         },
-//       ]),
-//       Host.aggregate([
-//         { $match: matchQuery },
-//         {
-//           $lookup: {
-//             from: "blocks",
-//             let: { hostId: "$_id", userId: userId },
-//             pipeline: [
-//               {
-//                 $match: {
-//                   $expr: {
-//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
-//                   },
-//                 },
-//               },
-//             ],
-//             as: "blockInfo",
-//           },
-//         },
-//         { $match: { blockInfo: { $eq: [] } } },
-//         {
-//           $addFields: {
-//             status: {
-//               $switch: {
-//                 branches: [
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
-//                 ],
-//                 default: "Offline",
-//               },
-//             },
-//             randomSort: { $rand: {} },
-//           },
-//         },
-//         { $sort: { randomSort: 1 } },
-//         {
-//           $project: {
-//             _id: 1,
-//             name: 1,
-//             countryFlagImage: 1,
-//             country: 1,
-//             image: 1,
-//             audioCallRate: 1,
-//             privateCallRate: 1,
-//             isFake: 1,
-//             status: 1,
-//             liveHistoryId: 1,
-//             token: 1,
-//             channel: 1,
-//           },
-//         },
-//       ]),
-//       Host.aggregate([
-//         {
-//           $lookup: {
-//             from: "followerfollowings",
-//             let: { hostId: "$_id" },
-//             pipeline: [
-//               {
-//                 $match: {
-//                   $expr: {
-//                     $and: [{ $eq: ["$followerId", userId] }, { $eq: ["$followingId", "$$hostId"] }],
-//                   },
-//                 },
-//               },
-//             ],
-//             as: "followInfo",
-//           },
-//         },
-//         {
-//           $match: {
-//             followInfo: { $ne: [] },
-//             isBlock: false,
-//             status: 2,
-//             userId: { $ne: userId },
-//           },
-//         },
-//         {
-//           $lookup: {
-//             from: "blocks",
-//             let: { hostId: "$_id", userId: userId },
-//             pipeline: [
-//               {
-//                 $match: {
-//                   $expr: {
-//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
-//                   },
-//                 },
-//               },
-//             ],
-//             as: "blockInfo",
-//           },
-//         },
-//         { $match: { blockInfo: { $eq: [] } } },
-//         {
-//           $addFields: {
-//             isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
-//             status: {
-//               $switch: {
-//                 branches: [
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
-//                 ],
-//                 default: "Offline",
-//               },
-//             },
-//           },
-//         },
-//         { $sort: { createdAt: -1 } },
-//         { $skip: (start - 1) * limit },
-//         { $limit: limit },
-//         {
-//           $project: {
-//             _id: 1,
-//             name: 1,
-//             countryFlagImage: 1,
-//             country: 1,
-//             image: 1,
-//             audioCallRate: 1,
-//             privateCallRate: 1,
-//             isFake: 1,
-//             status: 1,
-//             uniqueId: 1,
-//             gender: 1,
-//           },
-//         },
-//       ]),
-//       LiveBroadcaster.aggregate([
-//         { $match: { userId: { $ne: userId } } },
-//         {
-//           $lookup: {
-//             from: "blocks",
-//             let: { hostId: "$hostId", userId: userId },
-//             pipeline: [
-//               {
-//                 $match: {
-//                   $expr: {
-//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
-//                   },
-//                 },
-//               },
-//             ],
-//             as: "blockInfo",
-//           },
-//         },
-//         { $match: { blockInfo: { $eq: [] } } },
-//         {
-//           $addFields: {
-//             video: [],
-//             liveVideo: [],
-//             randomSort: { $rand: {} },
-//           },
-//         },
-//         { $sort: { randomSort: 1 } },
-//         {
-//           $project: {
-//             _id: 1,
-//             hostId: 1,
-//             name: 1,
-//             countryFlagImage: 1,
-//             country: 1,
-//             image: 1,
-//             isFake: 1,
-//             liveHistoryId: 1,
-//             channel: 1,
-//             token: 1,
-//             view: 1,
-//             video: 1,
-//             liveVideo: 1,
-//           },
-//         },
-//       ]),
-//       Host.aggregate([
-//         { $match: fakeLiveMatchQuery },
-//         {
-//           $lookup: {
-//             from: "blocks",
-//             let: { hostId: "$_id", userId: userId },
-//             pipeline: [
-//               {
-//                 $match: {
-//                   $expr: {
-//                     $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
-//                   },
-//                 },
-//               },
-//             ],
-//             as: "blockInfo",
-//           },
-//         },
-//         { $match: { blockInfo: { $eq: [] } } },
-//         {
-//           $addFields: {
-//             randomSort: { $rand: {} },
-//           },
-//         },
-//         { $sort: { randomSort: 1 } },
-//         {
-//           $project: {
-//             _id: 1,
-//             hostId: "$_id",
-//             name: 1,
-//             countryFlagImage: 1,
-//             country: 1,
-//             image: 1,
-//             isFake: 1,
-//             liveHistoryId: 1,
-//             channel: 1,
-//             token: 1,
-//             view: 1,
-//             video: 1,
-//             liveVideo: 1,
-//           },
-//         },
-//       ]),
-//     ]);
-
-//     const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
-
-//     // Pagination for hosts
-//     let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
-//     allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
-//     const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
-
-//     // Pagination for liveHost
-//     let allLiveHosts = settingJSON.isDemoData ? [...liveHost, ...fakeLiveHost] : liveHost;
-//     const paginatedLiveHosts = allLiveHosts.slice((start - 1) * limit, start * limit);
-
-//     return res.status(200).json({
-//       status: true,
-//       message: "Hosts list retrieved successfully.",
-//       followedHost,
-//       liveHost: paginatedLiveHosts,
-//       hosts: paginatedHosts,
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       status: false,
-//       message: "An error occurred while fetching the hosts list.",
-//       error: error.message || "Internal Server Error",
-//     });
-//   }
-// };
-
 exports.retrieveHosts = async (req, res) => {
   try {
     const start = parseInt(req.query.start || 1);
@@ -564,12 +235,9 @@ exports.retrieveHosts = async (req, res) => {
       const user = await User.exists({ _id: userId });
 
       if (!user) {
-        return res
-          .status(404)
-          .json({ status: false, message: "Provided user does not exist" });
+        return res.status(200).json({ status: false, message: "Provided user does not exist" });
       }
     }
-
 
     if (!settingJSON) {
       return res.status(200).json({ status: false, message: "Configuration settings not found." });
@@ -589,12 +257,10 @@ exports.retrieveHosts = async (req, res) => {
       seed =
         (userId
           ? userId
-            .toString()
-            .split("")
-            .reduce((a, c) => a + c.charCodeAt(0), 0)
-          : Math.floor(Math.random() * 1000000))
-        + Date.now();
-
+              .toString()
+              .split("")
+              .reduce((a, c) => a + c.charCodeAt(0), 0)
+          : Math.floor(Math.random() * 1000000)) + Date.now();
     } else {
       if (!req.query.seed) {
         return res.status(200).json({
@@ -619,31 +285,31 @@ exports.retrieveHosts = async (req, res) => {
       ...(isGlobal ? {} : { country }),
       ...(settingJSON.isDemoData
         ? {
-          $or: [
-            { isFake: false, status: 2 },
-            { isFake: true, status: 2 },
-          ],
-        }
+            $or: [
+              { isFake: false, status: 2 },
+              { isFake: true, status: 2 },
+            ],
+          }
         : {
-          isFake: false,
-          status: 2,
-        }),
+            isFake: false,
+            status: 2,
+          }),
     };
 
     const fakeLiveMatchQuery = isGlobal
       ? {
-        isFake: true,
-        isBlock: false,
-        ...(userId ? { userId: { $ne: userId } } : {}),
-        video: { $ne: [] },
-      }
+          isFake: true,
+          isBlock: false,
+          ...(userId ? { userId: { $ne: userId } } : {}),
+          video: { $ne: [] },
+        }
       : {
-        country: country,
-        isFake: true,
-        isBlock: false,
-        ...(userId ? { userId: { $ne: userId } } : {}),
-        video: { $ne: [] },
-      };
+          country: country,
+          isFake: true,
+          isBlock: false,
+          ...(userId ? { userId: { $ne: userId } } : {}),
+          video: { $ne: [] },
+        };
 
     let [hostsAgg, followedHostAgg, liveHost, fakeLiveHost] = await Promise.all([
       Host.aggregate(
@@ -651,28 +317,51 @@ exports.retrieveHosts = async (req, res) => {
           { $match: baseMatch },
           ...(userId
             ? [
-              {
-                $lookup: {
-                  from: "blocks",
-                  let: { hostId: "$_id", userId },
-                  pipeline: [
-                    {
-                      $match: {
-                        $expr: {
-                          $or: [
-                            { $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] },
-                            { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] },
-                          ],
+                {
+                  $lookup: {
+                    from: "blocks",
+                    let: { hostId: "$_id", userId },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                          },
                         },
                       },
-                    },
-                  ],
-                  as: "blockInfo",
+                    ],
+                    as: "blockInfo",
+                  },
                 },
-              },
-              { $match: { blockInfo: { $eq: [] } } },
-            ]
+                { $match: { blockInfo: { $eq: [] } } },
+              ]
             : []),
+
+          ...(userId
+            ? [
+                {
+                  $lookup: {
+                    from: "followerfollowings",
+                    localField: "_id",
+                    foreignField: "followingId",
+                    pipeline: [
+                      {
+                        $match: {
+                          followerId: userId,
+                        },
+                      },
+                      { $project: { _id: 1 } },
+                    ],
+                    as: "followInfo",
+                  },
+                },
+                {
+                  $addFields: {
+                    isFollowing: { $gt: [{ $size: "$followInfo" }, 0] },
+                  },
+                },
+              ]
+            : [{ $addFields: { isFollowing: false } }]),
 
           {
             $addFields: {
@@ -747,18 +436,13 @@ exports.retrieveHosts = async (req, res) => {
 
           ...(search && search !== "All"
             ? [
-              {
-                $match: {
-                  $or: [
-                    { name: { $regex: search, $options: "i" } },
-                    { uniqueId: { $regex: search, $options: "i" } },
-                    { bio: { $regex: search, $options: "i" } },
-                  ],
+                {
+                  $match: {
+                    $or: [{ name: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }, { bio: { $regex: search, $options: "i" } }],
+                  },
                 },
-              },
-            ]
+              ]
             : []),
-
 
           {
             $facet: {
@@ -779,6 +463,7 @@ exports.retrieveHosts = async (req, res) => {
                     _id: 1,
                     name: 1,
                     image: 1,
+                    isFollowing: 1,
                     country: 1,
                     countryFlagImage: 1,
                     audioCallRate: 1,
@@ -795,54 +480,125 @@ exports.retrieveHosts = async (req, res) => {
                   },
                 },
               ],
-              totalCount: [
-                { $count: "count" }
-              ]
-            }
+              totalCount: [{ $count: "count" }],
+            },
           },
         ],
         { allowDiskUse: true },
       ),
       userId
         ? Host.aggregate([
-          {
-            $lookup: {
-              from: "followerfollowings",
-              let: { hostId: "$_id" },
-              pipeline: [
-                {
-                  $match: {
-                    $expr: {
-                      $and: [{ $eq: ["$followerId", userId] }, { $eq: ["$followingId", "$$hostId"] }],
+            {
+              $lookup: {
+                from: "followerfollowings",
+                localField: "_id",
+                foreignField: "followingId",
+                pipeline: [
+                  {
+                    $match: {
+                      followerId: userId,
                     },
                   },
+                  { $project: { _id: 1 } },
+                ],
+                as: "followInfo",
+              },
+            },
+            {
+              $match: {
+                followInfo: { $ne: [] },
+                isBlock: false,
+                status: 2,
+                ...(userId ? { userId: { $ne: userId } } : {}),
+              },
+            },
+            ...(userId
+              ? [
+                  {
+                    $lookup: {
+                      from: "blocks",
+                      let: { hostId: "$_id", userId },
+                      pipeline: [
+                        {
+                          $match: {
+                            $expr: {
+                              $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                            },
+                          },
+                        },
+                      ],
+                      as: "blockInfo",
+                    },
+                  },
+                  { $match: { blockInfo: { $eq: [] } } },
+                ]
+              : []),
+            {
+              $addFields: {
+                isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
+                status: {
+                  $switch: {
+                    branches: [
+                      {
+                        case: {
+                          $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
+                        },
+                        then: "Live",
+                      },
+                      {
+                        case: {
+                          $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
+                        },
+                        then: "Busy",
+                      },
+                    ],
+                    default: "Offline",
+                  },
                 },
-              ],
-              as: "followInfo",
+              },
             },
-          },
-          {
-            $match: {
-              followInfo: { $ne: [] },
-              isBlock: false,
-              status: 2,
-              ...(userId ? { userId: { $ne: userId } } : {}),
+            {
+              $facet: {
+                data: [
+                  { $sort: { createdAt: -1 } },
+                  { $skip: skip },
+                  { $limit: limit },
+                  {
+                    $project: {
+                      _id: 1,
+                      name: 1,
+                      countryFlagImage: 1,
+                      country: 1,
+                      image: 1,
+                      audioCallRate: 1,
+                      privateCallRate: 1,
+                      isFake: 1,
+                      status: 1,
+                      uniqueId: 1,
+                      gender: 1,
+                    },
+                  },
+                ],
+                totalCount: [{ $count: "count" }],
+              },
             },
-          },
-          ...(userId
-            ? [
+          ])
+        : Promise.resolve([]),
+      LiveBroadcaster.aggregate([
+        {
+          $match: userId ? { userId: { $ne: userId } } : {},
+        },
+        ...(userId
+          ? [
               {
                 $lookup: {
                   from: "blocks",
-                  let: { hostId: "$_id", userId },
+                  let: { hostId: "$hostId", userId },
                   pipeline: [
                     {
                       $match: {
                         $expr: {
-                          $or: [
-                            { $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] },
-                            { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] },
-                          ],
+                          $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
                         },
                       },
                     },
@@ -852,83 +608,6 @@ exports.retrieveHosts = async (req, res) => {
               },
               { $match: { blockInfo: { $eq: [] } } },
             ]
-            : []),
-          {
-            $addFields: {
-              isFollowed: { $gt: [{ $size: "$followInfo" }, 0] },
-              status: {
-                $switch: {
-                  branches: [
-                    {
-                      case: {
-                        $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }],
-                      },
-                      then: "Live",
-                    },
-                    {
-                      case: {
-                        $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }],
-                      },
-                      then: "Busy",
-                    },
-                  ],
-                  default: "Offline",
-                },
-              },
-            },
-          },
-          {
-            $facet: {
-              data: [
-                { $sort: { createdAt: -1 } },
-                { $skip: skip },
-                { $limit: limit },
-                {
-                  $project: {
-                    _id: 1,
-                    name: 1,
-                    countryFlagImage: 1,
-                    country: 1,
-                    image: 1,
-                    audioCallRate: 1,
-                    privateCallRate: 1,
-                    isFake: 1,
-                    status: 1,
-                    uniqueId: 1,
-                    gender: 1,
-                  },
-                },
-              ],
-              totalCount: [{ $count: "count" }],
-            }
-          },
-
-        ])
-        : Promise.resolve([]),
-      LiveBroadcaster.aggregate([
-        {
-          $match: userId ? { userId: { $ne: userId } } : {}
-        },
-        ...(userId
-          ? [
-            {
-              $lookup: {
-                from: "blocks",
-                let: { hostId: "$hostId", userId },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
-                      },
-                    },
-                  },
-                ],
-                as: "blockInfo",
-              },
-            },
-            { $match: { blockInfo: { $eq: [] } } },
-          ]
           : []),
         {
           $addFields: {
@@ -974,24 +653,24 @@ exports.retrieveHosts = async (req, res) => {
         { $match: fakeLiveMatchQuery },
         ...(userId
           ? [
-            {
-              $lookup: {
-                from: "blocks",
-                let: { hostId: "$_id", userId },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+              {
+                $lookup: {
+                  from: "blocks",
+                  let: { hostId: "$_id", userId },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $or: [{ $and: [{ $eq: ["$hostId", "$$hostId"] }, { $eq: ["$userId", "$$userId"] }] }, { $and: [{ $eq: ["$userId", "$$hostId"] }, { $eq: ["$hostId", "$$userId"] }] }],
+                        },
                       },
                     },
-                  },
-                ],
-                as: "blockInfo",
+                  ],
+                  as: "blockInfo",
+                },
               },
-            },
-            { $match: { blockInfo: { $eq: [] } } },
-          ]
+              { $match: { blockInfo: { $eq: [] } } },
+            ]
           : []),
         {
           $addFields: {
@@ -1076,15 +755,13 @@ exports.retrieveHostDetails = async (req, res) => {
 
     let userId = null;
 
-    if (req.query?.userId && mongoose.Types.ObjectId.isValid()) {
+    if (req.query?.userId && mongoose.Types.ObjectId.isValid(req.query.userId)) {
       userId = new mongoose.Types.ObjectId(req.query.userId);
 
       const user = await User.exists({ _id: userId });
 
       if (!user) {
-        return res
-          .status(200)
-          .json({ status: false, message: "Provided user does not exist" });
+        return res.status(200).json({ status: false, message: "Provided user does not exist" });
       }
     }
 
@@ -1242,6 +919,9 @@ exports.retrieveAvailableHost = async (req, res) => {
 
     const matchedHost = filteredHosts[Math.floor(Math.random() * filteredHosts.length)];
 
+    const isFollowing = await FollowerFollowing.exists({ followerId: userId, followingId: matchedHost._id });
+    matchedHost.isFollowing = Boolean(isFollowing);
+
     res.status(200).json({
       status: true,
       message: "Matched host retrieved!",
@@ -1282,6 +962,18 @@ exports.modifyHostDetails = async (req, res) => {
       removeProfileVideoIndex,
     } = req.body;
 
+    const isProvided = (v) => v !== undefined && v !== null;
+    const validateRate = (value, min, fieldName) => {
+      const num = Number(value);
+      if (Number.isNaN(num)) {
+        return `${fieldName} must be a valid number.`;
+      }
+      if (num < min) {
+        return `${fieldName} cannot be less than minimum allowed (${min}).`;
+      }
+      return null;
+    };
+
     const arrayFields = ["removePhotoGalleryIndex", "removeProfileVideoIndex"];
     for (const key of arrayFields) {
       if (req.body[key]) {
@@ -1318,8 +1010,8 @@ exports.modifyHostDetails = async (req, res) => {
       Host.findOne({ _id: hostId }),
       email
         ? Host.findOne({ email: email?.trim(), _id: { $ne: hostId } })
-          .select("_id")
-          .lean()
+            .select("_id")
+            .lean()
         : null,
     ]);
 
@@ -1336,13 +1028,28 @@ exports.modifyHostDetails = async (req, res) => {
       });
     }
 
+    const validations = [];
+
+    if (isProvided(randomCallRate)) validations.push(validateRate(randomCallRate, settingJSON.generalRandomCallRate, "Random call rate"));
+    if (isProvided(randomCallFemaleRate)) validations.push(validateRate(randomCallFemaleRate, settingJSON.femaleRandomCallRate, "Female random call rate"));
+    if (isProvided(randomCallMaleRate)) validations.push(validateRate(randomCallMaleRate, settingJSON.maleRandomCallRate, "Male random call rate"));
+    if (isProvided(privateCallRate)) validations.push(validateRate(privateCallRate, settingJSON.videoPrivateCallRate, "Private video call rate"));
+    if (isProvided(audioCallRate)) validations.push(validateRate(audioCallRate, settingJSON.audioPrivateCallRate, "Audio call rate"));
+    if (isProvided(chatRate)) validations.push(validateRate(chatRate, settingJSON.chatInteractionRate, "Chat rate"));
+
+    const error = validations.find(Boolean);
+    if (error) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: error });
+    }
+
     host.name = name || host.name;
     host.email = email || host.email;
     host.bio = bio || host.bio;
     host.dob = dob || host.dob;
     host.gender = gender || host.gender;
     host.countryFlagImage = countryFlagImage || host.countryFlagImage;
-    host.country = country || host.country;
+    host.country = country.trim().toLowerCase() || host.country;
     host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host.impression;
     host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host.language;
     host.randomCallRate = randomCallRate || host.randomCallRate;
@@ -1443,131 +1150,6 @@ exports.modifyHostDetails = async (req, res) => {
 };
 
 //get host thumblist ( host )
-// exports.fetchHostsList = async (req, res) => {
-//   try {
-//     const start = req.query.start ? parseInt(req.query.start) : 1;
-//     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
-
-//     if (!req.query.hostId) {
-//       return res.status(200).json({ status: false, message: "hostId is required." });
-//     }
-
-//     if (!settingJSON) {
-//       return res.status(200).json({ status: false, message: "Configuration settings not found." });
-//     }
-
-//     if (!req.query.country) {
-//       return res.status(200).json({ status: false, message: "Please provide a country name." });
-//     }
-
-//     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
-//     const country = req.query.country.trim().toLowerCase();
-//     const isGlobal = country === "global";
-
-//     const fakeMatchQuery = isGlobal ? { isFake: true, isBlock: false, _id: { $ne: hostId } } : { country: country, isFake: true, isBlock: false, _id: { $ne: hostId } };
-//     const matchQuery = isGlobal ? { isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } } : { country: country, isFake: false, isBlock: false, status: 2, _id: { $ne: hostId } };
-
-//     const [fakeHost, host, followerList] = await Promise.all([
-//       Host.aggregate([
-//         { $match: fakeMatchQuery },
-//         {
-//           $addFields: {
-//             status: {
-//               $switch: {
-//                 branches: [
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
-//                 ],
-//                 default: "Offline",
-//               },
-//             },
-//             audioCallRate: 0,
-//             privateCallRate: 0,
-//             liveHistoryId: "",
-//             token: "",
-//             channel: "",
-//           },
-//         },
-//         {
-//           $project: {
-//             _id: 1,
-//             name: 1,
-//             countryFlagImage: 1,
-//             country: 1,
-//             image: 1,
-//             audioCallRate: 1,
-//             privateCallRate: 1,
-//             isFake: 1,
-//             status: 1,
-//             video: 1,
-//             liveVideo: 1,
-//             liveHistoryId: 1,
-//             token: 1,
-//             channel: 1,
-//           },
-//         },
-//       ]),
-//       Host.aggregate([
-//         { $match: matchQuery },
-//         {
-//           $addFields: {
-//             status: {
-//               $switch: {
-//                 branches: [
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", false] }, { $eq: ["$isBusy", false] }] }, then: "Online" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isLive", true] }, { $eq: ["$isBusy", true] }] }, then: "Live" },
-//                   { case: { $and: [{ $eq: ["$isOnline", true] }, { $eq: ["$isBusy", true] }] }, then: "Busy" },
-//                 ],
-//                 default: "Offline",
-//               },
-//             },
-//           },
-//         },
-//         {
-//           $project: {
-//             _id: 1,
-//             name: 1,
-//             countryFlagImage: 1,
-//             country: 1,
-//             image: 1,
-//             audioCallRate: 1,
-//             privateCallRate: 1,
-//             isFake: 1,
-//             status: 1,
-//           },
-//         },
-//       ]),
-//       FollowerFollowing.find({ followingId: hostId })
-//         .populate("followerId", "_id name image uniqueId")
-//         .sort({ createdAt: -1 })
-//         .skip((start - 1) * limit)
-//         .limit(limit)
-//         .lean(),
-//     ]);
-
-//     const statusPriority = { Live: 1, Online: 2, Busy: 3, Offline: 4 };
-
-//     // Pagination for hosts
-//     let allHosts = settingJSON.isDemoData ? [...fakeHost, ...host] : host;
-//     allHosts.sort((a, b) => (statusPriority[a.status] || 5) - (statusPriority[b.status] || 5));
-//     const paginatedHosts = allHosts.slice((start - 1) * limit, start * limit);
-
-//     return res.status(200).json({
-//       status: true,
-//       message: "Hosts list retrieved successfully.",
-//       hosts: paginatedHosts,
-//       followerList,
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       status: false,
-//       message: "An error occurred while fetching the hosts list.",
-//       error: error.message || "Internal Server Error",
-//     });
-//   }
-// };
-
 exports.fetchHostsList = async (req, res) => {
   try {
     const start = parseInt(req.query.start || 1);
@@ -1598,8 +1180,7 @@ exports.fetchHostsList = async (req, res) => {
         hostId
           .toString()
           .split("")
-          .reduce((a, c) => a + c.charCodeAt(0), 0)
-        + Date.now();
+          .reduce((a, c) => a + c.charCodeAt(0), 0) + Date.now();
     } else {
       if (!req.query.seed) {
         return res.status(200).json({
@@ -1624,15 +1205,15 @@ exports.fetchHostsList = async (req, res) => {
       ...(isGlobal ? {} : { country }),
       ...(settingJSON.isDemoData
         ? {
-          $or: [
-            { isFake: false, status: 2 },
-            { isFake: true, status: 2 },
-          ],
-        }
+            $or: [
+              { isFake: false, status: 2 },
+              { isFake: true, status: 2 },
+            ],
+          }
         : {
-          isFake: false,
-          status: 2,
-        }),
+            isFake: false,
+            status: 2,
+          }),
     };
 
     const [hosts, followerList] = await Promise.all([
@@ -1713,16 +1294,12 @@ exports.fetchHostsList = async (req, res) => {
 
           ...(search && search !== "All"
             ? [
-              {
-                $match: {
-                  $or: [
-                    { name: { $regex: search, $options: "i" } },
-                    { uniqueId: { $regex: search, $options: "i" } },
-                    { bio: { $regex: search, $options: "i" } },
-                  ],
+                {
+                  $match: {
+                    $or: [{ name: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }, { bio: { $regex: search, $options: "i" } }],
+                  },
                 },
-              },
-            ]
+              ]
             : []),
 
           {
@@ -1815,6 +1392,13 @@ exports.getRandomAvailableFakeHost = async (req, res) => {
 
     const matchedHost = filteredHosts[Math.floor(Math.random() * filteredHosts.length)];
 
+    const isFollowing = await FollowerFollowing.exists({
+      followerId: userId,
+      followingId: matchedHost._id,
+    });
+
+    matchedHost.isFollowing = !!isFollowing;
+
     res.status(200).json({
       status: true,
       message: "Successfully retrieved a random fake host.",
@@ -1881,6 +1465,11 @@ exports.getRandomAvailableUser = async (req, res) => {
     const randomIndex = Math.floor(Math.random() * finalCandidates.length);
     const selectedUser = finalCandidates[randomIndex];
 
+    const isFollowing = await FollowerFollowing.exists({
+      followerId: selectedUser._id,
+      followingId: hostObjectId,
+    });
+
     res.status(200).json({
       status: true,
       message: "Successfully retrieved a random available user.",
@@ -1890,6 +1479,7 @@ exports.getRandomAvailableUser = async (req, res) => {
         uniqueId: selectedUser.uniqueId,
         userImage: selectedUser.image,
         userCoin: selectedUser.coin,
+        isFollowing: !!isFollowing,
       },
     });
 
@@ -1957,7 +1547,16 @@ exports.disableHostAccount = async (req, res, next) => {
       }
     }
 
-    await Promise.all([LiveBroadcastHistory.deleteMany({ hostId: host?._id }), Withdrawalrequest.deleteMany({ hostId: host?._id }), Host.deleteOne({ _id: host?._id })]);
+    await Promise.all([
+      WithdrawalRequest.deleteMany({ hostId }),
+      Block.deleteMany({ hostId }),
+      FollowerFollowing.deleteMany({ followingId: hostId }),
+      History.deleteMany({ hostId }),
+      HostMatchHistory.deleteMany({ $or: [{ lastHostId: hostId }, { hostId: hostId }] }),
+      LiveBroadcaster.deleteMany({ hostId }),
+      LiveBroadcastHistory.deleteMany({ hostId }),
+      Host.deleteOne({ _id: hostId }),
+    ]);
   } catch (error) {
     console.error("Error in disableHostAccount:", error);
     return res.status(500).json({ status: false, message: "An error occurred in disableHostAccount" });

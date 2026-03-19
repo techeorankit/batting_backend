@@ -7,10 +7,42 @@ const fs = require("fs");
 const Cryptr = require("cryptr");
 const cryptr = new Cryptr("myTotallySecretKey");
 
+//Subadmin
+const SubAdmin = require("../../models/subAdmin.model");
+
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
 //admin login
+// exports.validateAdminLogin = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     if (!email || !password) {
+//       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
+//     }
+
+//     const admin = await Admin.findOne({ email: email.trim() }).select("_id password flag").lean();
+
+//     if (!admin) {
+//       return res.status(200).json({ status: false, message: "Oops! Admin not found with that email." });
+//     }
+
+//     if (cryptr.decrypt(admin.password) !== password) {
+//       return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
+//     }
+
+//     return res.status(200).json({
+//       status: true,
+//       message: "Admin has successfully logged in.",
+//       data: admin.flag || false,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+//   }
+// };
+
 exports.validateAdminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -19,24 +51,53 @@ exports.validateAdminLogin = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
     }
 
-    const admin = await Admin.findOne({ email: email.trim() }).select("_id password flag").lean();
+    let user = await Admin.findOne({ email: email.trim() }).select("_id password flag email").lean();
+    let userType = "admin";
 
-    if (!admin) {
-      return res.status(200).json({ status: false, message: "Oops! Admin not found with that email." });
+    if (!user) {
+      console.log("If not found in Admin, check SubAdmin");
+
+      const subAdmin = await SubAdmin.findOne({ email }).populate("role");
+      if (!subAdmin) {
+        return res.status(200).json({ status: false, message: "No admin or sub-admin found with this email." });
+      }
+
+      if (!subAdmin.password || cryptr.decrypt(subAdmin.password) !== password) {
+        return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
+      }
+
+      const ip = req.ip.replace(/^::ffff:/, "");
+      subAdmin.lastLoginIp = ip;
+      subAdmin.lastLoginAt = new Date();
+      await subAdmin.save();
+
+      user = subAdmin.toObject();
+      userType = "subadmin";
+    } else {
+      console.log("Admin password check");
+
+      if (cryptr.decrypt(user.password) !== password) {
+        return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
+      }
     }
 
-    if (cryptr.decrypt(admin.password) !== password) {
-      return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
-    }
+    const responseData = {
+      userType,
+      name: user.name || "",
+      email: user.email || "",
+      role: userType === "admin" ? "admin" : user.role?.name || "",
+      permissions: userType === "admin" ? [] : user.role?.permissions || [],
+      flag: user.flag || false,
+    };
 
     return res.status(200).json({
       status: true,
-      message: "Admin has successfully logged in.",
-      data: admin.flag || false,
+      message: "Login successful",
+      data: responseData,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+    console.error("Login error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -88,21 +149,41 @@ exports.modifyAdminProfile = async (req, res) => {
 //get admin profile
 exports.retrieveAdminProfile = async (req, res) => {
   try {
-    const adminId = req.admin._id;
+    if (req.admin) {
+      const adminId = req.admin._id;
 
-    const [admin] = await Promise.all([Admin.findById(adminId).select("_id name email password image flag").lean()]);
+      const admin = await Admin.findById(adminId).select("_id name email password image flag").lean();
 
-    if (!admin) {
-      return res.status(200).json({ status: false, message: "Admin not found." });
+      if (!admin) {
+        return res.status(200).json({ status: false, message: "Admin not found." });
+      }
+
+      admin.password = cryptr.decrypt(admin.password);
+
+      return res.status(200).json({
+        status: true,
+        message: "Admin profile retrieved successfully!",
+        data: admin,
+      });
+    } else if (req.subadmin) {
+      const subadminId = req.subadmin._id;
+
+      const subadmin = await SubAdmin.findById(subadminId).select("_id name email password image flag").lean();
+
+      if (!subadmin) {
+        return res.status(200).json({ status: false, message: "Subadmin not found." });
+      }
+
+      const flag = !Object.prototype.hasOwnProperty.call(subadmin, "flag");
+      subadmin.flag = flag;
+      subadmin.password = cryptr.decrypt(subadmin.password);
+
+      return res.status(200).json({
+        status: true,
+        message: "Subadmin profile retrieved successfully!",
+        data: subadmin,
+      });
     }
-
-    admin.password = cryptr.decrypt(admin.password);
-
-    return res.status(200).json({
-      status: true,
-      message: "Admin profile retrieved successfully!",
-      data: admin,
-    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });

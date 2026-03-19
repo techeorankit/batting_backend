@@ -33,7 +33,7 @@ io.on("connection", async (socket) => {
   console.log("Socket Connection done Client ID: ", socket.id);
 
   const { globalRoom } = socket.handshake.query;
-  const id = globalRoom.split(":")[1];
+  const id = globalRoom?.split(":")[1];
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     console.warn("Invalid or missing ID from globalRoom:", globalRoom);
     return;
@@ -470,7 +470,7 @@ io.on("connection", async (socket) => {
     const parsedData = JSON.parse(data);
     console.log("callRinging request received:", parsedData);
 
-    const { callerId, receiverId, agoraUID, channel, callType, callerRole, receiverRole, audioCallCharge, videoCallCharge } = parsedData;
+    const { callerId, receiverId, agoraUID, channel, callType, callerRole, receiverRole, audioCallCharge, videoCallCharge, isFollow } = parsedData;
 
     const validRoles = ["user", "host"];
     if (!validRoles.includes(callerRole?.toLowerCase()) || !validRoles.includes(receiverRole?.toLowerCase())) {
@@ -605,6 +605,7 @@ io.on("connection", async (socket) => {
           channel,
           audioCallCharge,
           videoCallCharge,
+          isFollow: Boolean(isFollow),
         };
 
         io.in("globalRoom:" + receiver._id.toString()).emit("callIncoming", dataOfVideoCall); // Notify receiver
@@ -639,6 +640,7 @@ io.on("connection", async (socket) => {
               channel: String(dataOfVideoCall.channel),
               callMode: String(dataOfVideoCall.callMode),
               gender: String(dataOfVideoCall.gender),
+              isFollow: String(dataOfVideoCall.isFollow),
             },
           };
 
@@ -1159,7 +1161,7 @@ io.on("connection", async (socket) => {
     const [caller, receiver, callHistory] = await Promise.all([
       callerModel.findById(callerId).select("_id name").lean(),
       receiverModel.findById(receiverId).select("_id name").lean(),
-      History.findById(callId).select("_id callConnect callStartTime callEndTime duration"),
+      History.findById(callId).select("_id callConnect callStartTime callEndTime duration userId hostId callType uniqueId isRandom isPrivate userCoin hostCoin date"),
     ]);
 
     if (!caller || !receiver || !callHistory) {
@@ -1220,6 +1222,57 @@ io.on("connection", async (socket) => {
       ),
       callHistory.save(),
     ]);
+
+    const userId = callHistory?.userId?.toString();
+    const hostId = callHistory?.hostId?.toString();
+
+    if (!userId || !hostId) return;
+
+    const [hostData, userData] = await Promise.all([Host.findById(hostId).select("uniqueId name image country countryFlagImage").lean(), User.findById(userId).select("uniqueId name image").lean()]);
+
+    const basePayload = {
+      uniqueId: callHistory.uniqueId,
+      callType: callHistory.callType,
+      isPrivate: callHistory.isPrivate,
+      isRandom: callHistory.isRandom,
+      userCoin: callHistory.userCoin,
+      hostCoin: callHistory.hostCoin,
+      duration: callHistory.duration,
+      date: moment(callHistory.date).tz("Asia/Kolkata").format("D MMM, HH:mm"),
+    };
+
+    const userPayload = {
+      ...basePayload,
+      host: {
+        uniqueId: hostData?.uniqueId || "",
+        name: hostData?.name || "",
+        image: hostData?.image || "",
+        country: hostData?.country || "",
+        countryFlagImage: hostData?.countryFlagImage || "",
+      },
+    };
+
+    const hostPayload = {
+      ...basePayload,
+      user: {
+        uniqueId: userData?.uniqueId || "",
+        name: userData?.name || "",
+        image: userData?.image || "",
+      },
+    };
+
+    if (callerRole === "user") {
+      // user e call kari → banne ne mokalvu
+      io.to("globalRoom:" + userId).emit("callEndedSummary", userPayload);
+      io.to("globalRoom:" + hostId).emit("callEndedSummary", hostPayload);
+    } else if (callerRole === "host") {
+      // host e call kari → banne ne mokalvu
+      io.to("globalRoom:" + userId).emit("callEndedSummary", userPayload);
+      io.to("globalRoom:" + hostId).emit("callEndedSummary", hostPayload);
+    }
+
+    console.log("[callEndedSummary USER]", userPayload);
+    console.log("[callEndedSummary HOST]", hostPayload);
   });
 
   socket.on("callCoinCharged", async (data) => {

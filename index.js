@@ -7,6 +7,8 @@ const cors = require("cors");
 app.use(cors());
 app.use(express.json());
 
+app.set("trust proxy", true);
+
 //logging middleware
 const logger = require("morgan");
 app.use(logger("dev"));
@@ -48,6 +50,16 @@ async function startServer() {
   await initializeSettings();
   console.log("✅ Settings Loaded");
 
+  app.get("/.well-known/assetlinks.json", (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    return res.status(200).json(global?.settingJSON?.androidAssetLinks || []);
+  });
+
+  app.get("/.well-known/apple-app-site-association", (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    return res.status(200).json(global?.settingJSON?.appleAppSiteAssociation || {});
+  });
+
   //Step 2: Require all other modules after settings are initialized
   const routes = require("./routes/route");
   app.use("/api", routes);
@@ -85,7 +97,8 @@ async function startServer() {
   const LiveBroadcaster = require("./models/liveBroadcaster.model");
   const LiveBroadcastView = require("./models/liveBroadcastView.model");
   const LiveBroadcastHistory = require("./models/liveBroadcastHistory.model");
-  const Withdrawalrequest = require("./models/withdrawalRequest.model");
+  const WithdrawalRequest = require("./models/withdrawalRequest.model");
+  const FollowerFollowing = require("./models/followerFollowing.model");
 
   const cron = require("node-cron");
   const mongoose = require("mongoose");
@@ -113,11 +126,17 @@ async function startServer() {
     try {
       console.log("Cron job running every Sunday at 12:00 AM");
 
-      const EXCLUDED_USER_ID = new mongoose.Types.ObjectId("68aef527b51e52787c1f72e0");
-      const EXCLUDED_HOST_ID = new mongoose.Types.ObjectId("68ca7be4df37fa6ee7223aac");
+      const EXCLUDED_USER_IDS = [
+        new mongoose.Types.ObjectId("68aef527b51e52787c1f72e0"),
+        new mongoose.Types.ObjectId("69b7918f9f7eeab1d6cbe8b6"),
+        new mongoose.Types.ObjectId("69b792549f7eeab1d6cbe96b"),
+        new mongoose.Types.ObjectId("69b7929d9f7eeab1d6cbe9d9"),
+      ];
+
+      const EXCLUDED_HOST_IDS = [new mongoose.Types.ObjectId("68ca7be4df37fa6ee7223aac"), new mongoose.Types.ObjectId("69b793179f7eeab1d6cbea71")];
 
       const users = await User.find({
-        _id: { $ne: EXCLUDED_USER_ID },
+        _id: { $nin: EXCLUDED_USER_IDS },
       });
 
       if (users.length > 0) {
@@ -140,7 +159,7 @@ async function startServer() {
               Chat.find({ senderId: user?._id }),
               Host.find({
                 isFake: false,
-                _id: { $ne: EXCLUDED_HOST_ID },
+                _id: { $nin: EXCLUDED_HOST_IDS },
               }),
             ]);
 
@@ -170,7 +189,16 @@ async function startServer() {
                 }
               }
 
-              await Promise.all([LiveBroadcastHistory.deleteMany({ hostId: host?._id }), Withdrawalrequest.deleteMany({ hostId: host?._id }), Host.deleteOne({ _id: host?._id })]);
+              await Promise.all([
+                WithdrawalRequest.deleteMany({ hostId: host?._id }),
+                Block.deleteMany({ hostId: host?._id }),
+                FollowerFollowing.deleteMany({ followingId: host?._id }),
+                History.deleteMany({ hostId: host?._id }),
+                HostMatchHistory.deleteMany({ $or: [{ lastHostId: host?._id }, { hostId: hostId }] }),
+                LiveBroadcaster.deleteMany({ hostId: host?._id }),
+                LiveBroadcastHistory.deleteMany({ hostId: host?._id }),
+                Host.deleteOne({ _id: host?._id }),
+              ]);
             }
 
             await Promise.all([
@@ -194,7 +222,7 @@ async function startServer() {
                 console.error(`❌ Failed to delete Firebase user ${user.firebaseUid}:`, err.message);
               }
             }
-          })
+          }),
         );
       }
     } catch (error) {
@@ -205,80 +233,3 @@ async function startServer() {
 
 //Run server startup
 startServer();
-
-// const admin = require("firebase-admin");
-// const serviceAccount = {};
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-// });
-
-// async function deleteAllUsers(nextPageToken) {
-//   try {
-//     const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
-//     const uids = listUsersResult.users.map(user => user.uid);
-
-//     console.log(`Fetched ${uids.length} users`);
-
-//     if (uids.length > 0) {
-//       const result = await admin.auth().deleteUsers(uids);
-//       console.log(`✅ Deleted ${result.successCount} users`);
-//       if (result.failureCount > 0) {
-//         console.log(`❌ Failed to delete ${result.failureCount} users`);
-//         result.errors.forEach(err => {
-//           console.error(`Error for UID ${err.index}: ${err.error}`);
-//         });
-//       }
-//     } else {
-//       console.log("⚠️ No users found to delete.");
-//     }
-
-//     if (listUsersResult.pageToken) {
-//       console.log("⏭ Fetching next page of users...");
-//       await deleteAllUsers(listUsersResult.pageToken);
-//     } else {
-//       console.log("✅ All users processed.");
-//     }
-//   } catch (error) {
-//     console.error("❌ Error while deleting users:", error);
-//   }
-// }
-
-// deleteAllUsers();
-
-// const Bull = require("bull");
-// const chatQueue = new Bull("chat-job-queue", {
-//   redis: {
-//     host: "127.0.0.1",
-//     port: 6379,
-//   },
-// });
-
-// (async () => {
-//   const jobs = await chatQueue.getJobs(["delayed", "waiting", "active", "completed", "failed"]);
-
-//   for (const job of jobs) {
-//     console.log(`Job ID: ${job.id}`);
-//     console.log(`Name: ${job.name}`);
-//     console.log(`Data:`, job.data);
-//     console.log(`Status: ${await job.getState()}`);
-//   }
-// })();
-
-// Remove jobs in each state
-// (async () => {
-//   const states = ["delayed", "wait", "active", "completed", "failed"];
-
-//   for (const state of states) {
-//     const jobs = await chatQueue.getJobs([state]);
-//     for (const job of jobs) {
-//       await job.remove();
-//       console.log(`Removed job ${job.id} from ${state}`);
-//     }
-//   }
-
-//   // Optionally, empty the queue's wait/delayed list entirely
-//   await chatQueue.empty(); // This clears only 'wait' and 'paused' jobs
-
-//   console.log("All jobs cleared.");
-// })();

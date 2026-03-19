@@ -1,4 +1,7 @@
 const Agency = require("../../models/agency.model");
+const SubAdmin = require("../../models/subAdmin.model");
+const User = require("../../models/user.model");
+const Admin = require("../../models/admin.model");
 
 //Cryptr
 const Cryptr = require("cryptr");
@@ -54,14 +57,30 @@ exports.modifyAgency = async (req, res) => {
 
     const agencyObjectId = new mongoose.Types.ObjectId(req.agency._id);
 
-    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim() }) : null, Agency.findById(agencyObjectId)]);
-
-    if (email && existingAgency) {
-      return res.status(200).json({ status: false, message: "Email already exists!" });
-    }
+    const agency = await Agency.findById(agencyObjectId);
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found." });
+    }
+
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        if (req.file) deleteFile(req.file);
+        return res.status(200).json({ status: false, message: "Invalid email format." });
+      }
+
+      const [subAdminExists, agencyExists, adminExists, userExists] = await Promise.all([
+        SubAdmin.exists({ email: email.trim() }),
+        Agency.exists({ email: email.trim(), _id: { $ne: agencyId } }), // exclude current agency
+        Admin.exists({ email: email.trim() }),
+        User.exists({ email: email.trim() }),
+      ]);
+
+      if (subAdminExists || agencyExists || adminExists || userExists) {
+        if (req.file) deleteFile(req.file);
+        return res.status(200).json({ status: false, message: "This email is already in use." });
+      }
     }
 
     agency.name = name || agency.name;
@@ -77,7 +96,7 @@ exports.modifyAgency = async (req, res) => {
     agency.commission = commission || agency.commission;
     agency.description = description || agency.description;
     agency.countryFlagImage = countryFlagImage || agency.countryFlagImage;
-    agency.country = country || agency.country;
+    agency.country = country.trim().toLowerCase() || agency.country;
 
     if (req.file) {
       if (agency.image) {

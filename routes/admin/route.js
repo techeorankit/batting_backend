@@ -29,6 +29,10 @@ const currency = require("./currency.route");
 const withdrawalRequest = require("./withdrawalRequest.route");
 const notification = require("./notification.route");
 const message = require("./message.route");
+const role = require("./role.route");
+const subAdmin = require("./subAdmin.route");
+const reportReason = require("./reportReason.route");
+const report = require("./report.route");
 const login = require("./login.route");
 
 //exports admin's route.js
@@ -54,7 +58,11 @@ route.use("/liveBroadcastHistory", validateAdminToken, liveBroadcastHistory);
 route.use("/currency", validateAdminToken, currency);
 route.use("/withdrawalRequest", validateAdminToken, withdrawalRequest);
 route.use("/notification", validateAdminToken, notification);
-route.use("/message", message);
+route.use("/message", validateAdminToken, message);
+route.use("/role", validateAdminToken, role);
+route.use("/subAdmin", validateAdminToken, subAdmin);
+route.use("/reportReason", validateAdminToken, reportReason);
+route.use("/report", validateAdminToken, report);
 route.use("/login", login);
 
 module.exports = route;

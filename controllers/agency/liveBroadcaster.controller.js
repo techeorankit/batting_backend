@@ -14,7 +14,7 @@ exports.getLiveHosts = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const agencyObjectId = new mongoose.Types.ObjectId(req.agency._id);
 
-    const [agency, liveHosts, totalCount] = await Promise.all([
+    const [agency, liveData] = await Promise.all([
       Agency.findById(agencyObjectId).select("_id").lean(),
       LiveBroadcaster.aggregate([
         {
@@ -27,6 +27,21 @@ exports.getLiveHosts = async (req, res) => {
             from: "hosts",
             localField: "hostId",
             foreignField: "_id",
+            pipeline: [
+              {
+                $match: { agencyId: agencyObjectId },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  gender: 1,
+                  image: 1,
+                  countryFlagImage: 1,
+                  country: 1,
+                },
+              },
+            ],
             as: "hostData",
           },
         },
@@ -37,57 +52,41 @@ exports.getLiveHosts = async (req, res) => {
           },
         },
         {
-          $project: {
-            _id: 1,
-            name: 1,
-            gender: 1,
-            image: 1,
-            countryFlagImage: 1,
-            country: 1,
-            view: 1,
-            createdAt: 1,
+          $facet: {
+            totalCount: [{ $count: "count" }],
+            liveHosts: [
+              { $sort: { view: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $project: {
+                  _id: "$hostData._id",
+                  name: "$hostData.name",
+                  gender: "$hostData.gender",
+                  image: "$hostData.image",
+                  countryFlagImage: "$hostData.countryFlagImage",
+                  country: "$hostData.country",
+                  view: 1,
+                  createdAt: 1,
+                },
+              },
+            ],
           },
-        },
-        { $sort: { view: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-      ]),
-      LiveBroadcaster.aggregate([
-        {
-          $match: {
-            hostId: { $ne: null },
-          },
-        },
-        {
-          $lookup: {
-            from: "hosts",
-            localField: "hostId",
-            foreignField: "_id",
-            as: "hostData",
-          },
-        },
-        { $unwind: "$hostData" },
-        {
-          $match: {
-            "hostData.agencyId": agencyObjectId,
-          },
-        },
-        {
-          $count: "total",
         },
       ]),
     ]);
+
+    const liveHosts = liveData[0]?.liveHosts || [];
+    const totalCount = liveData[0]?.totalCount[0]?.count || 0;
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found." });
     }
 
-    const count = totalCount.length > 0 ? totalCount[0].total : 0;
-
     return res.status(200).json({
       status: true,
       message: "Live hosts retrieved successfully.",
-      total: count,
+      total: totalCount,
       hosts: liveHosts,
     });
   } catch (error) {

@@ -13,6 +13,8 @@ const settingSchema = new mongoose.Schema(
     stripePublishableKey: { type: String, default: "STRIPE PUBLISHABLE KEY" },
     stripeSecretKey: { type: String, default: "STRIPE SECRET KEY" },
 
+    resendApiKey: { type: String, default: "RESEND API KEY" },
+
     razorpayEnabled: { type: Boolean, default: false },
     razorpayIosEnabled: { type: Boolean, default: false },
     razorpayId: { type: String, default: "RAZOR PAY ID" },
@@ -73,18 +75,23 @@ const settingSchema = new mongoose.Schema(
     isAutoMessageEnabled: { type: Boolean, default: false },
     messageInitiatedAt: { type: Number, default: 0 }, //in min
     isAutoCallEnabled: { type: Boolean, default: false },
-    callInitiatedAt: { type: Number, default: 0 }, //in min
+    callInitiatedAt: { type: Number, default: 0 }, //in
+
+    supportPhoneNumber: { type: String, default: "" },
 
     adminCommissionRate: { type: Number, default: 0 }, //in %
     minCoinsToConvert: { type: Number, default: 0 }, //min coin requried for convert coin to default currency i.e., 1000 coin = 1 $
 
     minCoinsForHostPayout: { type: Number, default: 0 }, //for host
     minCoinsForAgencyPayout: { type: Number, default: 0 }, //for agency
+
+    androidAssetLinks: { type: Array, default: [] },
+    appleAppSiteAssociation: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 settingSchema.index({ createdAt: -1 });

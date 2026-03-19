@@ -472,7 +472,7 @@ exports.purchasePlan = async (req, res) => {
     }
 
     if (planType === "vipPlan") {
-      const totalCoins = user.isVip ? vipPlan.coin + (vipPrivilege?.topUpCoinBonus || 0) : vipPlan.coin;
+      const totalCoins = user.isVip ? plan.coin + (vipPrivilege?.topUpCoinBonus || 0) : plan.coin;
 
       const startDate = moment();
       let endDate = moment(startDate);

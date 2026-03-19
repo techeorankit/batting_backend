@@ -95,15 +95,31 @@ exports.getVipPlans = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const [total, vipPlans] = await Promise.all([
-      VipPlan.countDocuments(),
-      VipPlan.find()
-        .select("validity validityType coin price isActive productId")
-        .sort({ coin: 1, price: 1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+    const result = await VipPlan.aggregate([
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          data: [
+            { $sort: { coin: 1, price: 1 } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
+            {
+              $project: {
+                validity: 1,
+                validityType: 1,
+                coin: 1,
+                price: 1,
+                isActive: 1,
+                productId: 1,
+              },
+            },
+          ],
+        },
+      },
     ]);
+
+    const total = result[0]?.total?.[0]?.count || 0;
+    const vipPlans = result[0]?.data || [];
 
     return res.status(200).json({ status: true, message: "VIP plans retrieved successfully.", total, data: vipPlans });
   } catch (error) {

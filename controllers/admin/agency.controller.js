@@ -1,5 +1,7 @@
 const Agency = require("../../models/agency.model");
 const Admin = require("../../models/admin.model");
+const SubAdmin = require("../../models/subAdmin.model");
+const User = require("../../models/user.model");
 
 //generateAgencyCode
 const generateAgencyCode = require("../../util/generateAgencyCode");
@@ -30,11 +32,17 @@ exports.createAgency = async (req, res) => {
       return res.status(200).json({ status: false, message: "All fields are required!" });
     }
 
-    const [existingAgency, agencyCode] = await Promise.all([Agency.findOne({ email: email.trim(), uid: uid.trim() }), generateAgencyCode()]);
+    const [subAdmin, agency, admin, user, agencyCode] = await Promise.all([
+      SubAdmin.exists({ email }),
+      Agency.exists({ email }),
+      Admin.exists({ email }),
+      User.exists({ email }),
+      generateAgencyCode(),
+    ]);
 
-    if (existingAgency) {
-      if (req.file) deleteFile(req.file.path);
-      return res.status(200).json({ status: false, message: "Email already exists!" });
+    if (agency || admin || user || subAdmin) {
+      if (req.file) deleteFile(req.file);
+      return res.status(200).json({ status: false, message: "This email is already in use." });
     }
 
     const newAgency = new Agency({
@@ -50,7 +58,7 @@ exports.createAgency = async (req, res) => {
       image: req.file.path,
       description,
       countryFlagImage,
-      country,
+      country: country.trim().toLowerCase(),
     });
 
     await newAgency.save();
@@ -79,13 +87,7 @@ exports.updateAgency = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency ID is required." });
     }
 
-    const [existingAgency, agency] = await Promise.all([email ? Agency.findOne({ email: email.trim(), uid: uid?.trim?.() }) : null, Agency.findById(agencyId)]);
-
-    if (email && existingAgency) {
-      if (req.file) deleteFile(req.file);
-      return res.status(200).json({ status: false, message: "Email already exists!" });
-    }
-
+    const agency = await Agency.findById(agencyId);
     if (!agency) {
       if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "Agency not found." });
@@ -97,9 +99,20 @@ exports.updateAgency = async (req, res) => {
         if (req.file) deleteFile(req.file);
         return res.status(200).json({ status: false, message: "Invalid email format." });
       }
+
+      const [subAdminExists, agencyExists, adminExists, userExists] = await Promise.all([
+        SubAdmin.exists({ email: email.trim() }),
+        Agency.exists({ email: email.trim(), _id: { $ne: agencyId } }), // exclude current agency
+        Admin.exists({ email: email.trim() }),
+        User.exists({ email: email.trim() }),
+      ]);
+
+      if (subAdminExists || agencyExists || adminExists || userExists) {
+        if (req.file) deleteFile(req.file);
+        return res.status(200).json({ status: false, message: "This email is already in use." });
+      }
     }
 
-    agency.uid = uid || agency.uid;
     agency.name = name || agency.name;
     agency.email = email?.trim() || agency.email;
     agency.password = password ? cryptr?.encrypt(password) : agency.password;
@@ -109,14 +122,12 @@ exports.updateAgency = async (req, res) => {
     agency.commission = commission || agency.commission;
     agency.description = description || agency.description;
     agency.countryFlagImage = countryFlagImage || agency.countryFlagImage;
-    agency.country = country || agency.country;
+    agency.country = country.trim().toLowerCase() || agency.country;
 
     if (req.file) {
       if (agency.image) {
         const imagePath = agency.image.includes("storage") ? "storage" + agency.image.split("storage")[1] : "";
-        if (imagePath && fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-        }
+        if (imagePath && fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
       }
       agency.image = req.file.path;
     }
@@ -196,7 +207,21 @@ exports.getAgencies = async (req, res) => {
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
 
+    const countryFilter = req?.query?.country?.trim()?.toLowerCase() || "";
+    const isBlockFilter = req.query.isBlock || false;
+
+    const sortBy = req.query.sortBy || "createdAt";
+    const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
     let matchQuery = {};
+
+    if (countryFilter) {
+      matchQuery.country = { $regex: `^${countryFilter}$`, $options: "i" };
+    }
+
+    if (isBlockFilter) {
+      matchQuery.isBlock = isBlockFilter === "true";
+    }
 
     if (startDate !== "All" && endDate !== "All") {
       const startDateObj = new Date(startDate);
@@ -210,60 +235,71 @@ exports.getAgencies = async (req, res) => {
       matchQuery.$or = [{ name: { $regex: searchString, $options: "i" } }, { email: { $regex: searchString, $options: "i" } }, { agencyCode: { $regex: searchString, $options: "i" } }];
     }
 
-    const [total, agencies] = await Promise.all([
-      Agency.countDocuments(matchQuery),
-      Agency.aggregate([
-        { $match: matchQuery },
-        {
-          $lookup: {
-            from: "hosts",
-            let: { agencyId: "$_id" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [{ $eq: ["$agencyId", "$$agencyId"] }, { $eq: ["$status", 2] }, { $eq: ["$isFake", false] }],
+    const result = await Agency.aggregate([
+      { $match: matchQuery },
+
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          agencies: [
+            { $sort: { [sortBy]: sortOrder } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: "hosts",
+                localField: "_id",
+                foreignField: "agencyId",
+                pipeline: [
+                  {
+                    $match: {
+                      status: 2,
+                      isFake: false,
+                    },
                   },
-                },
+                  {
+                    $count: "totalHosts",
+                  },
+                ],
+                as: "hostStats",
               },
-            ],
-            as: "hosts",
-          },
+            },
+            {
+              $addFields: {
+                totalHosts: { $ifNull: [{ $arrayElemAt: ["$hostStats.totalHosts", 0] }, 0] },
+              },
+            },
+            { $unset: "hostStats" },
+            {
+              $project: {
+                _id: 1,
+                totalHosts: 1,
+                name: 1,
+                email: 1,
+                description: 1,
+                password: 1,
+                commissionType: 1,
+                commission: 1,
+                agencyCode: 1,
+                countryCode: 1,
+                mobileNumber: 1,
+                image: 1,
+                countryFlagImage: 1,
+                country: 1,
+                hostCoins: 1,
+                totalEarnings: 1,
+                netAvailableEarnings: 1,
+                isBlock: 1,
+                createdAt: 1,
+              },
+            },
+          ],
         },
-        {
-          $addFields: {
-            totalHosts: { $size: "$hosts" },
-          },
-        },
-        { $unset: "hosts" },
-        {
-          $project: {
-            _id: 1,
-            totalHosts: 1,
-            name: 1,
-            email: 1,
-            description: 1,
-            password: 1,
-            commissionType: 1,
-            commission: 1,
-            agencyCode: 1,
-            countryCode: 1,
-            mobileNumber: 1,
-            image: 1,
-            countryFlagImage: 1,
-            country: 1,
-            hostCoins: 1,
-            totalEarnings: 1,
-            netAvailableEarnings: 1,
-            isBlock: 1,
-            createdAt: 1,
-          },
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-      ]),
+      },
     ]);
+
+    const total = result[0].total[0]?.count || 0;
+    const agencies = result[0].agencies;
 
     for (let i = 0; i < agencies.length; i++) {
       try {
@@ -325,10 +361,6 @@ exports.getActiveAgenciesList = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getActiveAgenciesList:", error);
-    return res.status(500).json({
-      status: false,
-      message: "Internal Server Error",
-      error: error.message,
-    });
+    return res.status(500).json({ status: false, message: "Internal Server Error", error: error.message });
   }
 };

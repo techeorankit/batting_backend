@@ -20,9 +20,6 @@ route.get("/retrieveGiftTransactionHistory", checkAccessWithSecretKey(), History
 //get vipPlan purchase history ( user )
 route.get("/getVIPPlanTransactionHistory", checkAccessWithSecretKey(), HistoryController.getVIPPlanTransactionHistory);
 
-//get coinplan purchase history ( user )
-route.get("/fetchCoinPlanTransactionHistory", checkAccessWithSecretKey(), HistoryController.fetchCoinPlanTransactionHistory);
-
 //get coin history ( host )
 route.get("/fetchCoinTransactionHistory", checkAccessWithSecretKey(), HistoryController.fetchCoinTransactionHistory);
 

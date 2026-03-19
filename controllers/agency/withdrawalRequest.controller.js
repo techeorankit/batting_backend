@@ -21,67 +21,100 @@ exports.fetchPayoutRequests = async (req, res) => {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
-    const { status, person } = req.query;
+    const { status, person, search } = req.query;
 
     if (!status || !person) {
       return res.status(200).json({ status: false, message: "Invalid query parameters." });
     }
 
     const agencyId = new mongoose.Types.ObjectId(req.agency._id);
-    const start = req.query.start ? parseInt(req.query.start) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
+    const start = parseInt(req.query.start) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
 
-    let dateFilterQuery = {};
-    if (startDate !== "All" && endDate !== "All") {
-      const formattedStartDate = new Date(startDate);
-      const formattedEndDate = new Date(endDate);
-      formattedEndDate.setHours(23, 59, 59, 999);
+    let matchQuery = {};
 
-      dateFilterQuery = {
-        createdAt: {
-          $gte: formattedStartDate,
-          $lte: formattedEndDate,
-        },
-      };
-    }
-
-    let statusQuery = {};
     if (status !== "All") {
-      statusQuery.status = parseInt(status);
+      matchQuery.status = parseInt(status);
     }
 
-    let personQuery = {};
     if (person !== "All") {
       const personValue = parseInt(person);
-      personQuery.person = personValue;
 
       if (personValue === 1) {
-        personQuery.person = 1;
-        personQuery.agencyId = agencyId;
+        matchQuery.person = 1;
+        matchQuery.agencyId = agencyId;
       } else if (personValue === 2) {
-        personQuery.person = 2;
-        personQuery.hostId = { $ne: null };
-        personQuery.agencyOwnerId = agencyId;
+        matchQuery.person = 2;
+        matchQuery.hostId = { $ne: null };
+        matchQuery.agencyOwnerId = agencyId;
       }
     }
 
-    const [agency, totalRecords, records] = await Promise.all([
-      Agency.findOne({ _id: agencyId }).select("_id").lean(),
-      WithdrawalRequest.countDocuments({ ...personQuery, ...statusQuery, ...dateFilterQuery }),
-      WithdrawalRequest.find({ ...personQuery, ...statusQuery, ...dateFilterQuery })
-        .populate("agencyId", "uniqueId name image")
-        .populate({
-          path: "hostId",
-          select: "uniqueId name image",
-          match: { agencyId: agencyId }, // Match host's agency with agencyId
-        })
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+    if (startDate !== "All" && endDate !== "All") {
+      const sDate = new Date(startDate);
+      const eDate = new Date(endDate);
+      eDate.setHours(23, 59, 59, 999);
+
+      matchQuery.createdAt = {
+        $gte: sDate,
+        $lte: eDate,
+      };
+    }
+
+    const searchRegex = search ? new RegExp(search, "i") : null;
+
+    const [agency, withdrawalData] = await Promise.all([
+      Agency.findById(agencyId).select("_id isBlock").lean(),
+      WithdrawalRequest.aggregate([
+        { $match: matchQuery },
+
+        {
+          $lookup: {
+            from: "agencies",
+            localField: "agencyId",
+            foreignField: "_id",
+            pipeline: [{ $project: { agencyCode: 1, name: 1, image: 1 } }],
+            as: "agencyId",
+          },
+        },
+        { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "hosts",
+            localField: "hostId",
+            foreignField: "_id",
+            pipeline: [{ $project: { uniqueId: 1, name: 1, image: 1 } }],
+            as: "hostId",
+          },
+        },
+        { $unwind: { path: "$hostId", preserveNullAndEmptyArrays: true } },
+        ...(searchRegex
+          ? [
+              {
+                $match: {
+                  $or: [
+                    { uniqueId: searchRegex },
+                    { paymentGateway: searchRegex },
+                    { "agencyId.name": searchRegex },
+                    { "agencyId.agencyCode": searchRegex },
+                    { "hostId.name": searchRegex },
+                    { "hostId.uniqueId": searchRegex },
+                  ],
+                },
+              },
+            ]
+          : []),
+        {
+          $facet: {
+            totalRecords: [{ $count: "count" }],
+            records: [{ $sort: { createdAt: -1 } }, { $skip: (start - 1) * limit }, { $limit: limit }],
+          },
+        },
+      ]),
     ]);
 
     if (!agency) {
@@ -92,11 +125,14 @@ exports.fetchPayoutRequests = async (req, res) => {
       return res.status(200).json({ status: false, message: "You are blocked by the admin!" });
     }
 
+    const total = withdrawalData[0]?.totalRecords[0]?.count || 0;
+    const data = withdrawalData[0]?.records || [];
+
     return res.status(200).json({
       status: true,
       message: "Withdrawal requests retrieved successfully.",
-      total: totalRecords,
-      data: records.length > 0 ? records : [],
+      total,
+      data,
     });
   } catch (error) {
     console.error(error);
@@ -147,7 +183,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
               status: 2,
               acceptOrDeclineDate: dateNow,
             },
-          }
+          },
         ),
         Host.updateOne(
           { _id: request.hostId, coin: { $gte: request.coin } },
@@ -157,7 +193,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
               redeemedCoins: request.coin,
               redeemedAmount: request.amount,
             },
-          }
+          },
         ),
         History.updateOne(
           { uniqueId: request.uniqueId, type: 5, hostId: hostId },
@@ -166,7 +202,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
               payoutStatus: 2,
               date: dateNow,
             },
-          }
+          },
         ),
       ]);
 
@@ -208,7 +244,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
               reason: reason.trim(),
               acceptOrDeclineDate: dateNow,
             },
-          }
+          },
         ),
         History.updateOne(
           { uniqueId: request.uniqueId, type: 5, hostId: hostId },
@@ -218,7 +254,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
               reason,
               date: dateNow,
             },
-          }
+          },
         ),
       ]);
 
@@ -277,12 +313,29 @@ exports.initiateWithdrawal = async (req, res) => {
     const requestedCoins = Number(coin);
     const requestAmount = parseFloat(requestedCoins / settingJSON.minCoinsToConvert).toFixed(2);
 
-    const [uniqueId, agency, pendingRequest, declinedRequest] = await Promise.all([
+    const [uniqueId, agency, withdrawalAgg] = await Promise.all([
       generateHistoryUniqueId(),
-      Agency.findOne({ _id: agencyId }).select("_id netAvailableEarnings").lean(),
-      WithdrawalRequest.findOne({ agencyId, status: 1 }).select("_id").lean(), // status 1: pending
-      WithdrawalRequest.findOne({ agencyId, status: 3 }).select("_id").lean(), // status 3: declined
+      Agency.findById(agencyId).select("_id netAvailableEarnings isBlock").lean(),
+      WithdrawalRequest.aggregate([
+        {
+          $match: { agencyId: agencyId, status: { $in: [1, 3] } },
+        },
+        {
+          $group: {
+            _id: null,
+            pendingRequest: {
+              $first: { $cond: [{ $eq: ["$status", 1] }, "$_id", "$$REMOVE"] },
+            },
+            declinedRequest: {
+              $first: { $cond: [{ $eq: ["$status", 3] }, "$_id", "$$REMOVE"] },
+            },
+          },
+        },
+      ]),
     ]);
+
+    const pendingRequest = withdrawalAgg[0]?.pendingRequest || null;
+    const declinedRequest = withdrawalAgg[0]?.declinedRequest || null;
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found!" });

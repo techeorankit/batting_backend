@@ -17,7 +17,7 @@ exports.addGift = async (req, res, next) => {
       return res.status(200).json({ status: false, message: "Oops! Invalid details." });
     }
 
-    const [giftCategory] = await Promise.all([GiftCategory.findById(giftCategoryId).select("_id name")]);
+    const giftCategory = await GiftCategory.findById(giftCategoryId).select("_id name").lean();
 
     if (!giftCategory) {
       if (req.files) deleteFiles(req.files);
@@ -57,7 +57,7 @@ exports.modifyGift = async (req, res, next) => {
 
     const [gift, giftCategory] = await Promise.all([
       Gift.findById(giftId).select("_id giftCategoryId type coin image svgaImage"),
-      giftCategoryId ? GiftCategory.findById(giftCategoryId).select("_id name") : null,
+      giftCategoryId ? GiftCategory.findById(giftCategoryId).select("_id name").lean() : null,
     ]);
 
     if (!gift) {

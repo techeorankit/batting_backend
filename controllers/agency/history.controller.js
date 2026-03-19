@@ -37,14 +37,8 @@ exports.getCoinTransactions = async (req, res) => {
       };
     }
 
-    const [host, total, transactionHistory] = await Promise.all([
+    const [host, result] = await Promise.all([
       Host.findOne({ _id: hostId }).select("_id").lean(),
-      History.countDocuments({
-        ...dateFilterQuery,
-        type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
-        hostId: hostId,
-        hostCoin: { $ne: 0 },
-      }),
       History.aggregate([
         {
           $match: {
@@ -55,61 +49,73 @@ exports.getCoinTransactions = async (req, res) => {
           },
         },
         {
-          $lookup: {
-            from: "users",
-            localField: "userId",
-            foreignField: "_id",
-            as: "sender",
-          },
-        },
-        {
-          $unwind: {
-            path: "$sender",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $addFields: {
-            typeDescription: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
-                  { case: { $eq: ["$type", 5] }, then: "Withdrawal by Host" },
-                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
-                ],
-                default: "❓ Unknown Type",
+          $facet: {
+            totalCount: [{ $count: "count" }],
+            paginatedHistory: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+
+              {
+                $lookup: {
+                  from: "users",
+                  localField: "userId",
+                  foreignField: "_id",
+                  pipeline: [{ $project: { name: 1 } }],
+                  as: "sender",
+                },
               },
-            },
+              {
+                $unwind: {
+                  path: "$sender",
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $addFields: {
+                  typeDescription: {
+                    $switch: {
+                      branches: [
+                        { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                        { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                        { case: { $eq: ["$type", 5] }, then: "Withdrawal by Host" },
+                        { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                        { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                        { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                        { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                        { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
+                      ],
+                      default: "❓ Unknown Type",
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  uniqueId: 1,
+                  type: 1,
+                  typeDescription: 1,
+                  userCoin: 1,
+                  hostCoin: 1,
+                  adminCoin: 1,
+                  payoutStatus: 1,
+                  createdAt: 1,
+                  senderName: { $ifNull: ["$sender.name", ""] },
+                },
+              },
+            ],
           },
         },
-        {
-          $project: {
-            _id: 1,
-            uniqueId: 1,
-            type: 1,
-            typeDescription: 1,
-            userCoin: 1,
-            hostCoin: 1,
-            adminCoin: 1,
-            payoutStatus: 1,
-            createdAt: 1,
-            senderName: { $ifNull: ["$sender.name", ""] },
-          },
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
       ]),
     ]);
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host does not found." });
     }
+
+    const total = result[0]?.totalCount?.[0]?.count || 0;
+    const transactionHistory = result[0]?.paginatedHistory || [];
 
     return res.status(200).json({
       status: true,
@@ -155,14 +161,8 @@ exports.getCallTransactions = async (req, res) => {
       };
     }
 
-    const [host, total, transactionHistory] = await Promise.all([
+    const [host, result] = await Promise.all([
       Host.findOne({ _id: hostId }).select("_id").lean(),
-      History.countDocuments({
-        ...dateFilterQuery,
-        type: { $in: [11, 12, 13] },
-        hostId: hostId,
-        hostCoin: { $ne: 0 },
-      }),
       History.aggregate([
         {
           $match: {
@@ -172,6 +172,7 @@ exports.getCallTransactions = async (req, res) => {
             hostCoin: { $ne: 0 },
           },
         },
+
         {
           $addFields: {
             durationInSeconds: {
@@ -191,19 +192,32 @@ exports.getCallTransactions = async (req, res) => {
         },
         {
           $facet: {
+            totalCount: [{ $count: "count" }],
+            durationSummary: [
+              {
+                $group: {
+                  _id: null,
+                  totalSeconds: { $sum: "$durationInSeconds" },
+                },
+              },
+            ],
             data: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
               {
                 $lookup: {
                   from: "users",
                   localField: "userId",
                   foreignField: "_id",
+                  pipeline: [{ $project: { name: 1 } }],
                   as: "sender",
                 },
               },
               {
                 $unwind: {
                   path: "$sender",
-                  preserveNullAndEmptyArrays: false,
+                  preserveNullAndEmptyArrays: true,
                 },
               },
               {
@@ -239,17 +253,6 @@ exports.getCallTransactions = async (req, res) => {
                   senderName: { $ifNull: ["$sender.name", ""] },
                 },
               },
-              { $sort: { createdAt: -1 } },
-              { $skip: (start - 1) * limit },
-              { $limit: limit },
-            ],
-            durationSummary: [
-              {
-                $group: {
-                  _id: null,
-                  totalSeconds: { $sum: "$durationInSeconds" },
-                },
-              },
             ],
           },
         },
@@ -260,17 +263,15 @@ exports.getCallTransactions = async (req, res) => {
       return res.status(200).json({ status: false, message: "Host does not found." });
     }
 
-    const data = transactionHistory[0]?.data || [];
-    const totalSeconds = transactionHistory[0]?.durationSummary[0]?.totalSeconds || 0;
+    const total = result[0]?.totalCount?.[0]?.count || 0;
+    const data = result[0]?.data || [];
+    const totalSeconds = result[0]?.durationSummary?.[0]?.totalSeconds || 0;
 
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
 
-    const totalDuration =
-      `${String(hours).padStart(2, "0")}:` +
-      `${String(minutes).padStart(2, "0")}:` +
-      `${String(seconds).padStart(2, "0")}`;
+    const totalDuration = `${String(hours).padStart(2, "0")}:` + `${String(minutes).padStart(2, "0")}:` + `${String(seconds).padStart(2, "0")}`;
 
     return res.status(200).json({
       status: true,
@@ -320,73 +321,78 @@ exports.getGiftTransactions = async (req, res) => {
       };
     }
 
-    const [host, total, transactionHistory] = await Promise.all([
+    const [host, result] = await Promise.all([
       Host.findOne({ _id: hostId }).select("_id").lean(),
-      History.countDocuments({
-        ...dateFilterQuery,
-        type: { $in: [2, 3, 10] },
-        hostId: hostId,
-        hostCoin: { $ne: 0 },
-      }),
       History.aggregate([
         {
           $match: {
             ...dateFilterQuery,
             type: { $in: [2, 3, 10] },
-            hostId: hostId,
+            hostId,
             hostCoin: { $ne: 0 },
           },
         },
         {
-          $lookup: {
-            from: "users",
-            localField: "userId",
-            foreignField: "_id",
-            as: "sender",
-          },
-        },
-        {
-          $unwind: {
-            path: "$sender",
-            preserveNullAndEmptyArrays: false,
-          },
-        },
-        {
-          $addFields: {
-            typeDescription: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
-                  { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
-                ],
-                default: "❓ Unknown Type",
+          $facet: {
+            totalCount: [{ $count: "count" }],
+            data: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $lookup: {
+                  from: "users",
+                  localField: "userId",
+                  foreignField: "_id",
+                  pipeline: [{ $project: { name: 1 } }],
+                  as: "sender",
+                },
               },
-            },
+              {
+                $unwind: {
+                  path: "$sender",
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $addFields: {
+                  typeDescription: {
+                    $switch: {
+                      branches: [
+                        { case: { $eq: ["$type", 2] }, then: "🎁 Live Gift" },
+                        { case: { $eq: ["$type", 3] }, then: "🎥 Video Call Gift" },
+                        { case: { $eq: ["$type", 10] }, then: "💬 Chat Gift" },
+                      ],
+                      default: "❓ Unknown Type",
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  uniqueId: 1,
+                  type: 1,
+                  typeDescription: 1,
+                  userCoin: 1,
+                  hostCoin: 1,
+                  adminCoin: 1,
+                  createdAt: 1,
+                  senderName: { $ifNull: ["$sender.name", ""] },
+                },
+              },
+            ],
           },
         },
-        {
-          $project: {
-            _id: 1,
-            uniqueId: 1,
-            type: 1,
-            typeDescription: 1,
-            userCoin: 1,
-            hostCoin: 1,
-            adminCoin: 1,
-            createdAt: 1,
-            senderName: { $ifNull: ["$sender.name", ""] },
-          },
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
       ]),
     ]);
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host does not found." });
     }
+
+    const total = result[0]?.totalCount?.[0]?.count || 0;
+    const transactionHistory = result[0]?.data || [];
 
     return res.status(200).json({
       status: true,
@@ -430,7 +436,7 @@ exports.retrieveAgencyEarnings = async (req, res) => {
       };
     }
 
-    const [agency, summary, transactionHistory] = await Promise.all([
+    const [agency, historyData] = await Promise.all([
       Agency.findOne({ _id: agencyObjectId }).select("_id isBlock").lean(),
       History.aggregate([
         {
@@ -441,91 +447,87 @@ exports.retrieveAgencyEarnings = async (req, res) => {
           },
         },
         {
-          $group: {
-            _id: null,
-            total: { $sum: 1 },
-            totalAgencyEarnings: { $sum: "$agencyCoin" },
-          },
-        },
-      ]),
-      History.aggregate([
-        {
-          $match: {
-            ...dateFilterQuery,
-            agencyId: agencyObjectId,
-            type: { $in: [2, 3, 9, 10, 11, 12, 13] },
-            agencyCoin: { $ne: 0 },
-          },
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "userId",
-            foreignField: "_id",
-            as: "sender",
-          },
-        },
-        {
-          $unwind: {
-            path: "$sender",
-            preserveNullAndEmptyArrays: false,
-          },
-        },
-        {
-          $lookup: {
-            from: "hosts",
-            localField: "hostId",
-            foreignField: "_id",
-            as: "receiver",
-          },
-        },
-        {
-          $unwind: {
-            path: "$receiver",
-            preserveNullAndEmptyArrays: false,
-          },
-        },
-        {
-          $addFields: {
-            typeDescription: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
-                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
-                ],
-                default: "❓ Unknown Type",
+          $facet: {
+            summary: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: 1 },
+                  totalAgencyEarnings: { $sum: "$agencyCoin" },
+                },
               },
-            },
+            ],
+            transactions: [
+              {
+                $match: { agencyCoin: { $ne: 0 } },
+              },
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $lookup: {
+                  from: "users",
+                  localField: "userId",
+                  foreignField: "_id",
+                  pipeline: [{ $project: { name: 1 } }],
+                  as: "sender",
+                },
+              },
+              { $unwind: { path: "$sender", preserveNullAndEmptyArrays: false } },
+              {
+                $lookup: {
+                  from: "hosts",
+                  localField: "hostId",
+                  foreignField: "_id",
+                  pipeline: [{ $project: { name: 1 } }],
+                  as: "receiver",
+                },
+              },
+              { $unwind: { path: "$receiver", preserveNullAndEmptyArrays: false } },
+              {
+                $addFields: {
+                  typeDescription: {
+                    $switch: {
+                      branches: [
+                        { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                        { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                        { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                        { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                        { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                        { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                        { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
+                      ],
+                      default: "❓ Unknown Type",
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  uniqueId: 1,
+                  type: 1,
+                  typeDescription: 1,
+                  userCoin: 1,
+                  hostCoin: 1,
+                  adminCoin: 1,
+                  agencyCoin: 1,
+                  callStartTime: 1,
+                  callEndTime: 1,
+                  duration: 1,
+                  createdAt: 1,
+                  senderName: { $ifNull: ["$sender.name", ""] },
+                  receiverName: { $ifNull: ["$receiver.name", ""] },
+                },
+              },
+            ],
           },
         },
-        {
-          $project: {
-            _id: 1,
-            uniqueId: 1,
-            type: 1,
-            typeDescription: 1,
-            userCoin: 1,
-            hostCoin: 1,
-            adminCoin: 1,
-            agencyCoin: 1,
-            callStartTime: 1,
-            callEndTime: 1,
-            duration: 1,
-            createdAt: 1,
-            senderName: { $ifNull: ["$sender.name", ""] },
-            receiverName: { $ifNull: ["$receiver.name", ""] },
-          },
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
       ]),
     ]);
+
+    const summary = historyData[0]?.summary[0] || { total: 0, totalAgencyEarnings: 0 };
+    const transactionHistory = historyData[0]?.transactions || [];
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found." });
@@ -535,8 +537,8 @@ exports.retrieveAgencyEarnings = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency is currently inactive." });
     }
 
-    const total = summary.length > 0 ? summary[0].total : 0;
-    const totalAgencyEarnings = summary.length > 0 ? Number(summary[0].totalAgencyEarnings.toFixed(2)) : 0;
+    const total = summary.total || 0;
+    const totalAgencyEarnings = Number((summary.totalAgencyEarnings || 0).toFixed(2));
 
     return res.status(200).json({
       status: true,

@@ -18,6 +18,8 @@ const CheckIn = require("../../models/checkIn.model");
 const HostMatchHistory = require("../../models/hostMatchHistory.model");
 const LiveBroadcastView = require("../../models/liveBroadcastView.model");
 const LiveBroadcaster = require("../../models/liveBroadcaster.model");
+const FollowerFollowing = require("../../models/followerFollowing.model");
+const WithdrawalRequest = require("../../models/withdrawalRequest.model");
 
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
@@ -417,38 +419,7 @@ exports.deactivateMyAccount = async (req, res) => {
       message: "User and related data successfully deleted.",
     });
 
-    // if (user.isHost && user.hostId !== null) {
-    //   const host = await Host.findById(user.hostId).select("_id image photoGallery video liveVideo").lean();
-    //   if (host) {
-    //     deleteFileIfExists(host?.image);
-
-    //     if (Array.isArray(host.photoGallery)) {
-    //       for (const imgPath of host.photoGallery) {
-    //         deleteFileIfExists(imgPath);
-    //       }
-    //     }
-
-    //     if (Array.isArray(host.video)) {
-    //       for (const imgPath of host.video) {
-    //         deleteFileIfExists(imgPath);
-    //       }
-    //     }
-
-    //     if (Array.isArray(host.liveVideo)) {
-    //       for (const imgPath of host.liveVideo) {
-    //         deleteFileIfExists(imgPath);
-    //       }
-    //     }
-
-    //     await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
-    //     await Host.deleteOne({ _id: host?._id });
-    //   }
-    // }
-
-    console.log("user: ", user);
-
     const host = await Host.findOne({ userId: user?._id }).select("_id image photoGallery video liveVideo profileVideo identityProof").lean();
-    console.log("host: ", host);
 
     if (host) {
       deleteFileIfExists(host?.image);
@@ -470,8 +441,16 @@ exports.deactivateMyAccount = async (req, res) => {
           deleteFileIfExists(imgPath);
         }
       }
+      await Promise.all([
+        WithdrawalRequest.deleteMany({ hostId: host._id }),
+        LiveBroadcastHistory.deleteMany({ hostId: host?._id }),
+        Block.deleteMany({ hostId: host?._id }),
+        FollowerFollowing.deleteMany({ followingId: host?._id }),
+        History.deleteMany({ hostId: host?._id }),
+        HostMatchHistory.deleteMany({ $or: [{ lastHostId: host?._id }, { hostId: host?._id }] }),
+        LiveBroadcaster.deleteMany({ hostId: host?._id }),
+      ]);
 
-      await LiveBroadcastHistory.deleteMany({ hostId: host?._id });
       await Host.deleteOne({ _id: host?._id });
     }
 
@@ -502,6 +481,7 @@ exports.deactivateMyAccount = async (req, res) => {
       HostMatchHistory.deleteMany({ userId: user?._id }),
       LiveBroadcaster.deleteMany({ userId: user?._id }),
       LiveBroadcastView.deleteMany({ userId: user?._id }),
+      FollowerFollowing.deleteMany({ followerId: user?._id }),
     ]);
 
     if (user.firebaseUid) {

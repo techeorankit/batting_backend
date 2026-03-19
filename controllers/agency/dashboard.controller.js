@@ -33,12 +33,24 @@ exports.retrieveDashboardStats = async (req, res) => {
       };
     }
 
-    const [agency, pendingHostApplications, totalHosts, activeHosts, suspendedHosts, hostsLiveNow, totalPayoutPending, totalPayoutCompleted, agencyEarnings, agencyHostEarnings] = await Promise.all([
+    const [agency, hostStats, hostsLiveNow, withdrawStats, historyStats] = await Promise.all([
       Agency.findById(agencyObjectId).select("_id").lean(),
-      Host.countDocuments({ ...dateFilterQuery, agencyId: agencyObjectId, status: 1 }),
-      Host.countDocuments({ ...dateFilterQuery, agencyId: agencyObjectId, status: 2, isFake: false }),
-      Host.countDocuments({ ...dateFilterQuery, agencyId: agencyObjectId, status: 2, isBlock: false, isFake: false }),
-      Host.countDocuments({ ...dateFilterQuery, agencyId: agencyObjectId, status: 2, isBlock: true, isFake: false }),
+      Host.aggregate([
+        {
+          $match: {
+            ...dateFilterQuery,
+            agencyId: agencyObjectId,
+          },
+        },
+        {
+          $facet: {
+            pendingHostApplications: [{ $match: { status: 1 } }, { $count: "count" }],
+            totalHosts: [{ $match: { status: 2, isFake: false } }, { $count: "count" }],
+            activeHosts: [{ $match: { status: 2, isBlock: false, isFake: false } }, { $count: "count" }],
+            suspendedHosts: [{ $match: { status: 2, isBlock: true, isFake: false } }, { $count: "count" }],
+          },
+        },
+      ]),
       LiveBroadcaster.aggregate([
         {
           $match: {
@@ -51,6 +63,7 @@ exports.retrieveDashboardStats = async (req, res) => {
             from: "hosts",
             localField: "hostId",
             foreignField: "_id",
+            pipeline: [{ $project: { agencyId: 1 } }],
             as: "hostData",
           },
         },
@@ -68,7 +81,6 @@ exports.retrieveDashboardStats = async (req, res) => {
             ...dateFilterQuery,
             person: 2,
             hostId: { $ne: null },
-            status: 1,
           },
         },
         {
@@ -85,45 +97,10 @@ exports.retrieveDashboardStats = async (req, res) => {
             "host.agencyId": agencyObjectId,
           },
         },
-        { $count: "total" },
-      ]),
-      WithdrawRequest.aggregate([
         {
-          $match: {
-            ...dateFilterQuery,
-            person: 2,
-            hostId: { $ne: null },
-            status: 2,
-          },
-        },
-        {
-          $lookup: {
-            from: "hosts",
-            localField: "hostId",
-            foreignField: "_id",
-            as: "host",
-          },
-        },
-        { $unwind: "$host" },
-        {
-          $match: {
-            "host.agencyId": agencyObjectId,
-          },
-        },
-        { $count: "total" },
-      ]),
-      History.aggregate([
-        {
-          $match: {
-            ...dateFilterQuery,
-            agencyId: agencyObjectId,
-            type: { $in: [2, 3, 9, 10, 11, 12, 13] },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalAgencyEarnings: { $sum: "$agencyCoin" },
+          $facet: {
+            pending: [{ $match: { status: 1 } }, { $count: "count" }],
+            completed: [{ $match: { status: 2 } }, { $count: "count" }],
           },
         },
       ]),
@@ -138,6 +115,7 @@ exports.retrieveDashboardStats = async (req, res) => {
         {
           $group: {
             _id: null,
+            totalAgencyEarnings: { $sum: "$agencyCoin" },
             totalAgencyUnderHostsEarning: { $sum: "$hostCoin" },
           },
         },
@@ -148,8 +126,18 @@ exports.retrieveDashboardStats = async (req, res) => {
       return res.status(200).json({ status: false, message: "Agency not found." });
     }
 
-    const totalAgencyEarnings = agencyEarnings.length > 0 ? agencyEarnings[0].totalAgencyEarnings : 0;
-    const totalAgencyUnderHostsEarning = agencyHostEarnings.length > 0 ? agencyHostEarnings[0].totalAgencyUnderHostsEarning : 0;
+    const hostData = hostStats[0];
+
+    const pendingHostApplications = hostData.pendingHostApplications?.[0]?.count || 0;
+    const totalHosts = hostData.totalHosts?.[0]?.count || 0;
+    const activeHosts = hostData.activeHosts?.[0]?.count || 0;
+    const suspendedHosts = hostData.suspendedHosts?.[0]?.count || 0;
+
+    const totalPayoutPending = withdrawStats[0].pending?.[0]?.count || 0;
+    const totalPayoutCompleted = withdrawStats[0].completed?.[0]?.count || 0;
+
+    const totalAgencyEarnings = historyStats[0]?.totalAgencyEarnings || 0;
+    const totalAgencyUnderHostsEarning = historyStats[0]?.totalAgencyUnderHostsEarning || 0;
 
     return res.status(200).json({
       status: true,

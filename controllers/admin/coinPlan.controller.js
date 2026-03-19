@@ -108,15 +108,32 @@ exports.fetchCoinPlans = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const [total, coinPlans] = await Promise.all([
-      CoinPlan.countDocuments(),
-      CoinPlan.find()
-        .select("coins bonusCoins price iconUrl productId isActive isFeatured")
-        .sort({ coins: 1, price: 1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+    const result = await CoinPlan.aggregate([
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          data: [
+            {
+              $project: {
+                coins: 1,
+                bonusCoins: 1,
+                price: 1,
+                iconUrl: 1,
+                productId: 1,
+                isActive: 1,
+                isFeatured: 1,
+              },
+            },
+            { $sort: { coins: 1, price: 1 } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
+          ],
+        },
+      },
     ]);
+
+    const total = result[0].total[0]?.count || 0;
+    const coinPlans = result[0].data;
 
     return res.status(200).json({ status: true, message: "Coin plans retrieved successfully.", total, data: coinPlans });
   } catch (error) {
@@ -125,22 +142,23 @@ exports.fetchCoinPlans = async (req, res) => {
   }
 };
 
-//get coinplan histories of users (admin earning)
-exports.retrieveUserPurchaseRecords = async (req, res) => {
+//get coinplan/vipPlan histories (admin earning)
+exports.retrieveCoinPlanPurchase = async (req, res) => {
   try {
-    const start = parseInt(req.query.start) || 1;
+    const page = parseInt(req.query.start) || 1;
     const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
     const search = req.query.search?.trim();
-    const purchaseType = parseInt(req.query.type);
+    const purchaseType = req.query.type || ""; // 7 = Coin, 8 = VIP
+    const paymentGateway = req.query.paymentGateway || "";
 
-    if (![7, 8].includes(purchaseType)) {
-      return res.status(200).json({
-        status: false,
-        message: "Invalid purchase type. Allowed values: 7 (Coin), 8 (VIP)",
-      });
+    if (purchaseType.trim().toLowerCase() !== "all") {
+      if (![7, 8].includes(parseInt(purchaseType))) {
+        return res.status(200).json({ status: false, message: "Invalid purchase type. Allowed values: 7 (Coin), 8 (VIP) and all" });
+      }
     }
 
     let dateFilter = {};
@@ -151,28 +169,32 @@ exports.retrieveUserPurchaseRecords = async (req, res) => {
       dateFilter.createdAt = { $gte: from, $lte: to };
     }
 
-    const baseFilter = {
+    const matchQuery = {
       ...dateFilter,
-      type: purchaseType,
       price: { $exists: true, $ne: 0 },
     };
 
     if (req.query.userId && mongoose.Types.ObjectId.isValid(req.query.userId)) {
-      baseFilter.userId = new mongoose.Types.ObjectId(req.query.userId);
+      matchQuery.userId = new mongoose.Types.ObjectId(req.query.userId);
+    }
+
+    if (purchaseType.trim().toLowerCase() !== "all") {
+      matchQuery.type = parseInt(purchaseType);
+    }
+
+    if (paymentGateway?.trim()) {
+      matchQuery.paymentGateway = paymentGateway;
     }
 
     const result = await History.aggregate([
-      { $match: baseFilter },
+      { $match: matchQuery },
+
       {
         $lookup: {
           from: "users",
-          let: { userId: "$userId" },
+          localField: "userId",
+          foreignField: "_id",
           pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$_id", "$$userId"] },
-              },
-            },
             {
               $project: {
                 _id: 1,
@@ -193,105 +215,12 @@ exports.retrieveUserPurchaseRecords = async (req, res) => {
             {
               $match: {
                 $or: [
+                  { uniqueId: { $regex: search, $options: "i" } },
+                  { paymentGateway: { $regex: search, $options: "i" } },
                   { "userDetails.name": { $regex: search, $options: "i" } },
                   { "userDetails.userName": { $regex: search, $options: "i" } },
                   { "userDetails.uniqueId": { $regex: search, $options: "i" } },
                 ],
-              },
-            },
-          ]
-        : []),
-
-      {
-        $facet: {
-          adminEarnings: [
-            {
-              $group: {
-                _id: null,
-                totalEarnings: { $sum: "$price" },
-              },
-            },
-          ],
-
-          total: [{ $group: { _id: "$userDetails._id" } }, { $count: "count" }],
-
-          data: [
-            {
-              $group: {
-                _id: "$userDetails._id",
-                name: { $first: "$userDetails.name" },
-                userName: { $first: "$userDetails.userName" },
-                uniqueId: { $first: "$userDetails.uniqueId" },
-                image: { $first: "$userDetails.image" },
-                transactionId: { $first: "$uniqueId" },
-                totalPlansPurchased: { $sum: 1 },
-                totalPriceSpent: { $sum: "$price" },
-                // coinPlanPurchase: {
-                //   $push: {
-                //     coin: "$userCoin",
-                //     uniqueId: "$uniqueId",
-                //     paymentGateway: "$paymentGateway",
-                //     price: "$price",
-                //     date: "$date",
-                //   },
-                // },
-              },
-            },
-            { $sort: { totalPlansPurchased: -1 } },
-            { $skip: (start - 1) * limit },
-            { $limit: limit },
-          ],
-        },
-      },
-    ]);
-
-    return res.status(200).json({
-      status: true,
-      message: "User purchase transactions retrieved successfully.",
-      adminEarnings: result[0].adminEarnings[0]?.totalEarnings || 0,
-      total: result[0].total[0]?.count || 0,
-      data: result[0].data || [],
-    });
-  } catch (error) {
-    console.error("Purchase history API error:", error);
-    return res.status(500).json({ status: false, message: "Internal server error" });
-  }
-};
-
-//get coinplan histories of users (admin earning)
-exports.retrieveCoinPlanPurchase = async (req, res) => {
-  try {
-    const page = parseInt(req.query.start) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
-
-    const search = req.query.search?.trim();
-    const purchaseType = parseInt(req.query.type); // 7 = Coin, 8 = VIP
-
-    if (![7, 8].includes(purchaseType)) {
-      return res.status(200).json({
-        status: false,
-        message: "Invalid purchase type. Allowed values: 7 (Coin), 8 (VIP)",
-      });
-    }
-
-    const matchQuery = {
-      type: purchaseType,
-      price: { $exists: true, $ne: 0 },
-    };
-
-    if (req.query.userId && mongoose.Types.ObjectId.isValid(req.query.userId)) {
-      matchQuery.userId = new mongoose.Types.ObjectId(req.query.userId);
-    }
-
-    const result = await History.aggregate([
-      { $match: matchQuery },
-
-      ...(search
-        ? [
-            {
-              $match: {
-                $or: [{ uniqueId: { $regex: search, $options: "i" } }, { paymentGateway: { $regex: search, $options: "i" } }, { userCoin: { $regex: search, $options: "i" } }],
               },
             },
           ]
@@ -309,11 +238,15 @@ exports.retrieveCoinPlanPurchase = async (req, res) => {
             {
               $project: {
                 _id: 0,
-                coin: "$userCoin",
                 uniqueId: "$uniqueId",
+                coin: "$userCoin",
+                bonusCoins: 1,
                 paymentGateway: 1,
                 price: 1,
                 date: 1,
+                type: 1,
+                userDetails: 1,
+                createdAt: 1,
               },
             },
           ],

@@ -19,18 +19,51 @@ exports.fetchFollowing = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.query.userId);
 
-    const [user, total, followingList] = await Promise.all([
+    const [user, result] = await Promise.all([
       User.findById(userId).select("_id").lean(),
-      FollowerFollowing.countDocuments({ followerId: userId }),
-      FollowerFollowing.find({ followerId: userId })
-        .populate("followingId", "_id name image uniqueId coin countryFlagImage country")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+      FollowerFollowing.aggregate([
+        { $match: { followerId: userId } },
+        {
+          $facet: {
+            total: [{ $count: "count" }],
+            list: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $lookup: {
+                  from: "hosts",
+                  localField: "followingId",
+                  foreignField: "_id",
+                  pipeline: [
+                    {
+                      $project: {
+                        _id: 1,
+                        name: 1,
+                        image: 1,
+                        uniqueId: 1,
+                        coin: 1,
+                        countryFlagImage: 1,
+                        country: 1,
+                      },
+                    },
+                  ],
+                  as: "followingId",
+                },
+              },
+              { $unwind: "$followingId" },
+            ],
+          },
+        },
+      ]),
     ]);
 
-    if (!user) return res.status(200).json({ status: false, message: "User not found." });
+    const total = result[0].total[0]?.count || 0;
+    const followingList = result[0].list;
+
+    if (!user) {
+      return res.status(200).json({ status: false, message: "User not found." });
+    }
 
     return res.status(200).json({
       status: true,
@@ -56,20 +89,53 @@ exports.fetchFollowers = async (req, res) => {
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [host, total, followerList] = await Promise.all([
+    const [host, result] = await Promise.all([
       Host.findById(hostId).select("_id isBlock").lean(),
-      FollowerFollowing.countDocuments({ followingId: hostId }),
-      FollowerFollowing.find({ followingId: hostId })
-        .populate("followerId", "_id name image uniqueId coin countryFlagImage country")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+      FollowerFollowing.aggregate([
+        { $match: { followingId: hostId } },
+        {
+          $facet: {
+            total: [{ $count: "count" }],
+            list: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $lookup: {
+                  from: "users",
+                  localField: "followerId",
+                  foreignField: "_id",
+                  pipeline: [
+                    {
+                      $project: {
+                        _id: 1,
+                        name: 1,
+                        image: 1,
+                        uniqueId: 1,
+                        coin: 1,
+                        countryFlagImage: 1,
+                        country: 1,
+                      },
+                    },
+                  ],
+                  as: "followerId",
+                },
+              },
+              { $unwind: "$followerId" },
+            ],
+          },
+        },
+      ]),
     ]);
 
-    if (!host) return res.status(200).json({ status: false, message: "Host not found." });
+    const total = result[0].total[0]?.count || 0;
+    const followerList = result[0].list;
 
-    res.status(200).json({
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
+
+    return res.status(200).json({
       status: true,
       message: `Retrieved followers successfully.`,
       total,
@@ -77,6 +143,6 @@ exports.fetchFollowers = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    return res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };

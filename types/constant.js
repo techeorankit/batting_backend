@@ -65,3 +65,8 @@ exports.NOTIFICATION_PERSON_TYPE = {
   PROVIDER: 2,
   AGENCY: 3,
 };
+
+exports.STATUS_OF_REPORT = {
+  PENDING: 1,
+  SOLVED: 2,
+};

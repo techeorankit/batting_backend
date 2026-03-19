@@ -53,13 +53,17 @@ exports.getImpressions = async (req, res) => {
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
-    const [total, impressions] = await Promise.all([
-      Impression.countDocuments(),
-      Impression.find()
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+    const result = await Impression.aggregate([
+      {
+        $facet: {
+          count: [{ $count: "total" }],
+          impression: [{ $sort: { createdAt: -1 } }, { $skip: (start - 1) * limit }, { $limit: limit }],
+        },
+      },
     ]);
+
+    const total = result[0]?.count[0]?.total || 0;
+    const impressions = result[0]?.impression || [];
 
     return res.status(200).json({
       status: true,

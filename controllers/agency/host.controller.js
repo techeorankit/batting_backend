@@ -37,18 +37,52 @@ exports.fetchHostRequestsByAgency = async (req, res) => {
       matchQuery.$or = [{ name: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
     }
 
-    const [agency, totalHosts, hosts] = await Promise.all([
-      Agency.findOne({ _id: agencyId }).lean(),
-      Host.countDocuments(matchQuery),
-      Host.find(matchQuery)
-        .select(
-          "_id name gender image photoGallery profileVideo impression identityProofType identityProof uniqueId isOnline isBusy isLive age email dob bio language countryFlagImage country userId reason createdAt",
-        )
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .sort({ createdAt: -1 })
-        .lean(),
+    const [agency, hostData] = await Promise.all([
+      Agency.findOne({ _id: agencyId }).select("_id isBlock").lean(),
+      Host.aggregate([
+        { $match: matchQuery },
+        {
+          $facet: {
+            totalHosts: [{ $count: "count" }],
+            hosts: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  gender: 1,
+                  image: 1,
+                  photoGallery: 1,
+                  profileVideo: 1,
+                  impression: 1,
+                  identityProofType: 1,
+                  identityProof: 1,
+                  uniqueId: 1,
+                  isOnline: 1,
+                  isBusy: 1,
+                  isLive: 1,
+                  age: 1,
+                  email: 1,
+                  dob: 1,
+                  bio: 1,
+                  language: 1,
+                  countryFlagImage: 1,
+                  country: 1,
+                  userId: 1,
+                  reason: 1,
+                  createdAt: 1,
+                },
+              },
+            ],
+          },
+        },
+      ]),
     ]);
+
+    const totalHosts = hostData[0]?.totalHosts[0]?.count || 0;
+    const hosts = hostData[0]?.hosts || [];
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found!" });
@@ -201,13 +235,44 @@ exports.retrieveAgencyHosts = async (req, res) => {
     const limit = Math.max(parseInt(req.query.limit) || 20, 1);
     const search = req.query.search?.trim() || "All";
 
+    const genderFilter = req?.query?.gender;
+    const isBlockFilter = req?.query?.isBlock;
+    const isOnlineFilter = req?.query?.isOnline;
+    const isBusyFilter = req?.query?.isBusy;
+    const isLiveFilter = req?.query?.isLive;
+    const countryFilter = req?.query?.country?.trim()?.toLowerCase() || "";
+
     const agencyId = new mongoose.Types.ObjectId(req.agency._id);
 
-    const matchStage = {
+    let matchStage = {
       agencyId,
       status: 2,
       isFake: false,
     };
+
+    if (genderFilter) {
+      matchStage.gender = genderFilter;
+    }
+
+    if (isBlockFilter) {
+      matchStage.isBlock = isBlockFilter === "true";
+    }
+
+    if (isOnlineFilter) {
+      matchStage.isOnline = isOnlineFilter === "true";
+    }
+
+    if (isBusyFilter) {
+      matchStage.isBusy = isBusyFilter === "true";
+    }
+
+    if (isLiveFilter) {
+      matchStage.isLive = isLiveFilter === "true";
+    }
+
+    if (countryFilter) {
+      matchStage.country = { $regex: `^${countryFilter}$`, $options: "i" };
+    }
 
     if (search !== "All") {
       matchStage.$or = [
@@ -219,51 +284,70 @@ exports.retrieveAgencyHosts = async (req, res) => {
       ];
     }
 
-    const [agency, totalResult, hosts] = await Promise.all([
+    const [agency, hostData] = await Promise.all([
       Agency.findOne({ _id: agencyId }).select("_id isBlock").lean(),
-      Host.countDocuments(matchStage),
       Host.aggregate([
         { $match: matchStage },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
         {
-          $lookup: {
-            from: "followerfollowings",
-            localField: "_id",
-            foreignField: "followingId",
-            as: "followers",
-          },
-        },
-        {
-          $addFields: {
-            totalFollowers: { $size: "$followers" },
-          },
-        },
-        {
-          $project: {
-            name: 1,
-            coin: 1,
-            gender: 1,
-            image: 1,
-            impression: 1,
-            identityProofType: 1,
-            identityProof: 1,
-            uniqueId: 1,
-            isOnline: 1,
-            isBusy: 1,
-            isLive: 1,
-            countryFlagImage: 1,
-            country: 1,
-            totalFollowers: 1,
-            createdAt: 1,
-            photoGallery: 1,
-            profileVideo: 1,
-            isBlock: 1,
+          $facet: {
+            totalResult: [{ $count: "count" }],
+            hosts: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $lookup: {
+                  from: "followerfollowings",
+                  localField: "_id",
+                  foreignField: "followingId",
+                  pipeline: [{ $count: "count" }],
+                  as: "followers",
+                },
+              },
+              {
+                $addFields: {
+                  totalFollowers: {
+                    $ifNull: [{ $arrayElemAt: ["$followers.count", 0] }, 0],
+                  },
+                },
+              },
+              {
+                $project: {
+                  name: 1,
+                  coin: 1,
+                  gender: 1,
+                  image: 1,
+                  profileVideo: 1,
+                  impression: 1,
+                  identityProofType: 1,
+                  identityProof: 1,
+                  uniqueId: 1,
+                  isOnline: 1,
+                  isBusy: 1,
+                  isLive: 1,
+                  countryFlagImage: 1,
+                  country: 1,
+                  totalFollowers: 1,
+                  createdAt: 1,
+                  photoGallery: 1,
+                  profileVideo: 1,
+                  isBlock: 1,
+                  randomCallRate: 1,
+                  randomCallFemaleRate: 1,
+                  randomCallMaleRate: 1,
+                  privateCallRate: 1,
+                  audioCallRate: 1,
+                  chatRate: 1,
+                },
+              },
+            ],
           },
         },
       ]),
     ]);
+
+    const totalResult = hostData[0]?.totalResult[0]?.count || 0;
+    const hosts = hostData[0]?.hosts || [];
 
     if (!agency) {
       return res.status(200).json({ status: false, message: "Agency not found!" });

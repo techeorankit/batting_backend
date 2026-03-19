@@ -23,10 +23,7 @@ route.delete("/removeCoinPlan", checkAccessWithSecretKey(), CoinPlanController.r
 //retrieve all coin plans
 route.get("/fetchCoinPlans", checkAccessWithSecretKey(), CoinPlanController.fetchCoinPlans);
 
-//get coinplan histories of users (admin earning)
-route.get("/retrieveUserPurchaseRecords", checkAccessWithSecretKey(), CoinPlanController.retrieveUserPurchaseRecords);
-
-//get coinplan histories of users (admin earning)
+//get coinplan/vipPlan histories of users (admin earning)
 route.get("/retrieveCoinPlanPurchase", checkAccessWithSecretKey(), CoinPlanController.retrieveCoinPlanPurchase);
 
 module.exports = route;

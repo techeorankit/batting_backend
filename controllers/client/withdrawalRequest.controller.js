@@ -30,12 +30,27 @@ exports.submitWithdrawalRequest = async (req, res) => {
     const requestedCoins = Number(coin);
     const requestAmount = parseFloat(requestedCoins / settingJSON.minCoinsToConvert).toFixed(2);
 
-    const [uniqueId, host, pendingRequest, declinedRequest] = await Promise.all([
+    const [uniqueId, host, withdrawalAgg] = await Promise.all([
       generateHistoryUniqueId(),
       Host.findOne({ _id: hostId }).select("_id coin fcmToken agencyId").lean(),
-      WithdrawalRequest.findOne({ hostId, status: 1 }).select("_id").lean(), // status 1: pending
-      WithdrawalRequest.findOne({ hostId, status: 3 }).select("_id").lean(), // status 3: declined
+      WithdrawalRequest.aggregate([
+        {
+          $match: {
+            hostId: hostId,
+            status: { $in: [1, 3] },
+          },
+        },
+        {
+          $facet: {
+            pendingRequest: [{ $match: { status: 1 } }, { $project: { _id: 1 } }],
+            declinedRequest: [{ $match: { status: 3 } }, { $project: { _id: 1 } }],
+          },
+        },
+      ]),
     ]);
+
+    const pendingRequest = withdrawalAgg[0]?.pendingRequest[0] || null;
+    const declinedRequest = withdrawalAgg[0]?.declinedRequest[0] || null;
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host account not found." });
@@ -164,16 +179,67 @@ exports.listPayoutRequests = async (req, res) => {
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [host, totalRecords, records] = await Promise.all([
+    const [host, withdrawalData] = await Promise.all([
       Host.findOne({ _id: hostId }).select("_id").lean(),
-      WithdrawalRequest.countDocuments({ person: 2, hostId: hostId, ...statusQuery, ...dateFilterQuery }),
-      WithdrawalRequest.find({ person: 2, hostId: hostId, ...statusQuery, ...dateFilterQuery })
-        .populate("hostId", "uniqueId name image")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+      WithdrawalRequest.aggregate([
+        {
+          $match: {
+            person: 2,
+            hostId: hostId,
+            ...statusQuery,
+            ...dateFilterQuery,
+          },
+        },
+        {
+          $facet: {
+            totalRecords: [{ $count: "count" }],
+            records: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
+              {
+                $lookup: {
+                  from: "hosts",
+                  localField: "hostId",
+                  foreignField: "_id",
+                  pipeline: [
+                    {
+                      $match: { agencyId: agencyObjectId },
+                    },
+                    {
+                      $project: {
+                        _id: 1,
+                        name: 1,
+                        uniqueId: 1,
+                        image: 1,
+                      },
+                    },
+                  ],
+                  as: "hostData",
+                },
+              },
+              { $unwind: { path: "$hostData", preserveNullAndEmptyArrays: true } },
+              {
+                $project: {
+                  _id: 1,
+                  coin: 1,
+                  amount: 1,
+                  status: 1,
+                  createdAt: 1,
+                  hostId: "$hostData._id",
+                  hostName: "$hostData.name",
+                  hostUniqueId: "$hostData.uniqueId",
+                  hostImage: "$hostData.image",
+                },
+              },
+            ],
+          },
+        },
+      ]),
     ]);
+
+    const totalRecords = withdrawalData[0]?.totalRecords[0]?.count || 0;
+    const records = withdrawalData[0]?.records || [];
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host account not found." });

@@ -38,13 +38,10 @@ exports.getLiveSessionHistory = async (req, res) => {
       };
     }
 
-    const [host, total, liveHistoryAgg] = await Promise.all([
+    const [host, hostDataAgg] = await Promise.all([
       Host.findOne({ _id: hostId }).lean().select("_id"),
-      LiveBroadcastHistory.countDocuments({ hostId, ...dateFilterQuery }),
       LiveBroadcastHistory.aggregate([
-        {
-          $match: { hostId, ...dateFilterQuery },
-        },
+        { $match: { hostId: hostId, ...dateFilterQuery } },
         {
           $addFields: {
             durationInSeconds: {
@@ -62,10 +59,13 @@ exports.getLiveSessionHistory = async (req, res) => {
             },
           },
         },
-
         {
           $facet: {
+            total: [{ $count: "count" }],
             data: [
+              { $sort: { createdAt: -1 } },
+              { $skip: (start - 1) * limit },
+              { $limit: limit },
               {
                 $project: {
                   coins: 1,
@@ -78,11 +78,7 @@ exports.getLiveSessionHistory = async (req, res) => {
                   createdAt: 1,
                 },
               },
-              { $sort: { createdAt: -1 } },
-              { $skip: (start - 1) * limit },
-              { $limit: limit },
             ],
-
             durationSummary: [
               {
                 $group: {
@@ -100,17 +96,15 @@ exports.getLiveSessionHistory = async (req, res) => {
       return res.status(200).json({ status: false, message: "Host not found." });
     }
 
-    const data = liveHistoryAgg[0]?.data || [];
-    const totalSeconds = liveHistoryAgg[0]?.durationSummary[0]?.totalSeconds || 0;
+    const total = hostDataAgg[0]?.total[0]?.count || 0;
+    const data = hostDataAgg[0]?.data || [];
+    const totalSeconds = hostDataAgg[0]?.durationSummary[0]?.totalSeconds || 0;
 
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
 
-    const totalDuration =
-      `${String(hours).padStart(2, "0")}:` +
-      `${String(minutes).padStart(2, "0")}:` +
-      `${String(seconds).padStart(2, "0")}`;
+    const totalDuration = `${String(hours).padStart(2, "0")}:` + `${String(minutes).padStart(2, "0")}:` + `${String(seconds).padStart(2, "0")}`;
 
     return res.status(200).json({
       status: true,

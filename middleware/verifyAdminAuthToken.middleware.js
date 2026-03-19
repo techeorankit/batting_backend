@@ -9,6 +9,7 @@ if (!privateKey) {
 
 //import model
 const Admin = require("../models/admin.model");
+const Subadmin = require("../models/subAdmin.model");
 
 const validateAdminFirebaseToken = async (req, res, next) => {
   console.log("🔹 [AUTH] Validating Admin Firebase token...");
@@ -29,7 +30,11 @@ const validateAdminFirebaseToken = async (req, res, next) => {
   const token = authHeader.split("Bearer ")[1];
 
   try {
-    const [decodedToken, mainAdmin] = await Promise.all([admin.auth().verifyIdToken(token), Admin.findOne({ uid: adminUid }).select("_id email password")]);
+    const [decodedToken, adminUser, subadminUser] = await Promise.all([
+      admin.auth().verifyIdToken(token),
+      Admin.findOne({ uid: adminUid }).select("_id email"),
+      Subadmin.findOne({ authId: adminUid }).select("_id email"),
+    ]);
 
     if (!decodedToken || !decodedToken.email) {
       console.warn("⚠️ [AUTH] Invalid token. Email not found.");
@@ -38,13 +43,16 @@ const validateAdminFirebaseToken = async (req, res, next) => {
 
     //console.log("✅ Decoded Token:", decodedToken);
 
-    if (!mainAdmin) {
-      console.warn("⚠️ [AUTH] Admin not found.");
-      return res.status(401).json({ status: false, message: "Admin not found. Authorization failed." });
+    if (adminUser) {
+      req.admin = adminUser;
+      console.log(`✅ [AUTH] Admin authentication successful. Admin ID: ${adminUser._id}`);
+    } else if (subadminUser) {
+      req.subadmin = subadminUser;
+      console.log(`✅ [AUTH] Subadmin authentication successful. Subadmin ID: ${subadminUser._id}`);
+    } else {
+      console.warn("⚠️ [AUTH] Admin/Subadmin not found.");
+      return res.status(401).json({ status: false, message: "Admin or Subadmin not found. Authorization failed." });
     }
-
-    req.admin = mainAdmin;
-    console.log(`✅ [AUTH] Admin authentication successful. Admin ID: ${mainAdmin._id}`);
     next();
   } catch (error) {
     console.error("❌ [AUTH ERROR] Token verification failed:", error.message);

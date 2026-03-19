@@ -28,98 +28,67 @@ exports.fetchDashboardMetrics = async (req, res) => {
       type: { $in: [7, 8] }, // coin + vip
     };
 
-    const [
-      totalUsers,
-      totalBlockedUsers,
-      totalVipUsers,
-      totalPendingHosts,
-      totalHosts,
-      totalAgency,
-      totalImpressions,
-      totalCurrentLiveHosts,
-      revenueAgg,
-      coinSoldAgg,
-      adminCommissionAgg,
-      hostEarningAgg,
-      payoutCompletedAgg,
-      pendingPayoutAgg,
-    ] = await Promise.all([
-      User.countDocuments(dateFilterQuery),
-      User.countDocuments({ ...dateFilterQuery, isBlock: true }),
-      User.countDocuments({ ...dateFilterQuery, isVip: true }),
-      Host.countDocuments({ ...dateFilterQuery, status: 1, agencyId: null }),
-      Host.countDocuments({ ...dateFilterQuery, status: 2, isFake: false }),
+    const [userAgg, hostAgg, totalAgency, totalImpressions, totalCurrentLiveHosts, historyAgg, payoutAgg] = await Promise.all([
+      User.aggregate([
+        { $match: dateFilterQuery },
+        {
+          $facet: {
+            totalUsers: [{ $count: "count" }],
+            totalBlockedUsers: [{ $match: { isBlock: true } }, { $count: "count" }],
+            totalVipUsers: [{ $match: { isVip: true } }, { $count: "count" }],
+          },
+        },
+      ]),
+      Host.aggregate([
+        { $match: { status: { $in: [1, 2] } } },
+        {
+          $facet: {
+            totalPendingHosts: [{ $match: { status: 1, agencyId: null } }, { $count: "count" }],
+            totalHosts: [{ $match: { status: 2, isFake: false } }, { $count: "count" }],
+            pendingPayoutLiability: [
+              { $match: { status: 2, isFake: false } },
+              {
+                $group: {
+                  _id: null,
+                  pendingLiability: { $sum: { $subtract: ["$coin", "$redeemedCoins"] } },
+                },
+              },
+            ],
+          },
+        },
+      ]),
       Agency.countDocuments(dateFilterQuery),
       Impression.countDocuments(dateFilterQuery),
       LiveBroadcaster.countDocuments(dateFilterQuery),
       History.aggregate([
-        { $match: revenueMatch },
         {
-          $group: {
-            _id: null,
-            totalRevenue: { $sum: "$price" },
+          $facet: {
+            revenue: [{ $match: revenueMatch }, { $group: { _id: null, totalRevenue: { $sum: "$price" } } }],
+            coinsSold: [{ $match: revenueMatch }, { $group: { _id: null, coinsSold: { $sum: "$userCoin" } } }],
+            adminCommission: [{ $match: dateFilterQuery }, { $group: { _id: null, totalAdmin: { $sum: "$adminCoin" } } }],
+            hostEarnings: [{ $match: dateFilterQuery }, { $group: { _id: null, totalHost: { $sum: "$hostCoin" } } }],
           },
         },
-      ]), // Gross / Net Revenue
-      History.aggregate([
-        { $match: revenueMatch },
-        {
-          $group: {
-            _id: null,
-            coinsSold: { $sum: "$userCoin" },
-          },
-        },
-      ]), // Coins Sold
-      History.aggregate([
-        { $match: dateFilterQuery },
-        {
-          $group: {
-            _id: null,
-            adminCommission: { $sum: "$adminCoin" },
-          },
-        },
-      ]), // Admin Commission
-      History.aggregate([
-        { $match: dateFilterQuery },
-        {
-          $group: {
-            _id: null,
-            hostEarning: { $sum: "$hostCoin" },
-          },
-        },
-      ]), // Host Earnings
-      WithdrawalRequest.aggregate([
-        {
-          $match: {
-            ...dateFilterQuery,
-            status: 2, // APPROVED
-            person: 2, // HOST
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            payoutCompleted: { $sum: "$coin" },
-          },
-        },
-      ]), // Host Payout Completed
-      Host.aggregate([
-        {
-          $match: {
-            status: 2,
-            isFake: false,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            pendingLiability: {
-              $sum: { $subtract: ["$coin", "$redeemedCoins"] },
-            },
-          },
-        },
-      ]), // Pending Payout Liability
+      ]),
+      WithdrawalRequest.aggregate([{ $match: { ...dateFilterQuery, status: 2, person: 2 } }, { $group: { _id: null, payoutCompleted: { $sum: "$coin" } } }]),
     ]);
+
+    const totalUsers = userAgg[0].totalUsers[0]?.count || 0;
+    const totalBlockedUsers = userAgg[0].totalBlockedUsers[0]?.count || 0;
+    const totalVipUsers = userAgg[0].totalVipUsers[0]?.count || 0;
+
+    const totalPendingHosts = hostAgg[0].totalPendingHosts[0]?.count || 0;
+    const totalHosts = hostAgg[0].totalHosts[0]?.count || 0;
+    const pendingPayoutLiability = hostAgg[0].pendingPayoutLiability[0]?.pendingLiability || 0;
+
+    const metrics = historyAgg[0];
+    const grossPaymentsCollected = metrics.revenue[0]?.totalRevenue || 0;
+    const netPaymentsReceived = metrics.revenue[0]?.totalRevenue || 0; // gateway fees handled on UI
+    const coinsSold = metrics.coinsSold[0]?.coinsSold || 0;
+    const adminCommissionEarned = metrics.adminCommission[0]?.totalAdmin || 0;
+    const hostEarningsGenerated = metrics.hostEarnings[0]?.totalHost || 0;
+
+    const hostPayoutsCompleted = payoutAgg[0]?.payoutCompleted || 0;
 
     return res.status(200).json({
       status: true,
@@ -133,13 +102,13 @@ exports.fetchDashboardMetrics = async (req, res) => {
         totalAgency,
         totalImpressions,
         totalCurrentLiveHosts,
-        grossPaymentsCollected: revenueAgg?.[0]?.totalRevenue || 0,
-        netPaymentsReceived: revenueAgg?.[0]?.totalRevenue || 0, // gateway fee handled UI-side
-        coinsSold: coinSoldAgg?.[0]?.coinsSold || 0,
-        adminCommissionEarned: adminCommissionAgg?.[0]?.adminCommission || 0,
-        hostEarningsGenerated: hostEarningAgg?.[0]?.hostEarning || 0,
-        hostPayoutsCompleted: payoutCompletedAgg?.[0]?.payoutCompleted || 0,
-        pendingPayoutLiability: pendingPayoutAgg?.[0]?.pendingLiability || 0,
+        grossPaymentsCollected,
+        netPaymentsReceived,
+        coinsSold,
+        adminCommissionEarned,
+        hostEarningsGenerated,
+        hostPayoutsCompleted,
+        pendingPayoutLiability,
       },
     });
   } catch (error) {
@@ -479,13 +448,13 @@ exports.fetchTopSpenders = async (req, res) => {
       },
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
       message: "Top spenders fetched successfully",
       data: topSpenders,
     });
   } catch (error) {
     console.error("Top Spenders Error:", error);
-    res.status(500).json({ status: false, message: "Something went wrong", error: error.message });
+    return res.status(500).json({ status: false, message: "Something went wrong", error: error.message });
   }
 };

@@ -13,7 +13,7 @@ const mongoose = require("mongoose");
 //get withdrawal requests ( hosts / agency )
 exports.retrievePayoutRequests = async (req, res) => {
   try {
-    const { status, person } = req.query;
+    const { status, person, search } = req.query;
 
     if (!status || !person) {
       return res.status(200).json({ status: false, message: "Invalid query parameters." });
@@ -56,30 +56,71 @@ exports.retrievePayoutRequests = async (req, res) => {
       }
     }
 
-    const [totalRecords, records] = await Promise.all([
-      WithdrawalRequest.countDocuments({
-        ...personQuery,
-        ...statusQuery,
-        ...dateFilterQuery,
-      }),
-      WithdrawalRequest.find({
-        ...personQuery,
-        ...statusQuery,
-        ...dateFilterQuery,
-      })
-        .populate("agencyId", "uniqueId name image")
-        .populate("hostId", "uniqueId name image")
-        .sort({ createdAt: -1 })
-        .skip((start - 1) * limit)
-        .limit(limit)
-        .lean(),
+    const searchRegex = search ? new RegExp(search, "i") : null;
+
+    const result = await WithdrawalRequest.aggregate([
+      {
+        $match: {
+          ...personQuery,
+          ...statusQuery,
+          ...dateFilterQuery,
+        },
+      },
+      {
+        $lookup: {
+          from: "agencies",
+          localField: "agencyId",
+          foreignField: "_id",
+          pipeline: [{ $project: { agencyCode: 1, name: 1, image: 1 } }],
+          as: "agencyId",
+        },
+      },
+      { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+
+      {
+        $lookup: {
+          from: "hosts",
+          localField: "hostId",
+          foreignField: "_id",
+          pipeline: [{ $project: { uniqueId: 1, name: 1, image: 1 } }],
+          as: "hostId",
+        },
+      },
+      { $unwind: { path: "$hostId", preserveNullAndEmptyArrays: true } },
+
+      ...(searchRegex
+        ? [
+            {
+              $match: {
+                $or: [
+                  { uniqueId: searchRegex },
+                  { paymentGateway: searchRegex },
+                  { "agencyId.name": searchRegex },
+                  { "agencyId.agencyCode": searchRegex },
+                  { "hostId.name": searchRegex },
+                  { "hostId.uniqueId": searchRegex },
+                ],
+              },
+            },
+          ]
+        : []),
+
+      {
+        $facet: {
+          totalRecords: [{ $count: "count" }],
+          records: [{ $sort: { createdAt: -1 } }, { $skip: (start - 1) * limit }, { $limit: limit }],
+        },
+      },
     ]);
+
+    const totalRecords = result[0]?.totalRecords?.[0]?.count || 0;
+    const records = result[0]?.records || [];
 
     return res.status(200).json({
       status: true,
       message: "Withdrawal requests retrieved successfully.",
       total: totalRecords,
-      data: records.length > 0 ? records : [],
+      data: records,
     });
   } catch (error) {
     console.error(error);
@@ -134,7 +175,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
               status: 2,
               acceptOrDeclineDate: dateNow,
             },
-          }
+          },
         ),
         History.updateOne(
           { uniqueId: request.uniqueId, type: 5 },
@@ -143,7 +184,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
               payoutStatus: 2,
               date: dateNow,
             },
-          }
+          },
         ),
         Agency.updateOne(
           {
@@ -156,7 +197,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
               totalWithdrawn: request.coin,
               totalWithdrawnAmount: request.amount,
             },
-          }
+          },
         ),
       ]);
 
@@ -197,7 +238,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
               reason: reason.trim(),
               acceptOrDeclineDate: dateNow,
             },
-          }
+          },
         ),
         History.updateOne(
           { uniqueId: request.uniqueId, type: 5 },
@@ -207,7 +248,7 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
               reason,
               date: dateNow,
             },
-          }
+          },
         ),
       ]);
 

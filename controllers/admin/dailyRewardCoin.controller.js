@@ -13,7 +13,17 @@ exports.createDailyReward = async (req, res) => {
       return res.status(200).json({ status: false, message: "Day must be between 1 and 7" });
     }
 
-    const [totalAdReward, existingDayReward] = await Promise.all([DailyRewardCoin.countDocuments(), DailyRewardCoin.findOne({ day })]);
+    const result = await DailyRewardCoin.aggregate([
+      {
+        $facet: {
+          totalAdReward: [{ $count: "count" }],
+          existingDayReward: [{ $match: { day } }, { $limit: 1 }],
+        },
+      },
+    ]);
+
+    const totalAdReward = result[0].totalAdReward[0]?.count || 0;
+    const existingDayReward = result[0].existingDayReward[0] || null;
 
     if (totalAdReward >= 7) {
       return res.status(200).json({
@@ -73,7 +83,7 @@ exports.modifyDailyReward = async (req, res) => {
 //get daily reward
 exports.fetchDailyReward = async (req, res) => {
   try {
-    const dailyReward = await DailyRewardCoin.find().sort({ day: 1 });
+    const dailyReward = await DailyRewardCoin.find().sort({ day: 1 }).lean();
 
     return res.status(200).json({
       status: true,

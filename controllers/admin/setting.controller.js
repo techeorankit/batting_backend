@@ -6,6 +6,48 @@ const Host = require("../../models/host.model");
 //scheduleChatJob
 const scheduleChatJob = require("../../worker/bullRandomChatJob");
 
+const Joi = require("joi");
+
+const sha256Regex = /^([A-F0-9]{2}:){31}[A-F0-9]{2}$/;
+const androidAssetLinksSchema = Joi.array()
+  .min(1)
+  .max(5)
+  .items(
+    Joi.object({
+      relation: Joi.array().items(Joi.string().valid("delegate_permission/common.handle_all_urls")).min(1).required(),
+
+      target: Joi.object({
+        namespace: Joi.string().valid("android_app").required(),
+
+        package_name: Joi.string()
+          .pattern(/^[a-zA-Z0-9_.]+$/)
+          .required(),
+
+        sha256_cert_fingerprints: Joi.array().min(1).max(10).items(Joi.string().uppercase().pattern(sha256Regex).required()).required(),
+      })
+        .required()
+        .unknown(false),
+    })
+      .required()
+      .unknown(false),
+  )
+  .required();
+
+const appleAppSiteAssociationSchema = Joi.object({
+  applinks: Joi.object({
+    apps: Joi.array().items(Joi.string()).required(),
+    details: Joi.array()
+      .items(
+        Joi.object({
+          appID: Joi.string().required(),
+          paths: Joi.array().items(Joi.string()).required(),
+        }),
+      )
+      .min(1)
+      .required(),
+  }).required(),
+}).unknown(true);
+
 //update setting
 exports.updateSetting = async (req, res) => {
   try {
@@ -38,6 +80,7 @@ exports.updateSetting = async (req, res) => {
     setting.termsOfUsePolicyLink = req.body.termsOfUsePolicyLink?.trim() ?? setting.termsOfUsePolicyLink;
     setting.stripePublishableKey = req.body.stripePublishableKey?.trim() ?? setting.stripePublishableKey;
     setting.stripeSecretKey = req.body.stripeSecretKey?.trim() ?? setting.stripeSecretKey;
+    setting.resendApiKey = req.body.resendApiKey?.trim() ?? setting.resendApiKey;
     setting.razorpayId = req.body.razorpayId?.trim() ?? setting.razorpayId;
     setting.razorpaySecretKey = req.body.razorpaySecretKey?.trim() ?? setting.razorpaySecretKey;
     setting.flutterwaveId = req.body.flutterwaveId?.trim() ?? setting.flutterwaveId;
@@ -61,6 +104,62 @@ exports.updateSetting = async (req, res) => {
       setting.iosAppLink = req.body.iosAppLink.trim();
     }
 
+    if (req.body.androidAssetLinks !== undefined) {
+      let parsedAndroidAssetLinks = req.body.androidAssetLinks;
+
+      if (typeof parsedAndroidAssetLinks === "string") {
+        try {
+          parsedAndroidAssetLinks = JSON.parse(parsedAndroidAssetLinks.trim());
+        } catch (err) {
+          return res.status(200).json({
+            status: false,
+            message: "androidAssetLinks must be valid JSON",
+          });
+        }
+      }
+
+      const { error, value } = androidAssetLinksSchema.validate(parsedAndroidAssetLinks, {
+        abortEarly: true,
+      });
+
+      if (error) {
+        return res.status(200).json({
+          status: false,
+          message: error.details[0].message,
+        });
+      }
+
+      setting.androidAssetLinks = Object.freeze(value);
+    }
+
+    if (req.body.appleAppSiteAssociation !== undefined) {
+      let parsedAppleAASA = req.body.appleAppSiteAssociation;
+
+      if (typeof parsedAppleAASA === "string") {
+        try {
+          parsedAppleAASA = JSON.parse(parsedAppleAASA.trim());
+        } catch (err) {
+          return res.status(200).json({
+            status: false,
+            message: "appleAppSiteAssociation must be valid JSON",
+          });
+        }
+      }
+
+      const { error, value } = appleAppSiteAssociationSchema.validate(parsedAppleAASA, {
+        abortEarly: true,
+      });
+
+      if (error) {
+        return res.status(200).json({
+          status: false,
+          message: error.details[0].message,
+        });
+      }
+
+      setting.appleAppSiteAssociation = Object.freeze(value);
+    }
+
     if (req.body.messageInitiatedAt !== undefined) {
       const newVal = Number(req.body.messageInitiatedAt);
       if (newVal !== setting.messageInitiatedAt) {
@@ -71,6 +170,10 @@ exports.updateSetting = async (req, res) => {
 
     if (req.body.callInitiatedAt !== undefined) {
       setting.callInitiatedAt = Number(req.body.callInitiatedAt);
+    }
+
+    if (req.body.supportPhoneNumber !== undefined) {
+      setting.supportPhoneNumber = req.body.supportPhoneNumber;
     }
 
     if (req.body.privateKey) {

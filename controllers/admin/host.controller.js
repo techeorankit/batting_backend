@@ -1,6 +1,13 @@
 const Host = require("../../models/host.model");
 const User = require("../../models/user.model");
 const Agency = require("../../models/agency.model");
+const WithdrawalRequest = require("../../models/withdrawalRequest.model");
+const Block = require("../../models/block.model");
+const FollowerFollowing = require("../../models/followerFollowing.model");
+const History = require("../../models/history.model");
+const HostMatchHistory = require("../../models/hostMatchHistory.model");
+const LiveBroadcaster = require("../../models/liveBroadcaster.model");
+const LiveBroadcastHistory = require("../../models/liveBroadcastHistory.model");
 
 //private key
 const admin = require("../../util/privateKey");
@@ -112,7 +119,7 @@ exports.handleHostRequest = async (req, res) => {
       return res.status(200).json({ status: false, message: "Setting not found." });
     }
 
-    const { requestId, userId, status, reason } = req.query;
+    const { requestId, userId, status, reason } = req.body || {};
 
     if (!requestId || !userId || !status) {
       return res.status(200).json({ status: false, message: "Invalid details provided." });
@@ -126,13 +133,6 @@ exports.handleHostRequest = async (req, res) => {
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host request not found." });
-    }
-
-    if (host.agencyId === null) {
-      return res.status(200).json({
-        status: false,
-        message: "Please assign this host to an agency before accepting the request.",
-      });
     }
 
     if (host.status === 2) {
@@ -150,6 +150,13 @@ exports.handleHostRequest = async (req, res) => {
     }
 
     if (statusNumber === 2) {
+      if (host.agencyId === null) {
+        return res.status(200).json({
+          status: false,
+          message: "Please assign this host to an agency before accepting the request.",
+        });
+      }
+
       host.status = 2;
       host.randomCallRate = settingJSON.generalRandomCallRate;
       host.randomCallFemaleRate = settingJSON.femaleRandomCallRate;
@@ -359,6 +366,13 @@ exports.listAgencyHosts = async (req, res) => {
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
 
+    const genderFilter = req?.query?.gender;
+    const isBlockFilter = req?.query?.isBlock;
+    const isOnlineFilter = req?.query?.isOnline;
+    const isBusyFilter = req?.query?.isBusy;
+    const isLiveFilter = req?.query?.isLive;
+    const countryFilter = req?.query?.country?.trim()?.toLowerCase() || "";
+
     let dateFilter = {};
     if (startDate && endDate && startDate !== "All" && endDate !== "All") {
       const s = new Date(startDate);
@@ -372,7 +386,7 @@ exports.listAgencyHosts = async (req, res) => {
       searchFilter.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }];
     }
 
-    const matchStage = {
+    let matchStage = {
       agencyId,
       status: 2,
       isFake: false,
@@ -380,19 +394,46 @@ exports.listAgencyHosts = async (req, res) => {
       ...searchFilter,
     };
 
+    if (genderFilter) {
+      filter.gender = genderFilter;
+    }
+
+    if (isBlockFilter) {
+      filter.isBlock = isBlockFilter === "true";
+    }
+
+    if (isOnlineFilter) {
+      filter.isOnline = isOnlineFilter === "true";
+    }
+
+    if (isBusyFilter) {
+      filter.isBusy = isBusyFilter === "true";
+    }
+
+    if (isLiveFilter) {
+      filter.isLive = isLiveFilter === "true";
+    }
+
+    if (countryFilter) {
+      filter.country = { $regex: `^${countryFilter}$`, $options: "i" };
+    }
+
     const result = await Host.aggregate([
       { $match: matchStage },
 
       {
         $facet: {
           metadata: [{ $count: "total" }],
-
           data: [
+            { $sort: { createdAt: -1 } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
             {
               $lookup: {
                 from: "followerfollowings",
-                let: { hostId: "$_id" },
-                pipeline: [{ $match: { $expr: { $eq: ["$followingId", "$$hostId"] } } }, { $count: "count" }],
+                localField: "_id",
+                foreignField: "followingId",
+                pipeline: [{ $count: "count" }],
                 as: "followers",
               },
             },
@@ -403,14 +444,16 @@ exports.listAgencyHosts = async (req, res) => {
                 },
               },
             },
-
             {
               $project: {
                 name: 1,
+                coin: 1,
                 gender: 1,
                 image: 1,
+                profileVideo: 1,
                 impression: 1,
                 identityProofType: 1,
+                identityProof: 1,
                 uniqueId: 1,
                 isOnline: 1,
                 isBusy: 1,
@@ -419,12 +462,17 @@ exports.listAgencyHosts = async (req, res) => {
                 country: 1,
                 totalFollowers: 1,
                 createdAt: 1,
+                photoGallery: 1,
+                profileVideo: 1,
+                isBlock: 1,
+                randomCallRate: 1,
+                randomCallFemaleRate: 1,
+                randomCallMaleRate: 1,
+                privateCallRate: 1,
+                audioCallRate: 1,
+                chatRate: 1,
               },
             },
-
-            { $sort: { createdAt: -1 } },
-            { $skip: (start - 1) * limit },
-            { $limit: limit },
           ],
         },
       },
@@ -506,7 +554,7 @@ exports.createHost = async (req, res) => {
       dob,
       gender,
       countryFlagImage,
-      country,
+      country: country.trim().toLowerCase(),
       language,
       impression,
       image: req.files.image ? req.files.image[0].path : "",
@@ -572,6 +620,18 @@ exports.updateHost = async (req, res) => {
       removeVideoIndexes,
     } = req.body;
 
+    const isProvided = (v) => v !== undefined && v !== null;
+    const validateRate = (value, min, fieldName) => {
+      const num = Number(value);
+      if (Number.isNaN(num)) {
+        return `${fieldName} must be a valid number.`;
+      }
+      if (num < min) {
+        return `${fieldName} cannot be less than minimum allowed (${min}).`;
+      }
+      return null;
+    };
+
     const arrayFields = ["removeProfileVideoIndex", "removeLiveVideoIndex", "removePhotoGalleryIndex", "removeVideoIndexes"];
 
     for (const key of arrayFields) {
@@ -622,13 +682,28 @@ exports.updateHost = async (req, res) => {
       return res.status(200).json({ status: false, message: "Email already in use." });
     }
 
+    const validations = [];
+
+    if (isProvided(randomCallRate)) validations.push(validateRate(randomCallRate, settingJSON.generalRandomCallRate, "Random call rate"));
+    if (isProvided(randomCallFemaleRate)) validations.push(validateRate(randomCallFemaleRate, settingJSON.femaleRandomCallRate, "Female random call rate"));
+    if (isProvided(randomCallMaleRate)) validations.push(validateRate(randomCallMaleRate, settingJSON.maleRandomCallRate, "Male random call rate"));
+    if (isProvided(privateCallRate)) validations.push(validateRate(privateCallRate, settingJSON.videoPrivateCallRate, "Private video call rate"));
+    if (isProvided(audioCallRate)) validations.push(validateRate(audioCallRate, settingJSON.audioPrivateCallRate, "Audio call rate"));
+    if (isProvided(chatRate)) validations.push(validateRate(chatRate, settingJSON.chatInteractionRate, "Chat rate"));
+
+    const error = validations.find(Boolean);
+    if (error) {
+      if (req.files) deleteFiles(req.files);
+      return res.status(200).json({ status: false, message: error });
+    }
+
     host.name = name || host.name;
     host.email = email || host.email;
     host.bio = bio || host.bio;
     host.dob = dob || host.dob;
     host.gender = gender || host.gender;
     host.countryFlagImage = countryFlagImage || host.countryFlagImage;
-    host.country = country || host.country;
+    host.country = country.trim().toLowerCase() || host.country;
     host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host.impression;
     host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host.language;
     host.randomCallRate = randomCallRate || host.randomCallRate;
@@ -846,6 +921,13 @@ exports.fetchHostList = async (req, res) => {
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
 
+    const genderFilter = req.query.gender;
+    const isBlockFilter = req.query.isBlock;
+    const isOnlineFilter = req.query.isOnline;
+    const isBusyFilter = req.query.isBusy;
+    const isLiveFilter = req.query.isLive;
+    const countryFilter = req?.query?.country?.trim()?.toLowerCase() || "";
+
     let dateFilter = {};
     if (startDate && endDate && startDate !== "All" && endDate !== "All") {
       const s = new Date(startDate);
@@ -854,25 +936,94 @@ exports.fetchHostList = async (req, res) => {
       dateFilter.createdAt = { $gte: s, $lte: e };
     }
 
-    const filter = {
+    let filter = {
       status: 2,
       isFake: hostType === 1 ? false : true,
       ...dateFilter,
     };
 
+    if (genderFilter) {
+      filter.gender = genderFilter;
+    }
+
+    if (isBlockFilter) {
+      filter.isBlock = isBlockFilter === "true";
+    }
+
+    if (isOnlineFilter) {
+      filter.isOnline = isOnlineFilter === "true";
+    }
+
+    if (isBusyFilter) {
+      filter.isBusy = isBusyFilter === "true";
+    }
+
+    if (isLiveFilter) {
+      filter.isLive = isLiveFilter === "true";
+    }
+
+    if (countryFilter) {
+      filter.country = { $regex: `^${countryFilter}$`, $options: "i" };
+    }
+
     const result = await Host.aggregate([
       { $match: filter },
 
       {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          pipeline: [{ $project: { _id: 1, name: 1, image: 1, uniqueId: 1 } }],
+          as: "userId",
+        },
+      },
+      { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
+
+      {
+        $lookup: {
+          from: "agencies",
+          localField: "agencyId",
+          foreignField: "_id",
+          pipeline: [{ $project: { _id: 1, name: 1, image: 1, agencyCode: 1 } }],
+          as: "agencyId",
+        },
+      },
+      { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
+
+      ...(search && search !== "All"
+        ? [
+            {
+              $match: {
+                $or: [
+                  { "userId.name": { $regex: search, $options: "i" } },
+                  { "userId.uniqueId": { $regex: search, $options: "i" } },
+
+                  { "agencyId.name": { $regex: search, $options: "i" } },
+                  { "agencyId.agencyCode": { $regex: search, $options: "i" } },
+
+                  { name: { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                  { email: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+        : []),
+
+      {
         $facet: {
           metadata: [{ $count: "total" }],
-
           data: [
+            { $sort: { createdAt: -1 } },
+            { $skip: (start - 1) * limit },
+            { $limit: limit },
             {
               $lookup: {
                 from: "followerfollowings",
-                let: { hostId: "$_id" },
-                pipeline: [{ $match: { $expr: { $eq: ["$followingId", "$$hostId"] } } }, { $count: "count" }],
+                localField: "_id",
+                foreignField: "followingId",
+                pipeline: [{ $count: "count" }],
                 as: "followers",
               },
             },
@@ -883,49 +1034,6 @@ exports.fetchHostList = async (req, res) => {
                 },
               },
             },
-
-            {
-              $lookup: {
-                from: "users",
-                localField: "userId",
-                foreignField: "_id",
-                pipeline: [{ $project: { _id: 1, name: 1, image: 1, uniqueId: 1 } }],
-                as: "userId",
-              },
-            },
-            { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
-
-            {
-              $lookup: {
-                from: "agencies",
-                localField: "agencyId",
-                foreignField: "_id",
-                pipeline: [{ $project: { _id: 1, name: 1, image: 1, agencyCode: 1 } }],
-                as: "agencyId",
-              },
-            },
-            { $unwind: { path: "$agencyId", preserveNullAndEmptyArrays: true } },
-
-            ...(search && search !== "All"
-              ? [
-                  {
-                    $match: {
-                      $or: [
-                        { "userId.name": { $regex: search, $options: "i" } },
-                        { "userId.uniqueId": { $regex: search, $options: "i" } },
-
-                        { "agencyId.name": { $regex: search, $options: "i" } },
-                        { "agencyId.agencyCode": { $regex: search, $options: "i" } },
-
-                        { name: { $regex: search, $options: "i" } },
-                        { uniqueId: { $regex: search, $options: "i" } },
-                        { email: { $regex: search, $options: "i" } },
-                      ],
-                    },
-                  },
-                ]
-              : []),
-
             {
               $project: {
                 name: 1,
@@ -964,10 +1072,6 @@ exports.fetchHostList = async (req, res) => {
                 agencyId: 1,
               },
             },
-
-            { $sort: { createdAt: -1 } },
-            { $skip: (start - 1) * limit },
-            { $limit: limit },
           ],
         },
       },
@@ -1091,7 +1195,16 @@ exports.deleteHost = async (req, res) => {
       }
     }
 
-    await Host.deleteOne({ _id: hostId });
+    await Promise.all([
+      WithdrawalRequest.deleteMany({ hostId }),
+      Block.deleteMany({ hostId }),
+      FollowerFollowing.deleteMany({ followingId: hostId }),
+      History.deleteMany({ hostId }),
+      HostMatchHistory.deleteMany({ $or: [{ lastHostId: hostId }, { hostId: hostId }] }),
+      LiveBroadcaster.deleteMany({ hostId }),
+      LiveBroadcastHistory.deleteMany({ hostId }),
+      Host.deleteOne({ _id: hostId }),
+    ]);
   } catch (error) {
     console.error("Delete Host Error:", error);
     return res.status(500).json({
