@@ -395,27 +395,27 @@ exports.listAgencyHosts = async (req, res) => {
     };
 
     if (genderFilter) {
-      filter.gender = genderFilter;
+      matchStage.gender = genderFilter;
     }
 
     if (isBlockFilter) {
-      filter.isBlock = isBlockFilter === "true";
+      matchStage.isBlock = isBlockFilter === "true";
     }
 
     if (isOnlineFilter) {
-      filter.isOnline = isOnlineFilter === "true";
+      matchStage.isOnline = isOnlineFilter === "true";
     }
 
     if (isBusyFilter) {
-      filter.isBusy = isBusyFilter === "true";
+      matchStage.isBusy = isBusyFilter === "true";
     }
 
     if (isLiveFilter) {
-      filter.isLive = isLiveFilter === "true";
+      matchStage.isLive = isLiveFilter === "true";
     }
 
     if (countryFilter) {
-      filter.country = { $regex: `^${countryFilter}$`, $options: "i" };
+      matchStage.country = { $regex: `^${countryFilter}$`, $options: "i" };
     }
 
     const result = await Host.aggregate([

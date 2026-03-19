@@ -41,6 +41,25 @@ exports.getCoinTransactionHistory = async (req, res) => {
       History.aggregate([
         { $match: { ...dateFilterQuery, type: { $nin: [5] }, userId: userId, userCoin: { $ne: 0 } } },
         {
+          $addFields: {
+            isIncome: {
+              $cond: {
+                if: { $in: ["$type", [1, 6, 7, 8, 14]] },
+                then: true,
+                else: {
+                  $cond: {
+                    if: {
+                      $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
+                    },
+                    then: false,
+                    else: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
           $facet: {
             totalCount: [{ $count: "count" }],
             paginatedHistory: [
@@ -103,21 +122,7 @@ exports.getCoinTransactionHistory = async (req, res) => {
                   payoutStatus: 1,
                   createdAt: 1,
                   receiverName: { $ifNull: ["$receiver.name", ""] },
-                  isIncome: {
-                    $cond: {
-                      if: { $in: ["$type", [1, 6, 7, 8, 14]] },
-                      then: true,
-                      else: {
-                        $cond: {
-                          if: {
-                            $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
-                          },
-                          then: false,
-                          else: false,
-                        },
-                      },
-                    },
-                  },
+                  isIncome: 1,
                 },
               },
             ],
@@ -200,6 +205,24 @@ exports.fetchCallTransactionHistory = async (req, res) => {
             userCoin: { $ne: 0 },
           },
         },
+        //(convert duration → seconds)
+        {
+          $addFields: {
+            durationInSeconds: {
+              $cond: [
+                { $regexMatch: { input: "$duration", regex: /^\d{2}:\d{2}:\d{2}$/ } },
+                {
+                  $add: [
+                    { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 0] } }, 3600] },
+                    { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 1] } }, 60] },
+                    { $toInt: { $arrayElemAt: [{ $split: ["$duration", ":"] }, 2] } },
+                  ],
+                },
+                0,
+              ],
+            },
+          },
+        },
         {
           $facet: {
             totalCount: [{ $count: "count" }],
@@ -263,22 +286,40 @@ exports.fetchCallTransactionHistory = async (req, res) => {
                 },
               },
             ],
+            durationSummary: [
+              {
+                $group: {
+                  _id: null,
+                  totalSeconds: { $sum: "$durationInSeconds" },
+                },
+              },
+            ],
           },
         },
       ]),
     ]);
 
-    const total = result[0].totalCount[0]?.count || 0;
-    const transactionHistory = result[0].paginatedHistory;
-
     if (!user) {
       return res.status(200).json({ status: false, message: "👤 User not found." });
     }
 
+    const total = result[0].totalCount[0]?.count || 0;
+    const transactionHistory = result[0].paginatedHistory;
+
+    //Convert total seconds → HH:MM:SS
+    const totalSeconds = result[0].durationSummary[0]?.totalSeconds || 0;
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const totalDuration = `${String(hours).padStart(2, "0")}:` + `${String(minutes).padStart(2, "0")}:` + `${String(seconds).padStart(2, "0")}`;
+
     return res.status(200).json({
       status: true,
       message: "✅ Transaction history fetched successfully.",
-      total: total,
+      total,
+      totalDuration,
       data: transactionHistory,
     });
   } catch (error) {
