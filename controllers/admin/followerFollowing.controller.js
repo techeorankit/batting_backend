@@ -16,6 +16,7 @@ exports.fetchFollowing = async (req, res) => {
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const search = req.query.search?.trim();
 
     const userId = new mongoose.Types.ObjectId(req.query.userId);
 
@@ -24,35 +25,44 @@ exports.fetchFollowing = async (req, res) => {
       FollowerFollowing.aggregate([
         { $match: { followerId: userId } },
         {
-          $facet: {
-            total: [{ $count: "count" }],
-            list: [
-              { $sort: { createdAt: -1 } },
-              { $skip: (start - 1) * limit },
-              { $limit: limit },
+          $lookup: {
+            from: "hosts",
+            localField: "followingId",
+            foreignField: "_id",
+            pipeline: [
               {
-                $lookup: {
-                  from: "hosts",
-                  localField: "followingId",
-                  foreignField: "_id",
-                  pipeline: [
-                    {
-                      $project: {
-                        _id: 1,
-                        name: 1,
-                        image: 1,
-                        uniqueId: 1,
-                        coin: 1,
-                        countryFlagImage: 1,
-                        country: 1,
-                      },
-                    },
-                  ],
-                  as: "followingId",
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  image: 1,
+                  uniqueId: 1,
+                  coin: 1,
+                  countryFlagImage: 1,
+                  country: 1,
                 },
               },
-              { $unwind: "$followingId" },
             ],
+            as: "followingId",
+          },
+        },
+        { $unwind: "$followingId" },
+        ...(search
+          ? [
+              {
+                $match: {
+                  $or: [
+                    { "followingId.name": { $regex: search, $options: "i" } },
+                    { "followingId.country": { $regex: search, $options: "i" } },
+                    { "followingId.uniqueId": { $regex: search, $options: "i" } },
+                  ],
+                },
+              },
+            ]
+          : []),
+        {
+          $facet: {
+            total: [{ $count: "count" }],
+            list: [{ $sort: { createdAt: -1 } }, { $skip: (start - 1) * limit }, { $limit: limit }],
           },
         },
       ]),
@@ -86,6 +96,7 @@ exports.fetchFollowers = async (req, res) => {
 
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const search = req.query.search?.trim();
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
@@ -94,35 +105,45 @@ exports.fetchFollowers = async (req, res) => {
       FollowerFollowing.aggregate([
         { $match: { followingId: hostId } },
         {
-          $facet: {
-            total: [{ $count: "count" }],
-            list: [
-              { $sort: { createdAt: -1 } },
-              { $skip: (start - 1) * limit },
-              { $limit: limit },
+          $lookup: {
+            from: "users",
+            localField: "followerId",
+            foreignField: "_id",
+            pipeline: [
               {
-                $lookup: {
-                  from: "users",
-                  localField: "followerId",
-                  foreignField: "_id",
-                  pipeline: [
-                    {
-                      $project: {
-                        _id: 1,
-                        name: 1,
-                        image: 1,
-                        uniqueId: 1,
-                        coin: 1,
-                        countryFlagImage: 1,
-                        country: 1,
-                      },
-                    },
-                  ],
-                  as: "followerId",
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  image: 1,
+                  uniqueId: 1,
+                  coin: 1,
+                  countryFlagImage: 1,
+                  country: 1,
                 },
               },
-              { $unwind: "$followerId" },
             ],
+            as: "followerId",
+          },
+        },
+
+        { $unwind: "$followerId" },
+        ...(search
+          ? [
+              {
+                $match: {
+                  $or: [
+                    { "followerId.name": { $regex: search, $options: "i" } },
+                    { "followerId.country": { $regex: search, $options: "i" } },
+                    { "followerId.uniqueId": { $regex: search, $options: "i" } },
+                  ],
+                },
+              },
+            ]
+          : []),
+        {
+          $facet: {
+            total: [{ $count: "count" }],
+            list: [{ $sort: { createdAt: -1 } }, { $skip: (start - 1) * limit }, { $limit: limit }],
           },
         },
       ]),
@@ -137,7 +158,7 @@ exports.fetchFollowers = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: `Retrieved followers successfully.`,
+      message: "Retrieved followers successfully.",
       total,
       followerList,
     });
