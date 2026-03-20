@@ -47,15 +47,13 @@ exports.submitReport = async (req, res) => {
       reporterRole,
       targetId,
       targetRole,
-      reason: reason.trim(),
       status: 1, // pending
-      proceedAt: new Date(),
     }).lean();
 
     if (existingReport) {
       return res.status(200).json({
-        status: true,
-        message: `A report has already been submitted by ${reporter.name}.`,
+        status: false,
+        message: `A report has already been submitted.`,
       });
     }
 

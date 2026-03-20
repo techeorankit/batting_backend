@@ -1,6 +1,8 @@
 const User = require("../../models/user.model");
 const History = require("../../models/history.model");
 
+const mongoose = require("mongoose");
+
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
 //get users
@@ -204,6 +206,10 @@ exports.updateUserCoin = async (req, res, next) => {
         status: false,
         message: "userId, coin, and action are required fields.",
       });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(200).json({ status: false, message: "Invalid userId." });
     }
 
     if (!["add", "deduct"].includes(action)) {
