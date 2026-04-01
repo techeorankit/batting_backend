@@ -34,6 +34,8 @@ const subAdmin = require("./subAdmin.route");
 const reportReason = require("./reportReason.route");
 const report = require("./report.route");
 const login = require("./login.route");
+const language = require("./language.route");
+const translation = require("./translation.route");
 
 //exports admin's route.js
 route.use("/admin", admin);
@@ -64,5 +66,7 @@ route.use("/subAdmin", validateAdminToken, subAdmin);
 route.use("/reportReason", validateAdminToken, reportReason);
 route.use("/report", validateAdminToken, report);
 route.use("/login", login);
+route.use("/language", validateAdminToken, language);
+route.use("/translation", validateAdminToken, translation);
 
 module.exports = route;

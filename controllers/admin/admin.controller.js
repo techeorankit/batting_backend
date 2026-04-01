@@ -51,7 +51,7 @@ exports.validateAdminLogin = async (req, res) => {
       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
     }
 
-    let user = await Admin.findOne({ email: email.trim() }).select("_id password flag email").lean();
+    let user = await Admin.findOne({ email: email.trim() }).lean();
     let userType = "admin";
 
     if (!user) {
@@ -60,6 +60,14 @@ exports.validateAdminLogin = async (req, res) => {
       const subAdmin = await SubAdmin.findOne({ email }).populate("role");
       if (!subAdmin) {
         return res.status(200).json({ status: false, message: "No admin or sub-admin found with this email." });
+      }
+
+      if (!subAdmin.role.isActive) {
+        return res.status(200).json({ status: false, message: "Your role is not active!" });
+      }
+
+      if (!subAdmin.isActive) {
+        return res.status(200).json({ status: false, message: "Your account is not active!" });
       }
 
       if (!subAdmin.password || cryptr.decrypt(subAdmin.password) !== password) {
@@ -87,7 +95,6 @@ exports.validateAdminLogin = async (req, res) => {
       email: user.email || "",
       role: userType === "admin" ? "admin" : user.role?.name || "",
       permissions: userType === "admin" ? [] : user.role?.permissions || [],
-      flag: user.flag || false,
     };
 
     return res.status(200).json({

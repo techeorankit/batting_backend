@@ -19,16 +19,16 @@ exports.listBlockedHostsForUser = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
     const matchStage = {
-      blockedBy: "user",
       userId: new mongoose.Types.ObjectId(userId),
+      isUserBlocked: true,
     };
 
     const searchMatch = search
       ? {
-          $match: {
-            $or: [{ "host.name": { $regex: search, $options: "i" } }, { "host.uniqueId": { $regex: search, $options: "i" } }, { "host.country": { $regex: search, $options: "i" } }],
-          },
-        }
+        $match: {
+          $or: [{ "host.name": { $regex: search, $options: "i" } }, { "host.uniqueId": { $regex: search, $options: "i" } }, { "host.country": { $regex: search, $options: "i" } }],
+        },
+      }
       : null;
 
     const pipeline = [
@@ -108,16 +108,16 @@ exports.listBlockedUsersForHost = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
 
     const matchStage = {
-      blockedBy: "host",
       hostId: new mongoose.Types.ObjectId(hostId),
+      isHostBlocked: true,
     };
 
     const searchMatch = search
       ? {
-          $match: {
-            $or: [{ "user.name": { $regex: search, $options: "i" } }, { "user.uniqueId": { $regex: search, $options: "i" } }, { "user.country": { $regex: search, $options: "i" } }],
-          },
-        }
+        $match: {
+          $or: [{ "user.name": { $regex: search, $options: "i" } }, { "user.uniqueId": { $regex: search, $options: "i" } }, { "user.country": { $regex: search, $options: "i" } }],
+        },
+      }
       : null;
 
     const pipeline = [

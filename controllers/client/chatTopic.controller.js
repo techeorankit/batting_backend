@@ -35,31 +35,43 @@ exports.fetchChatList = async (req, res) => {
       {
         $lookup: {
           from: "blocks",
-          let: { receiverId: "$receiverId" },
+          localField: "receiverId",
+          foreignField: "hostId",
           pipeline: [
             {
               $match: {
-                $expr: {
-                  $or: [
-                    {
-                      $and: [{ $eq: ["$userId", userObjectId] }, { $eq: ["$hostId", "$$receiverId"] }],
-                    },
-                    {
-                      $and: [{ $eq: ["$userId", "$$receiverId"] }, { $eq: ["$hostId", userObjectId] }],
-                    },
-                  ],
-                },
-              },
+                userId: userObjectId
+              }
             },
-            { $project: { _id: 1 } },
+            {
+              $project: {
+                isUserBlocked: 1,
+                isHostBlocked: 1
+              }
+            },
+            { $limit: 1 }
           ],
-          as: "blockInfo",
-        },
+          as: "blockInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$blockInfo",
+          preserveNullAndEmptyArrays: true
+        }
       },
       {
         $match: {
-          blockInfo: { $eq: [] }, // Exclude both user-blocked-host and host-blocked-user
-        },
+          $or: [
+            { blockInfo: null },
+            {
+              $and: [
+                { "blockInfo.isUserBlocked": false },
+                { "blockInfo.isHostBlocked": false }
+              ]
+            }
+          ]
+        }
       },
       {
         $lookup: {
@@ -237,30 +249,43 @@ exports.retrieveChatList = async (req, res) => {
       {
         $lookup: {
           from: "blocks",
-          let: { userId: "$userId" },
+          localField: "userId",
+          foreignField: "userId",
           pipeline: [
             {
               $match: {
-                $expr: {
-                  $or: [
-                    {
-                      $and: [{ $eq: ["$hostId", hostObjectId] }, { $eq: ["$userId", "$$userId"] }],
-                    },
-                    {
-                      $and: [{ $eq: ["$userId", hostObjectId] }, { $eq: ["$hostId", "$$userId"] }],
-                    },
-                  ],
-                },
-              },
+                hostId: hostObjectId
+              }
             },
+            {
+              $project: {
+                isUserBlocked: 1,
+                isHostBlocked: 1
+              }
+            },
+            { $limit: 1 }
           ],
-          as: "blockInfo",
-        },
+          as: "blockInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$blockInfo",
+          preserveNullAndEmptyArrays: true
+        }
       },
       {
         $match: {
-          blockInfo: { $eq: [] }, // Exclude blocked relationships
-        },
+          $or: [
+            { blockInfo: null },
+            {
+              $and: [
+                { "blockInfo.isUserBlocked": false },
+                { "blockInfo.isHostBlocked": false }
+              ]
+            }
+          ]
+        }
       },
       {
         $lookup: {

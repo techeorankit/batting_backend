@@ -25,23 +25,37 @@ exports.blockHost = async (req, res) => {
     const [user, host, existingBlock] = await Promise.all([
       User.findById(userId).select("_id").lean(),
       Host.findById(hostId).select("_id").lean(),
-      Block.findOne({ userId, hostId, blockedBy: "user" }).select("_id").lean(),
+      Block.findOne({ userId, hostId }),
     ]);
 
     if (!user) return res.status(200).json({ status: false, message: "User not found." });
     if (!host) return res.status(200).json({ status: false, message: "Host not found." });
 
     if (existingBlock) {
-      res.status(200).json({ status: true, message: "Host unblocked successfully.", isBlocked: false });
+      const newStatus = !existingBlock.isUserBlocked;
 
-      await Block.deleteOne({ userId, hostId });
+      existingBlock.isUserBlocked = newStatus;
+      await existingBlock.save();
+
+      if (newStatus) {
+        await FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId });
+      }
+      return res.status(200).json({
+        status: true,
+        message: newStatus ? "Host blocked successfully." : "Host unblocked successfully.",
+        isBlocked: newStatus,
+      });
     } else {
-      res.status(200).json({ status: true, message: "Host blocked successfully.", isBlocked: true });
-
       await Promise.all([
-        new Block({ userId, hostId, blockedBy: "user" }).save(),
-        FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }), // Unfollow if blocked
+        new Block({
+          userId,
+          hostId,
+          isUserBlocked: true,
+          isHostBlocked: false,
+        }).save(),
+        FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }),
       ]);
+      return res.status(200).json({ status: true, message: "Host blocked successfully.", isBlocked: true });
     }
   } catch (error) {
     console.error(error);
@@ -66,23 +80,43 @@ exports.blockUser = async (req, res) => {
     const [host, user, existingBlock] = await Promise.all([
       Host.findById(hostId).select("_id").lean(),
       User.findById(userId).select("_id").lean(),
-      Block.findOne({ userId, hostId, blockedBy: "host" }).select("_id").lean(),
+      Block.findOne({ userId, hostId }),
     ]);
 
     if (!host) return res.status(200).json({ status: false, message: "Host not found." });
     if (!user) return res.status(200).json({ status: false, message: "User not found." });
 
     if (existingBlock) {
-      res.status(200).json({ status: true, message: "User unblocked successfully.", isBlocked: false });
+      const newStatus = !existingBlock.isHostBlocked;
 
-      await Block.deleteOne({ userId, hostId });
+      existingBlock.isHostBlocked = newStatus;
+      await existingBlock.save();
+
+      if (newStatus) {
+        await FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId });
+      }
+
+      return res.status(200).json({
+        status: true,
+        message: newStatus ? "User blocked successfully." : "User unblocked successfully.",
+        isBlocked: newStatus,
+      });
     } else {
-      res.status(200).json({ status: true, message: "User blocked successfully.", isBlocked: true });
-
       await Promise.all([
-        new Block({ userId, hostId, blockedBy: "host" }).save(),
-        FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }), // Unfollow if blocked
+        new Block({
+          userId: userObjectId,
+          hostId: hostObjectId,
+          isUserBlocked: false,
+          isHostBlocked: true,
+        }).save(),
+        FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }),
       ]);
+
+      return res.status(200).json({
+        status: true,
+        message: "User blocked successfully.",
+        isBlocked: true,
+      });
     }
   } catch (error) {
     console.error(error);
@@ -102,7 +136,7 @@ exports.getBlockedHostsForUser = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    const blockedHosts = await Block.find({ blockedBy: "user", userId })
+    const blockedHosts = await Block.find({ userId, isUserBlocked: true })
       .select("hostId")
       .populate("hostId", "name image countryFlagImage country")
       .skip((start - 1) * limit)
@@ -132,7 +166,7 @@ exports.getBlockedUsersForHost = async (req, res) => {
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const blockedUsers = await Block.find({ blockedBy: "host", hostId })
+    const blockedUsers = await Block.find({ hostId, isHostBlocked: true })
       .select("userId")
       .populate("userId", "name image countryFlagImage country")
       .skip((start - 1) * limit)

@@ -25,6 +25,7 @@ exports.getCoinTransactionRecords = async (req, res) => {
     const endDate = req.query.endDate || "All";
     const start = req.query.start ? parseInt(req.query.start) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const search = req.query.search?.trim();
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -56,6 +57,7 @@ exports.getCoinTransactionRecords = async (req, res) => {
             localField: "hostId",
             foreignField: "_id",
             as: "receiver",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
           },
         },
         {
@@ -64,6 +66,19 @@ exports.getCoinTransactionRecords = async (req, res) => {
             preserveNullAndEmptyArrays: true,
           },
         },
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "receiver.name": { $regex: search, $options: "i" } },
+                  { "receiver.uniqueId": { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
         {
           $addFields: {
             typeDescription: {
@@ -98,7 +113,8 @@ exports.getCoinTransactionRecords = async (req, res) => {
             payoutStatus: 1,
             createdAt: 1,
             receiverName: { $ifNull: ["$receiver.name", ""] },
-            uniqueId: { $ifNull: ["$receiver.uniqueId", ""] },
+            receiverImage: { $ifNull: ["$receiver.image", ""] },
+            receiverUniqueId: { $ifNull: ["$receiver.uniqueId", ""] },
             isIncome: {
               $cond: {
                 if: { $in: ["$type", [1, 6, 7, 8, 14]] },
@@ -150,6 +166,7 @@ exports.retrieveHostCoinHistory = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
+    const search = req.query.search?.trim();
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -181,6 +198,7 @@ exports.retrieveHostCoinHistory = async (req, res) => {
             localField: "userId",
             foreignField: "_id",
             as: "sender",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
           },
         },
         {
@@ -189,6 +207,19 @@ exports.retrieveHostCoinHistory = async (req, res) => {
             preserveNullAndEmptyArrays: true,
           },
         },
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "sender.name": { $regex: search, $options: "i" } },
+                  { "sender.uniqueId": { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
         {
           $addFields: {
             typeDescription: {
@@ -220,7 +251,8 @@ exports.retrieveHostCoinHistory = async (req, res) => {
             payoutStatus: 1,
             createdAt: 1,
             senderName: { $ifNull: ["$sender.name", ""] },
-            uniqueId: { $ifNull: ["$sender.uniqueId", ""] },
+            senderImage: { $ifNull: ["$sender.image", ""] },
+            senderUniqueId: { $ifNull: ["$sender.uniqueId", ""] },
           },
         },
         { $sort: { createdAt: -1 } },

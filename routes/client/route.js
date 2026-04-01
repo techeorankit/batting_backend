@@ -26,6 +26,7 @@ const identityProof = require("./identityProof.route");
 const withdrawalRequest = require("./withdrawalRequest.route");
 const reportReason = require("./reportReason.route");
 const report = require("./report.route");
+const translation = require("./translation.route");
 
 //exports client's route.js
 route.use("/user", user);
@@ -48,5 +49,6 @@ route.use("/identityProof", identityProof);
 route.use("/withdrawalRequest", withdrawalRequest);
 route.use("/reportReason", reportReason);
 route.use("/report", report);
+route.use("/translation", translation);
 
 module.exports = route;

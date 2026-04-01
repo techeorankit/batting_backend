@@ -22,6 +22,7 @@ exports.getCoinTransactions = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
+    const search = req.query.search?.trim();
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -49,28 +50,40 @@ exports.getCoinTransactions = async (req, res) => {
           },
         },
         {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
+            as: "sender",
+          },
+        },
+        {
+          $unwind: {
+            path: "$sender",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "sender.name": { $regex: search, $options: "i" } },
+                  { "sender.uniqueId": { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
+        {
           $facet: {
             totalCount: [{ $count: "count" }],
             paginatedHistory: [
               { $sort: { createdAt: -1 } },
               { $skip: (start - 1) * limit },
               { $limit: limit },
-
-              {
-                $lookup: {
-                  from: "users",
-                  localField: "userId",
-                  foreignField: "_id",
-                  pipeline: [{ $project: { name: 1 } }],
-                  as: "sender",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$sender",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
               {
                 $addFields: {
                   typeDescription: {
@@ -102,6 +115,8 @@ exports.getCoinTransactions = async (req, res) => {
                   payoutStatus: 1,
                   createdAt: 1,
                   senderName: { $ifNull: ["$sender.name", ""] },
+                  senderImage: { $ifNull: ["$sender.image", ""] },
+                  senderUniqueId: { $ifNull: ["$sender.uniqueId", ""] },
                 },
               },
             ],
@@ -146,6 +161,7 @@ exports.getCallTransactions = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
+    const search = req.query.search?.trim();
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -172,6 +188,36 @@ exports.getCallTransactions = async (req, res) => {
             hostCoin: { $ne: 0 },
           },
         },
+
+        {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
+            as: "sender",
+          },
+        },
+        {
+          $unwind: {
+            path: "$sender",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "sender.name": { $regex: search, $options: "i" } },
+                  { "sender.uniqueId": { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
 
         {
           $addFields: {
@@ -206,21 +252,6 @@ exports.getCallTransactions = async (req, res) => {
               { $skip: (start - 1) * limit },
               { $limit: limit },
               {
-                $lookup: {
-                  from: "users",
-                  localField: "userId",
-                  foreignField: "_id",
-                  pipeline: [{ $project: { name: 1 } }],
-                  as: "sender",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$sender",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
                 $addFields: {
                   typeDescription: {
                     $switch: {
@@ -251,6 +282,8 @@ exports.getCallTransactions = async (req, res) => {
                   duration: 1,
                   createdAt: 1,
                   senderName: { $ifNull: ["$sender.name", ""] },
+                  senderImage: { $ifNull: ["$sender.image", ""] },
+                  senderUniqueId: { $ifNull: ["$sender.uniqueId", ""] },
                 },
               },
             ],
@@ -306,6 +339,7 @@ exports.getGiftTransactions = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
+    const search = req.query.search?.trim();
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -333,27 +367,40 @@ exports.getGiftTransactions = async (req, res) => {
           },
         },
         {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
+            as: "sender",
+          },
+        },
+        {
+          $unwind: {
+            path: "$sender",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "sender.name": { $regex: search, $options: "i" } },
+                  { "sender.uniqueId": { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
+        {
           $facet: {
             totalCount: [{ $count: "count" }],
             data: [
               { $sort: { createdAt: -1 } },
               { $skip: (start - 1) * limit },
               { $limit: limit },
-              {
-                $lookup: {
-                  from: "users",
-                  localField: "userId",
-                  foreignField: "_id",
-                  pipeline: [{ $project: { name: 1 } }],
-                  as: "sender",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$sender",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
               {
                 $addFields: {
                   typeDescription: {
@@ -379,6 +426,8 @@ exports.getGiftTransactions = async (req, res) => {
                   adminCoin: 1,
                   createdAt: 1,
                   senderName: { $ifNull: ["$sender.name", ""] },
+                  senderImage: { $ifNull: ["$sender.image", ""] },
+                  senderUniqueId: { $ifNull: ["$sender.uniqueId", ""] },
                 },
               },
             ],
@@ -421,6 +470,7 @@ exports.retrieveAgencyEarnings = async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const startDate = req.query.startDate || "All";
     const endDate = req.query.endDate || "All";
+    const search = req.query.search?.trim();
 
     let dateFilterQuery = {};
     if (startDate !== "All" && endDate !== "All") {
@@ -447,6 +497,41 @@ exports.retrieveAgencyEarnings = async (req, res) => {
           },
         },
         {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
+            as: "sender",
+          },
+        },
+        { $unwind: { path: "$sender", preserveNullAndEmptyArrays: false } },
+        {
+          $lookup: {
+            from: "hosts",
+            localField: "hostId",
+            foreignField: "_id",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
+            as: "receiver",
+          },
+        },
+        { $unwind: { path: "$receiver", preserveNullAndEmptyArrays: false } },
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "sender.name": { $regex: search, $options: "i" } },
+                  { "sender.uniqueId": { $regex: search, $options: "i" } },
+                  { "receiver.name": { $regex: search, $options: "i" } },
+                  { "receiver.uniqueId": { $regex: search, $options: "i" } },
+                  { uniqueId: { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
+        {
           $facet: {
             summary: [
               {
@@ -464,26 +549,6 @@ exports.retrieveAgencyEarnings = async (req, res) => {
               { $sort: { createdAt: -1 } },
               { $skip: (start - 1) * limit },
               { $limit: limit },
-              {
-                $lookup: {
-                  from: "users",
-                  localField: "userId",
-                  foreignField: "_id",
-                  pipeline: [{ $project: { name: 1 } }],
-                  as: "sender",
-                },
-              },
-              { $unwind: { path: "$sender", preserveNullAndEmptyArrays: false } },
-              {
-                $lookup: {
-                  from: "hosts",
-                  localField: "hostId",
-                  foreignField: "_id",
-                  pipeline: [{ $project: { name: 1 } }],
-                  as: "receiver",
-                },
-              },
-              { $unwind: { path: "$receiver", preserveNullAndEmptyArrays: false } },
               {
                 $addFields: {
                   typeDescription: {
@@ -517,7 +582,11 @@ exports.retrieveAgencyEarnings = async (req, res) => {
                   duration: 1,
                   createdAt: 1,
                   senderName: { $ifNull: ["$sender.name", ""] },
+                  senderImage: { $ifNull: ["$sender.image", ""] },
+                  senderUniqueId: { $ifNull: ["$sender.uniqueId", ""] },
                   receiverName: { $ifNull: ["$receiver.name", ""] },
+                  receiverImage: { $ifNull: ["$receiver.image", ""] },
+                  receiverUniqueId: { $ifNull: ["$receiver.uniqueId", ""] },
                 },
               },
             ],
