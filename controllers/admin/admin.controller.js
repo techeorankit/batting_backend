@@ -14,35 +14,6 @@ const SubAdmin = require("../../models/subAdmin.model");
 const { deleteFile } = require("../../util/deletefile");
 
 //admin login
-// exports.validateAdminLogin = async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
-
-//     if (!email || !password) {
-//       return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
-//     }
-
-//     const admin = await Admin.findOne({ email: email.trim() }).select("_id password flag").lean();
-
-//     if (!admin) {
-//       return res.status(200).json({ status: false, message: "Oops! Admin not found with that email." });
-//     }
-
-//     if (cryptr.decrypt(admin.password) !== password) {
-//       return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
-//     }
-
-//     return res.status(200).json({
-//       status: true,
-//       message: "Admin has successfully logged in.",
-//       data: admin.flag || false,
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
-//   }
-// };
-
 exports.validateAdminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;

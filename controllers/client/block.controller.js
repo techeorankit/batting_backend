@@ -22,30 +22,35 @@ exports.blockHost = async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.user.userId);
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [user, host, existingBlock] = await Promise.all([
-      User.findById(userId).select("_id").lean(),
-      Host.findById(hostId).select("_id").lean(),
-      Block.findOne({ userId, hostId }),
-    ]);
+    const [user, host, existingBlock] = await Promise.all([User.findById(userId).select("_id").lean(), Host.findById(hostId).select("_id").lean(), Block.findOne({ userId, hostId })]);
 
-    if (!user) return res.status(200).json({ status: false, message: "User not found." });
-    if (!host) return res.status(200).json({ status: false, message: "Host not found." });
+    if (!user) {
+      return res.status(200).json({ status: false, message: "User not found." });
+    }
+
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
 
     if (existingBlock) {
-      const newStatus = !existingBlock.isUserBlocked;
+      console.log("Updating existing block entry for user blocking host");
 
+      const newStatus = !existingBlock.isUserBlocked;
       existingBlock.isUserBlocked = newStatus;
       await existingBlock.save();
 
       if (newStatus) {
         await FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId });
       }
+
       return res.status(200).json({
         status: true,
         message: newStatus ? "Host blocked successfully." : "Host unblocked successfully.",
         isBlocked: newStatus,
       });
     } else {
+      console.log("Creating new block entry for user blocking host");
+
       await Promise.all([
         new Block({
           userId,
@@ -55,11 +60,16 @@ exports.blockHost = async (req, res) => {
         }).save(),
         FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }),
       ]);
-      return res.status(200).json({ status: true, message: "Host blocked successfully.", isBlocked: true });
+
+      return res.status(200).json({
+        status: true,
+        message: "Host blocked successfully.",
+        isBlocked: true,
+      });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    return res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
 
@@ -77,23 +87,25 @@ exports.blockUser = async (req, res) => {
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
     const userId = new mongoose.Types.ObjectId(req.query.userId);
 
-    const [host, user, existingBlock] = await Promise.all([
-      Host.findById(hostId).select("_id").lean(),
-      User.findById(userId).select("_id").lean(),
-      Block.findOne({ userId, hostId }),
-    ]);
+    const [host, user, existingBlock] = await Promise.all([Host.findById(hostId).select("_id").lean(), User.findById(userId).select("_id").lean(), Block.findOne({ userId, hostId })]);
 
-    if (!host) return res.status(200).json({ status: false, message: "Host not found." });
-    if (!user) return res.status(200).json({ status: false, message: "User not found." });
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
+
+    if (!user) {
+      return res.status(200).json({ status: false, message: "User not found." });
+    }
 
     if (existingBlock) {
-      const newStatus = !existingBlock.isHostBlocked;
+      console.log("Updating existing block entry for host blocking user");
 
+      const newStatus = !existingBlock.isHostBlocked;
       existingBlock.isHostBlocked = newStatus;
       await existingBlock.save();
 
       if (newStatus) {
-        await FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId });
+        await FollowerFollowing.deleteMany({ followerId: userId, followingId: hostId });
       }
 
       return res.status(200).json({
@@ -102,6 +114,8 @@ exports.blockUser = async (req, res) => {
         isBlocked: newStatus,
       });
     } else {
+      console.log("Creating new block entry for host blocking user");
+
       await Promise.all([
         new Block({
           userId: userObjectId,
@@ -109,7 +123,7 @@ exports.blockUser = async (req, res) => {
           isUserBlocked: false,
           isHostBlocked: true,
         }).save(),
-        FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }),
+        FollowerFollowing.deleteMany({ followerId: userId, followingId: hostId }),
       ]);
 
       return res.status(200).json({
@@ -120,7 +134,7 @@ exports.blockUser = async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    return res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
 
@@ -150,7 +164,7 @@ exports.getBlockedHostsForUser = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    return res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
 
@@ -180,6 +194,6 @@ exports.getBlockedUsersForHost = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    return res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };

@@ -142,7 +142,7 @@ exports.processDailyCheckIn = async (req, res) => {
             rewardCoin: dailyRewardCoin,
           },
         },
-        { new: true }
+        { new: true },
       ),
       History.create({
         uniqueId: uniqueId,

@@ -63,36 +63,13 @@ exports.getCoinTransactionHistory = async (req, res) => {
 
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { uniqueId: { $regex: search, $options: "i" } },
-                  { "receiver.name": { $regex: search, $options: "i" } },
-                  { "receiver.uniqueId": { $regex: search, $options: "i" } },
-                ],
-              },
-            },
-          ]
-          : []),
-        {
-          $addFields: {
-            isIncome: {
-              $cond: {
-                if: { $in: ["$type", [1, 6, 7, 8, 14]] },
-                then: true,
-                else: {
-                  $cond: {
-                    if: {
-                      $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
-                    },
-                    then: false,
-                    else: false,
-                  },
+              {
+                $match: {
+                  $or: [{ uniqueId: { $regex: search, $options: "i" } }, { "receiver.name": { $regex: search, $options: "i" } }, { "receiver.uniqueId": { $regex: search, $options: "i" } }],
                 },
               },
-            },
-          },
-        },
+            ]
+          : []),
         {
           $facet: {
             totalCount: [{ $count: "count" }],
@@ -102,6 +79,21 @@ exports.getCoinTransactionHistory = async (req, res) => {
               { $limit: limit },
               {
                 $addFields: {
+                  isIncome: {
+                    $cond: {
+                      if: { $in: ["$type", [1, 6, 7, 8, 14]] },
+                      then: true,
+                      else: {
+                        $cond: {
+                          if: {
+                            $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
+                          },
+                          then: false,
+                          else: false,
+                        },
+                      },
+                    },
+                  },
                   typeDescription: {
                     $switch: {
                       branches: [
@@ -247,16 +239,12 @@ exports.fetchCallTransactionHistory = async (req, res) => {
         },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { uniqueId: { $regex: search, $options: "i" } },
-                  { "receiver.name": { $regex: search, $options: "i" } },
-                  { "receiver.uniqueId": { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ uniqueId: { $regex: search, $options: "i" } }, { "receiver.name": { $regex: search, $options: "i" } }, { "receiver.uniqueId": { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         //(convert duration → seconds)
         {
@@ -429,16 +417,12 @@ exports.retrieveGiftTransactionHistory = async (req, res) => {
         { $unwind: { path: "$receiver", preserveNullAndEmptyArrays: true } },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { uniqueId: { $regex: search, $options: "i" } },
-                  { "receiver.name": { $regex: search, $options: "i" } },
-                  { "receiver.uniqueId": { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ uniqueId: { $regex: search, $options: "i" } }, { "receiver.name": { $regex: search, $options: "i" } }, { "receiver.uniqueId": { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $facet: {
@@ -638,36 +622,31 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
           },
         },
         {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            as: "sender",
+            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
+          },
+        },
+        { $unwind: { path: "$sender", preserveNullAndEmptyArrays: true } },
+        ...(search
+          ? [
+              {
+                $match: {
+                  $or: [{ uniqueId: { $regex: search, $options: "i" } }, { "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }],
+                },
+              },
+            ]
+          : []),
+        {
           $facet: {
             totalCount: [{ $count: "count" }],
             paginatedHistory: [
               { $sort: { createdAt: -1 } },
               { $skip: (start - 1) * limit },
               { $limit: limit },
-
-              {
-                $lookup: {
-                  from: "users",
-                  localField: "userId",
-                  foreignField: "_id",
-                  as: "sender",
-                  pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
-                },
-              },
-              { $unwind: { path: "$sender", preserveNullAndEmptyArrays: true } },
-              ...(search
-                ? [
-                  {
-                    $match: {
-                      $or: [
-                        { uniqueId: { $regex: search, $options: "i" } },
-                        { "sender.name": { $regex: search, $options: "i" } },
-                        { "sender.uniqueId": { $regex: search, $options: "i" } },
-                      ],
-                    },
-                  },
-                ]
-                : []),
               {
                 $addFields: {
                   typeDescription: {
@@ -792,7 +771,6 @@ exports.listCallTransactions = async (req, res) => {
             hostCoin: { $ne: 0 },
           },
         },
-
         {
           $lookup: {
             from: "users",
@@ -805,16 +783,12 @@ exports.listCallTransactions = async (req, res) => {
         { $unwind: { path: "$sender", preserveNullAndEmptyArrays: true } },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "sender.name": { $regex: search, $options: "i" } },
-                  { "sender.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $addFields: {
@@ -979,16 +953,12 @@ exports.fetchGiftTransactionHistory = async (req, res) => {
         { $unwind: { path: "$sender", preserveNullAndEmptyArrays: true } },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "sender.name": { $regex: search, $options: "i" } },
-                  { "sender.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $facet: {

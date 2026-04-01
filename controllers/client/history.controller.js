@@ -68,16 +68,12 @@ exports.getCoinTransactionRecords = async (req, res) => {
         },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "receiver.name": { $regex: search, $options: "i" } },
-                  { "receiver.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ "receiver.name": { $regex: search, $options: "i" } }, { "receiver.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $addFields: {
@@ -209,16 +205,12 @@ exports.retrieveHostCoinHistory = async (req, res) => {
         },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "sender.name": { $regex: search, $options: "i" } },
-                  { "sender.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $addFields: {

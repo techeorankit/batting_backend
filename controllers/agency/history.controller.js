@@ -66,16 +66,12 @@ exports.getCoinTransactions = async (req, res) => {
         },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "sender.name": { $regex: search, $options: "i" } },
-                  { "sender.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $facet: {
@@ -204,21 +200,15 @@ exports.getCallTransactions = async (req, res) => {
             preserveNullAndEmptyArrays: true,
           },
         },
-
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "sender.name": { $regex: search, $options: "i" } },
-                  { "sender.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
-
         {
           $addFields: {
             durationInSeconds: {
@@ -383,16 +373,12 @@ exports.getGiftTransactions = async (req, res) => {
         },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "sender.name": { $regex: search, $options: "i" } },
-                  { "sender.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $facet: {
@@ -518,18 +504,18 @@ exports.retrieveAgencyEarnings = async (req, res) => {
         { $unwind: { path: "$receiver", preserveNullAndEmptyArrays: false } },
         ...(search
           ? [
-            {
-              $match: {
-                $or: [
-                  { "sender.name": { $regex: search, $options: "i" } },
-                  { "sender.uniqueId": { $regex: search, $options: "i" } },
-                  { "receiver.name": { $regex: search, $options: "i" } },
-                  { "receiver.uniqueId": { $regex: search, $options: "i" } },
-                  { uniqueId: { $regex: search, $options: "i" } },
-                ],
+              {
+                $match: {
+                  $or: [
+                    { "sender.name": { $regex: search, $options: "i" } },
+                    { "sender.uniqueId": { $regex: search, $options: "i" } },
+                    { "receiver.name": { $regex: search, $options: "i" } },
+                    { "receiver.uniqueId": { $regex: search, $options: "i" } },
+                    { uniqueId: { $regex: search, $options: "i" } },
+                  ],
+                },
               },
-            },
-          ]
+            ]
           : []),
         {
           $facet: {

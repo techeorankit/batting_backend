@@ -25,10 +25,10 @@ exports.listBlockedHostsForUser = async (req, res) => {
 
     const searchMatch = search
       ? {
-        $match: {
-          $or: [{ "host.name": { $regex: search, $options: "i" } }, { "host.uniqueId": { $regex: search, $options: "i" } }, { "host.country": { $regex: search, $options: "i" } }],
-        },
-      }
+          $match: {
+            $or: [{ "host.name": { $regex: search, $options: "i" } }, { "host.uniqueId": { $regex: search, $options: "i" } }, { "host.country": { $regex: search, $options: "i" } }],
+          },
+        }
       : null;
 
     const pipeline = [
@@ -114,10 +114,10 @@ exports.listBlockedUsersForHost = async (req, res) => {
 
     const searchMatch = search
       ? {
-        $match: {
-          $or: [{ "user.name": { $regex: search, $options: "i" } }, { "user.uniqueId": { $regex: search, $options: "i" } }, { "user.country": { $regex: search, $options: "i" } }],
-        },
-      }
+          $match: {
+            $or: [{ "user.name": { $regex: search, $options: "i" } }, { "user.uniqueId": { $regex: search, $options: "i" } }, { "user.country": { $regex: search, $options: "i" } }],
+          },
+        }
       : null;
 
     const pipeline = [

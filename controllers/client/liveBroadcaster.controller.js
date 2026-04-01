@@ -86,7 +86,7 @@ exports.HostStreaming = async (req, res) => {
             channel: channel,
             token: token,
           },
-        }
+        },
       ),
     ]);
 

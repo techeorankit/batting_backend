@@ -8,20 +8,13 @@ const subAdminSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: true },
     isActive: { type: Boolean, default: true },
-    lastLoginIp: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    lastLoginAt: {
-      type: Date,
-      default: null,
-    },
+    lastLoginIp: { type: String, trim: true, default: null },
+    lastLoginAt: { type: Date, default: null },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 subAdminSchema.index({ name: 1 });

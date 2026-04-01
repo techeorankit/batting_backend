@@ -161,9 +161,12 @@ exports.obliterateRole = async (req, res) => {
       return res.status(200).json({ status: false, message: "Role not found." });
     }
 
-    res.status(200).json({ status: true, message: "Role deleted successfully." });
-    const subAdminAuths = await SubAdmin.find({ role: roleId }, "authId").lean();
+    res.status(200).json({
+      status: true,
+      message: "Role deleted successfully.",
+    });
 
+    const subAdminAuths = await SubAdmin.find({ role: roleId }, "authId").lean();
     if (subAdminAuths.length > 0) {
       try {
         const firebaseAdmin = await firebaseAdminPromise;
@@ -176,7 +179,10 @@ exports.obliterateRole = async (req, res) => {
 
       await SubAdmin.deleteMany({ role: roleId });
     }
-    (await Role.findByIdAndDelete(roleId), console.log(`✅ Role and related sub admin deleted successfully: ${roleId}`));
+
+    await Role.findByIdAndDelete(roleId);
+
+    console.log(`✅ Role and related sub admin deleted successfully: ${roleId}`);
   } catch (error) {
     console.error("Delete Role Error:", error);
     return res.status(500).json({ status: false, message: "Internal server error." });
@@ -188,7 +194,9 @@ exports.eligibleRoleList = async (req, res) => {
   try {
     let { search = "" } = req.query || {};
     search = search.trim();
+
     const filter = { isActive: true };
+
     if (search) {
       filter.name = {
         $regex: `^${search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,

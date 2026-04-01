@@ -4,6 +4,7 @@ const IdentityProof = require("../../models/identityProof.model");
 exports.fetchIdentityDocuments = async (req, res) => {
   try {
     const identityProofs = await IdentityProof.find().select("_id title createdAt").lean();
+
     return res.status(200).json({
       status: true,
       message: "Identity proof types retrieved successfully.",

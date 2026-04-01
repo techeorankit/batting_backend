@@ -40,38 +40,35 @@ exports.fetchChatList = async (req, res) => {
           pipeline: [
             {
               $match: {
-                userId: userObjectId
-              }
+                userId: userObjectId,
+              },
             },
             {
               $project: {
                 isUserBlocked: 1,
-                isHostBlocked: 1
-              }
+                isHostBlocked: 1,
+              },
             },
-            { $limit: 1 }
+            { $limit: 1 },
           ],
-          as: "blockInfo"
-        }
+          as: "blockInfo",
+        },
       },
       {
         $unwind: {
           path: "$blockInfo",
-          preserveNullAndEmptyArrays: true
-        }
+          preserveNullAndEmptyArrays: true,
+        },
       },
       {
         $match: {
           $or: [
             { blockInfo: null },
             {
-              $and: [
-                { "blockInfo.isUserBlocked": false },
-                { "blockInfo.isHostBlocked": false }
-              ]
-            }
-          ]
-        }
+              $and: [{ "blockInfo.isUserBlocked": false }, { "blockInfo.isHostBlocked": false }],
+            },
+          ],
+        },
       },
       {
         $lookup: {
@@ -254,38 +251,35 @@ exports.retrieveChatList = async (req, res) => {
           pipeline: [
             {
               $match: {
-                hostId: hostObjectId
-              }
+                hostId: hostObjectId,
+              },
             },
             {
               $project: {
                 isUserBlocked: 1,
-                isHostBlocked: 1
-              }
+                isHostBlocked: 1,
+              },
             },
-            { $limit: 1 }
+            { $limit: 1 },
           ],
-          as: "blockInfo"
-        }
+          as: "blockInfo",
+        },
       },
       {
         $unwind: {
           path: "$blockInfo",
-          preserveNullAndEmptyArrays: true
-        }
+          preserveNullAndEmptyArrays: true,
+        },
       },
       {
         $match: {
           $or: [
             { blockInfo: null },
             {
-              $and: [
-                { "blockInfo.isUserBlocked": false },
-                { "blockInfo.isHostBlocked": false }
-              ]
-            }
-          ]
-        }
+              $and: [{ "blockInfo.isUserBlocked": false }, { "blockInfo.isHostBlocked": false }],
+            },
+          ],
+        },
       },
       {
         $lookup: {

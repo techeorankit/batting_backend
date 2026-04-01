@@ -204,10 +204,14 @@ exports.solveUserHostReport = async (req, res) => {
 exports.deleteUserHostReport = async (req, res) => {
   try {
     const { reportId } = req.query || {};
-    if (!reportId) return res.status(400).json({ status: false, message: "reportId is required." });
+    if (!reportId) {
+      return res.status(400).json({ status: false, message: "reportId is required." });
+    }
 
     const report = await Report.findById(reportId);
-    if (!report) return res.status(400).json({ status: false, message: "Report not found." });
+    if (!report) {
+      return res.status(400).json({ status: false, message: "Report not found." });
+    }
 
     await report.deleteOne();
 
