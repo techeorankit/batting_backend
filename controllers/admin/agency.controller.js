@@ -13,9 +13,6 @@ const cryptr = new Cryptr("myTotallySecretKey");
 //fs
 const fs = require("fs");
 
-//axios
-const axios = require("axios");
-
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
