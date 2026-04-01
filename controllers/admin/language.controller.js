@@ -247,6 +247,7 @@ exports.deleteTheLanguage = async (req, res) => {
     }
 
     const language = await Language.findOne({ languageCode });
+    console.log("languageIcon value:", language.languageIcon);
 
     if (!language) {
       return res.status(200).json({ status: false, message: "Language not found" });

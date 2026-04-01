@@ -1,18 +1,69 @@
 const fs = require("fs");
 
+// exports.deleteFile = (file) => {
+//   if (file && fs.existsSync(file?.path)) {
+//     fs.unlinkSync(file.path);
+//   }
+// };
+
+// exports.deleteFiles = (files) => {
+//   if (!files || typeof files !== "object") return;
+
+//   Object.keys(files).forEach((field) => {
+//     const fieldFiles = files[field];
+//     if (Array.isArray(fieldFiles)) {
+//       fieldFiles.forEach((file) => exports.deleteFile(file));
+//     }
+//   });
+// };
+
 exports.deleteFile = (file) => {
-  if (file && fs.existsSync(file?.path)) {
-    fs.unlinkSync(file.path);
+  try {
+    if (!file) {
+      console.warn("[deleteFile] No file provided");
+      return;
+    }
+
+    if (!file?.path) {
+      console.warn("[deleteFile] File path missing:", file);
+      return;
+    }
+
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+      console.log("[deleteFile] File deleted successfully:", file.path);
+    } else {
+      console.warn("[deleteFile] File not found on disk:", file.path);
+    }
+  } catch (error) {
+    console.error("[deleteFile] Error deleting file:", {
+      path: file?.path,
+      error: error.message,
+    });
   }
 };
 
 exports.deleteFiles = (files) => {
-  if (!files || typeof files !== "object") return;
-
-  Object.keys(files).forEach((field) => {
-    const fieldFiles = files[field];
-    if (Array.isArray(fieldFiles)) {
-      fieldFiles.forEach((file) => exports.deleteFile(file));
+  try {
+    if (!files || typeof files !== "object") {
+      console.warn("[deleteFiles] Invalid files object");
+      return;
     }
-  });
+
+    Object.keys(files).forEach((field) => {
+      const fieldFiles = files[field];
+
+      if (Array.isArray(fieldFiles)) {
+        console.log(`[deleteFiles] Deleting files for field: ${field}`);
+
+        fieldFiles.forEach((file) => {
+          exports.deleteFile(file);
+        });
+      } else {
+        console.warn(`[deleteFiles] Expected array for field ${field}, got:`, typeof fieldFiles);
+      }
+    });
+  } catch (error) {
+    console.error("[deleteFiles] Error processing files:", error.message);
+  }
 };
