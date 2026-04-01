@@ -102,10 +102,7 @@ exports.modifyAgency = async (req, res) => {
       if (agency.image) {
         const imagePath = agency.image.includes("storage") ? "storage" + agency.image.split("storage")[1] : "";
         if (imagePath && fs.existsSync(imagePath)) {
-          const imageName = imagePath.split("/").pop();
-          if (!["male.png", "female.png"].includes(imageName)) {
-            fs.unlinkSync(imagePath);
-          }
+          fs.unlinkSync(imagePath);
         }
       }
       agency.image = req.file.path;

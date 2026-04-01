@@ -344,10 +344,7 @@ exports.modifyUserProfile = async (req, res) => {
       if (image) {
         const imagePath = "storage" + image[1];
         if (fs.existsSync(imagePath)) {
-          const imageName = imagePath?.split("/")?.pop();
-          if (imageName !== "male.png" && imageName !== "female.png") {
-            fs.unlinkSync(imagePath);
-          }
+          fs.unlinkSync(imagePath);
         }
       }
 

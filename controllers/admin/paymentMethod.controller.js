@@ -53,10 +53,7 @@ exports.modifyPaymentMethod = async (req, res, next) => {
       if (method.image) {
         const imagePath = method.image.includes("storage") ? "storage" + method.image.split("storage")[1] : "";
         if (imagePath && fs.existsSync(imagePath)) {
-          const imageName = imagePath.split("/").pop();
-          if (!["male.png", "female.png"].includes(imageName)) {
-            fs.unlinkSync(imagePath);
-          }
+          fs.unlinkSync(imagePath);
         }
       }
       method.image = req.file.path;
@@ -140,10 +137,7 @@ exports.discardPaymentMethod = async (req, res, next) => {
     if (method.image) {
       const imagePath = method.image.includes("storage") ? "storage" + method.image.split("storage")[1] : "";
       if (imagePath && fs.existsSync(imagePath)) {
-        const imageName = imagePath.split("/").pop();
-        if (!["male.png", "female.png"].includes(imageName)) {
-          fs.unlinkSync(imagePath);
-        }
+        fs.unlinkSync(imagePath);
       }
     }
 

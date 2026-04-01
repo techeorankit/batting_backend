@@ -99,10 +99,7 @@ exports.modifyAdminProfile = async (req, res) => {
       if (admin.image) {
         const imagePath = admin.image.includes("storage") ? "storage" + admin.image.split("storage")[1] : "";
         if (imagePath && fs.existsSync(imagePath)) {
-          const imageName = imagePath.split("/").pop();
-          if (!["male.png", "female.png"].includes(imageName)) {
-            fs.unlinkSync(imagePath);
-          }
+          fs.unlinkSync(imagePath);
         }
       }
       updateFields.image = req.file.path;

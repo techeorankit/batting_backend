@@ -716,11 +716,8 @@ exports.updateHost = async (req, res) => {
 
     if (req.files?.image?.[0]) {
       if (host.image && fs.existsSync(host.image)) {
-        const imageName = host.image.split("/").pop();
-        if (!["male.png", "female.png"].includes(imageName)) {
-          fs.unlinkSync(host.image);
-          console.log("🗑️ Deleted previous image:", host.image);
-        }
+        fs.unlinkSync(host.image);
+        console.log("🗑️ Deleted previous image:", host.image);
       }
       host.image = req.files.image[0].path;
       console.log("🆕 Updated image:", host.image);
@@ -1119,13 +1116,10 @@ exports.deleteHost = async (req, res) => {
     if (host.image) {
       const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
       if (imagePath && fs.existsSync(imagePath)) {
-        const imageName = imagePath.split("/").pop();
-        if (!["male.png", "female.png"].includes(imageName)) {
-          try {
-            fs.unlinkSync(imagePath);
-          } catch (error) {
-            console.error(`Error deleting profile image: ${imagePath}`, error);
-          }
+        try {
+          fs.unlinkSync(imagePath);
+        } catch (error) {
+          console.error(`Error deleting profile image: ${imagePath}`, error);
         }
       }
     }

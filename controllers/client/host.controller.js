@@ -1130,11 +1130,8 @@ exports.modifyHostDetails = async (req, res) => {
       if (host.image) {
         const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
         if (imagePath && fs.existsSync(imagePath)) {
-          const imageName = imagePath.split("/").pop();
-          if (!["male.png", "female.png"].includes(imageName)) {
-            fs.unlinkSync(imagePath);
-            console.log(`🗑️ Deleted existing profile image: ${imagePath}`);
-          }
+          fs.unlinkSync(imagePath);
+          console.log(`🗑️ Deleted existing profile image: ${imagePath}`);
         }
       }
       host.image = req.files.image[0].path;

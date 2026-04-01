@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 
 // exports.deleteFile = (file) => {
 //   if (file && fs.existsSync(file?.path)) {
@@ -24,22 +25,24 @@ exports.deleteFile = (file) => {
       return;
     }
 
-    if (!file?.path) {
+    const filePath = typeof file === "string" ? file : file?.path;
+
+    if (!filePath) {
       console.warn("[deleteFile] File path missing:", file);
       return;
     }
 
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-      console.log("[deleteFile] File deleted successfully:", file.path);
+    const absolutePath = path.resolve(filePath);
+    console.log("[deleteFile] Trying to delete:", absolutePath);
+
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+      console.log("[deleteFile] Deleted successfully:", absolutePath);
     } else {
-      console.warn("[deleteFile] File not found on disk:", file.path);
+      console.warn("[deleteFile] File not found:", absolutePath);
     }
   } catch (error) {
-    console.error("[deleteFile] Error deleting file:", {
-      path: file?.path,
-      error: error.message,
-    });
+    console.error("[deleteFile] Error deleting file:", error.message);
   }
 };
 
