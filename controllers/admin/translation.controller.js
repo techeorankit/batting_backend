@@ -54,7 +54,7 @@ exports.uploadMultipleTranslations = async (req, res) => {
 
     // Normalize everything once
     const normalizedLanguages = allLanguages.map((l) => ({
-      languageCode: l.languageCode.toLowerCase(),
+      languageCode: l.languageCode?.trim()?.toLowerCase(),
       isActive: l.isActive,
     }));
 
@@ -343,7 +343,7 @@ exports.updateTranslationsOfSingleLanguage = async (req, res) => {
   try {
     const { languageCode, module, translations } = req.body || {};
 
-    if (!languageCode || !translations || typeof translations !== "object") {
+    if (!languageCode?.trim() || !translations || typeof translations !== "object") {
       return res.status(400).json({
         status: false,
         message: "languageCode, module and translations object are required",
@@ -357,7 +357,7 @@ exports.updateTranslationsOfSingleLanguage = async (req, res) => {
       });
     }
 
-    const language = await Language.findOne({ languageCode }).lean();
+    const language = await Language.findOne({ languageCode: languageCode?.trim()?.toLowerCase() }).lean();
 
     if (!language) {
       return res.status(404).json({
@@ -366,7 +366,7 @@ exports.updateTranslationsOfSingleLanguage = async (req, res) => {
       });
     }
 
-    const existingDoc = await Translation.findOne({ languageCode, module });
+    const existingDoc = await Translation.findOne({ languageCode: languageCode?.trim()?.toLowerCase(), module: module?.trim()?.toLowerCase() });
 
     if (!existingDoc) {
       return res.status(404).json({
@@ -416,11 +416,11 @@ exports.updateTranslationsOfSingleLanguage = async (req, res) => {
 
       versionObject = { major, minor, patch };
 
-      await Translation.updateOne({ languageCode, module }, { $set: { version: versionObject } });
+      await Translation.updateOne({ languageCode: languageCode?.trim()?.toLowerCase(), module: module?.trim()?.toLowerCase() }, { $set: { version: versionObject } });
     }
 
     // Recalculate errorCount
-    const docs = await Translation.find({ languageCode }).lean();
+    const docs = await Translation.find({ languageCode: languageCode?.trim()?.toLowerCase() }).lean();
 
     let totalErrors = 0;
 
@@ -432,7 +432,7 @@ exports.updateTranslationsOfSingleLanguage = async (req, res) => {
       }
     }
 
-    await Language.updateOne({ languageCode }, { $set: { errorCount: totalErrors } });
+    await Language.updateOne({ languageCode: languageCode?.trim()?.toLowerCase() }, { $set: { errorCount: totalErrors } });
 
     return res.status(200).json({
       status: true,
@@ -517,7 +517,7 @@ exports.getSingleLanguageTranslations = async (req, res) => {
       return res.status(200).json({ status: false, message: "Please provide desired language" });
     }
 
-    let filter = { languageCode };
+    let filter = { languageCode: languageCode?.trim()?.toLowerCase() };
 
     if (req.query.module?.trim() && ["app", "web"].includes(req.query.module?.trim()?.toLowerCase())) {
       filter.module = req.query.module?.trim()?.toLowerCase();

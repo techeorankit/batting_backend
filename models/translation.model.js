@@ -3,8 +3,8 @@ const mongoose = require("mongoose");
 
 const translationSchema = new mongoose.Schema(
   {
-    languageCode: { type: String, required: true },
-    module: { type: String, required: true, enum: ["app", "web"] },
+    languageCode: { type: String, required: true, trim: true, lowercase: true },
+    module: { type: String, required: true, enum: ["app", "web"], lowercase: true, trim: true },
     translations: { type: Map, of: String, default: {} },
     version: {
       major: { type: Number, required: true },

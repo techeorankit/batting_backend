@@ -6,8 +6,8 @@ const { getLatestVersion } = require("../../util/versionUtils");
 // get single Language's translations
 exports.getSingleLanguageTranslations = async (req, res) => {
   try {
-    const languageCode = req.query.languageCode?.toLowerCase();
-    const module = req.query.module?.toLowerCase();
+    const languageCode = req.query.languageCode?.trim()?.toLowerCase();
+    const module = req.query.module?.trim()?.toLowerCase();
 
     if (!languageCode || !languageCode.trim()) {
       return res.status(200).json({ status: false, message: "Please provide desired language" });
@@ -34,7 +34,7 @@ exports.getAllLanguagesTranslations = async (req, res) => {
   try {
     const start = Math.max(1, parseInt(req.query?.start) || 1);
     const limit = Math.min(20, Math.max(1, parseInt(req.query?.limit) || 10));
-    const module = req.query.module?.toLowerCase();
+    const module = req.query.module?.trim()?.toLowerCase();
 
     if (!module || !module.trim() || !["app", "web"].includes(module)) {
       return res.status(200).json({ status: false, message: "Invalid module, please provide valid module(app/web)" });

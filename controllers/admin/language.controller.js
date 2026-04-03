@@ -12,7 +12,7 @@ exports.createSingleLanguage = async (req, res) => {
     const isDefault = req.body.isDefault === "true";
     const isActive = req.body.isActive === "true";
 
-    if (!languageTitle?.trim() || !languageCode || !localLanguageTitle?.trim()) {
+    if (!languageTitle?.trim() || !languageCode?.trim() || !localLanguageTitle?.trim()) {
       if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "All fields are required" });
     }
@@ -44,7 +44,7 @@ exports.createSingleLanguage = async (req, res) => {
       ]),
       Language.create({
         languageTitle: languageTitle?.trim(),
-        languageCode: languageCode.toLowerCase(),
+        languageCode: languageCode?.trim()?.toLowerCase(),
         localLanguageTitle: localLanguageTitle?.trim(),
         languageIcon: req.file.path,
         isDefault,
@@ -114,11 +114,11 @@ exports.getALanguage = async (req, res) => {
   try {
     const { languageCode } = req.query;
 
-    if (!languageCode) {
+    if (!languageCode?.trim()) {
       return res.status(200).json({ status: false, message: "languageCode is required" });
     }
 
-    const language = await Language.findOne({ languageCode });
+    const language = await Language.findOne({ languageCode: languageCode?.trim()?.toLowerCase() });
 
     if (!language) {
       return res.status(200).json({ status: false, message: "Language not found" });
@@ -139,12 +139,12 @@ exports.updateSingleLanguage = async (req, res) => {
   try {
     const { languageCode, languageTitle, localLanguageTitle } = req.body;
 
-    if (!languageCode) {
+    if (!languageCode?.trim()) {
       if (req.file) deleteFile(req.file);
       return res.status(200).json({ status: false, message: "languageCode is required" });
     }
 
-    const language = await Language.findOne({ languageCode });
+    const language = await Language.findOne({ languageCode: languageCode?.trim()?.toLowerCase() });
 
     if (!language) {
       if (req.file) deleteFile(req.file);
@@ -181,7 +181,7 @@ exports.toggleTheSwitch = async (req, res) => {
     const { languageCode } = req.query;
     const toggleType = Number(req.query.toggleType);
 
-    if (!languageCode || !toggleType) {
+    if (!languageCode?.trim() || !toggleType) {
       return res.status(200).json({ status: false, message: "languageCode and toggleType is required" });
     }
 
@@ -189,7 +189,7 @@ exports.toggleTheSwitch = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid toggleType. Use 1 for isActive or 2 for isDefault." });
     }
 
-    const language = await Language.findOne({ languageCode });
+    const language = await Language.findOne({ languageCode: languageCode?.trim()?.toLowerCase() });
 
     if (!language) {
       return res.status(200).json({ status: false, message: "Language not found" });
@@ -242,12 +242,11 @@ exports.deleteTheLanguage = async (req, res) => {
   try {
     const { languageCode } = req.query;
 
-    if (!languageCode) {
+    if (!languageCode?.trim()) {
       return res.status(200).json({ status: false, message: "languageCode is required" });
     }
 
-    const language = await Language.findOne({ languageCode });
-    console.log("languageIcon value:", language.languageIcon);
+    const language = await Language.findOne({ languageCode: languageCode?.trim()?.toLowerCase() });
 
     if (!language) {
       return res.status(200).json({ status: false, message: "Language not found" });
@@ -261,7 +260,7 @@ exports.deleteTheLanguage = async (req, res) => {
       deleteFile(language.languageIcon);
     }
 
-    await Promise.all([Translation.deleteOne({ languageCode }), Language.deleteOne({ languageCode })]);
+    await Promise.all([Translation.deleteOne({ languageCode: languageCode?.trim()?.toLowerCase() }), Language.deleteOne({ languageCode: languageCode?.trim()?.toLowerCase() })]);
 
     const changeLogs = [
       {
