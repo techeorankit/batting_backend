@@ -4,7 +4,7 @@ const Translation = require("../../models/translation.model");
 const { createVersionIfNeeded } = require("../../util/versionUtils");
 const { deleteFile } = require("../../util/deletefile");
 
-// create Language
+// create language
 exports.createSingleLanguage = async (req, res) => {
   try {
     const { languageTitle, languageCode, localLanguageTitle } = req.body;
@@ -196,6 +196,15 @@ exports.toggleTheSwitch = async (req, res) => {
     }
 
     if (toggleType === 1) {
+      if (language.isActive) {
+        if (language.isDefault) {
+          return res.json({
+            status: false,
+            message: "Language is set to default, cannot deactivate default language",
+          });
+        }
+      }
+
       language.isActive = !language.isActive;
       await language.save();
 
@@ -211,6 +220,13 @@ exports.toggleTheSwitch = async (req, res) => {
         return res.json({
           status: false,
           message: `This langauge has ${language.errorCount} ${language.errorCount === 1 ? "error" : "errors"}, fix ${language.errorCount === 1 ? "it" : "them"} first before making it default`,
+        });
+      }
+
+      if (!language.isActive) {
+        return res.json({
+          status: false,
+          message: "Language is not active, please activate it first",
         });
       }
 
@@ -237,7 +253,7 @@ exports.toggleTheSwitch = async (req, res) => {
   }
 };
 
-// delete Language and its Translations
+// delete language and its translations
 exports.deleteTheLanguage = async (req, res) => {
   try {
     const { languageCode } = req.query;
@@ -274,6 +290,22 @@ exports.deleteTheLanguage = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Language deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+// get all language names for dropdown
+exports.getAllLanguageNames = async (req, res) => {
+  try {
+    const languages = await Language.find().select("languageTitle -_id").sort({ languageTitle: 1 });
+
+    return res.status(200).json({
+      status: true,
+      message: "All language names fetched",
+      total: languages.length,
+      data: languages,
     });
   } catch (error) {
     return res.status(500).json({ status: false, message: error.message });

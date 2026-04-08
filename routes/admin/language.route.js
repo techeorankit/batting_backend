@@ -14,22 +14,25 @@ const languageController = require("../../controllers/admin/language.controller"
 
 route.use(checkAccessWithSecretKey());
 
-// create Language
+// create language
 route.post("/createSingleLanguage", upload.single("languageIcon"), languageController.createSingleLanguage);
 
 // get all languages
 route.get("/getLanguages", languageController.getLanguages);
 
-// get single Lnaguage
+// get single language
 route.get("/getALanguage", languageController.getALanguage);
 
-// update Language
+// update language
 route.patch("/updateSingleLanguage", upload.single("languageIcon"), languageController.updateSingleLanguage);
 
 // toggle isActive and isDefault switch
 route.patch("/toggleTheSwitch", languageController.toggleTheSwitch);
 
-// delete Language and its Translations
+// delete language and its translations
 route.delete("/deleteTheLanguage", languageController.deleteTheLanguage);
+
+// get all language names for dropdown
+route.get("/getAllLanguageNames", languageController.getAllLanguageNames);
 
 module.exports = route;

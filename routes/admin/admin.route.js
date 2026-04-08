@@ -31,4 +31,7 @@ route.patch("/modifyPassword", checkAccessWithSecretKey(), validateAdminToken, A
 //set Password
 route.patch("/performPasswordReset", checkAccessWithSecretKey(), validateAdminToken, AdminController.performPasswordReset);
 
+//verify email
+route.get("/validateAdminEmail", checkAccessWithSecretKey(), AdminController.validateAdminEmail);
+
 module.exports = route;

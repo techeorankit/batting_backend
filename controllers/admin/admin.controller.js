@@ -245,3 +245,25 @@ exports.performPasswordReset = async (req, res) => {
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
   }
 };
+
+//verify email
+exports.validateAdminEmail = async (req, res) => {
+  try {
+    if (!req.query.email) {
+      return res.status(200).json({ status: false, message: "Email is required." });
+    }
+
+    const admin = await Admin.findOne({ email: req.query.email.trim() });
+    if (!admin) {
+      return res.status(200).json({ status: false, message: "Admin not found with the provided email." });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Admin email verified successfully.",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  }
+};
