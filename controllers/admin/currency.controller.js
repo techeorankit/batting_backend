@@ -156,6 +156,16 @@ exports.setdefaultCurrency = async (req, res) => {
     });
 
     updateSettingFile(setting);
+
+    try {
+      setTimeout(() => {
+        console.log("Restarting server after currency update...");
+        process.exit(0);
+      }, 500); // 0.5s delay
+      return;
+    } catch (err) {
+      console.error("Failed to update currency:", err);
+    }
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server error" });
