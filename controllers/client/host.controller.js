@@ -200,7 +200,7 @@ exports.verifyHostRequestStatus = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    const host = await Host.findOne({ userId: userId }).select("status").lean();
+    const host = await Host.findOne({ userId: userId }).select("status date").lean();
     if (!host) {
       return res.status(200).json({ status: false, message: "Request not found for that user!" });
     }
@@ -209,6 +209,7 @@ exports.verifyHostRequestStatus = async (req, res) => {
       status: true,
       message: "Request status retrieved successfully",
       data: host?.status,
+      appliedDate: host?.date,
     });
   } catch (error) {
     console.error("Error fetching request status:", error);

@@ -41,10 +41,10 @@ exports.updateCurrency = async (req, res) => {
       return res.status(200).json({ status: false, message: "currency Not Found!!" });
     }
 
-    currency.name = req.body.name ? req.body.name : req.body.name;
-    currency.symbol = req.body.symbol ? req.body.symbol : req.body.symbol;
-    currency.countryCode = req.body.countryCode ? req.body.countryCode : req.body.countryCode;
-    currency.currencyCode = req.body.currencyCode ? req.body.currencyCode : req.body.currencyCode;
+    currency.name = req.body.name ? req.body.name : currency.name;
+    currency.symbol = req.body.symbol ? req.body.symbol : currency.symbol;
+    currency.countryCode = req.body.countryCode ? req.body.countryCode : currency.countryCode;
+    currency.currencyCode = req.body.currencyCode ? req.body.currencyCode : currency.currencyCode;
     await currency.save();
 
     return res.status(200).json({
