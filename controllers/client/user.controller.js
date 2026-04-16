@@ -92,18 +92,24 @@ exports.signInOrSignUpUser = async (req, res) => {
 
     switch (loginType) {
       case 1:
-        if (!email) return res.status(200).json({ status: false, message: "email is required." });
-        userQuery = { email, loginType: 1 };
+        if (!email) {
+          if (req.file) deleteFile(req.file);
+          return res.status(200).json({ status: false, message: "email is required." });
+        }
+        userQuery = { firebaseUid: uid, email, loginType: 1 };
         break;
       case 2:
-        if (!email) return res.status(200).json({ status: false, message: "email is required." });
-        userQuery = { email, loginType: 2 };
+        if (!email) {
+          if (req.file) deleteFile(req.file);
+          return res.status(200).json({ status: false, message: "email is required." });
+        }
+        userQuery = { firebaseUid: uid, email, loginType: 2 };
         break;
       case 3:
         if (!identity && !email) {
+          if (req.file) deleteFile(req.file);
           return res.status(200).json({ status: false, message: "Either identity or email is required." });
         }
-        // userQuery = {};
         userQuery = { firebaseUid: uid, loginType: 3 };
         break;
       default:
@@ -122,14 +128,16 @@ exports.signInOrSignUpUser = async (req, res) => {
       if (user.firebaseUid && user.firebaseUid !== uid) {
         console.log("If a user exists but firebaseUid mismatch");
         console.warn(`⚠️ UID mismatch — token UID (${uid}) vs user.firebaseUid (${user.firebaseUid})`);
-        return res.status(403).json({
+        if (req.file) deleteFile(req.file);
+        return res.status(200).json({
           status: false,
           message: "Identity already taken or unauthorized login attempt.",
         });
       }
 
       if (user.isBlock) {
-        return res.status(403).json({ status: false, message: "🚷 User is blocked by the admin." });
+        if (req.file) deleteFile(req.file);
+        return res.status(200).json({ status: false, message: "🚷 User is blocked by the admin." });
       }
 
       if (user.isHost && user.hostId) {
@@ -139,7 +147,8 @@ exports.signInOrSignUpUser = async (req, res) => {
           console.warn(`⚠️ No Host found with ID: ${user.hostId}`);
         } else {
           if (host.isBlock) {
-            return res.status(403).json({ status: false, message: "🚷 Host account is blocked by the admin." });
+            if (req.file) deleteFile(req.file);
+            return res.status(200).json({ status: false, message: "🚷 Host account is blocked by the admin." });
           }
 
           host.fcmToken = fcmToken || host.fcmToken;
@@ -511,7 +520,7 @@ exports.deactivateMyAccount = async (req, res) => {
   }
 };
 
-// GET Firebase UID using Device UUID
+//get firebase UID using Device UUID
 exports.fetchFirebaseUidByDevice = async (req, res) => {
   try {
     const { deviceUuid, loginType } = req.query;
@@ -553,7 +562,7 @@ exports.fetchFirebaseUidByDevice = async (req, res) => {
   }
 };
 
-// CREATE Firebase Custom Token using Firebase UID
+//create firebase Custom Token using Firebase UID
 exports.createFirebaseCustomAuthToken = async (req, res) => {
   try {
     const { firebaseUid } = req.query;

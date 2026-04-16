@@ -13,6 +13,117 @@ const SubAdmin = require("../../models/subAdmin.model");
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
+const Login = require("../../models/login.model");
+const Setting = require("../../models/setting.model");
+
+const axios = require("axios");
+async function Auth(purchaseCode, expectedItemId) {
+  try {
+    const response = await axios.get(`https://api.envato.com/v3/market/author/sale?code=${purchaseCode}`, {
+      headers: {
+        Authorization: `Bearer G9o1R8snTfNCpRgMzzKmpQP9kOVbapnP`,
+        "User-Agent": "Purchase verification script",
+      },
+    });
+
+    const data = response.data;
+
+    if (data && data.item && data.item.id.toString() === expectedItemId.toString()) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    if (error.response) {
+      if (error.response.status === 404 || error.response.status === 403) {
+        return false;
+      }
+
+      console.error("API error:", error.response.status, error.response.data);
+      return false;
+    }
+
+    console.error("Unexpected error:", error.message);
+    return false;
+  }
+}
+
+//admin signUp
+exports.registerAdmin = async (req, res) => {
+  try {
+    const uid = req?.body?.uid?.trim();
+    const email = req?.body?.email?.trim();
+    const password = req?.body?.password?.trim();
+    const purchaseCode = req?.body?.code?.trim();
+    const privateKey = req?.body?.privateKey;
+
+    if (!uid || !email || !password || !purchaseCode || !privateKey) {
+      return res.status(200).json({ status: false, message: "Oops! Invalid or missing details." });
+    }
+
+    const [setting, anyAdminExists, duplicateAdmin, isValidPurchase] = await Promise.all([
+      Setting.findOne({}),
+      Admin.exists({}),
+      Admin.findOne({ $or: [{ uid }, { email }] }),
+      Auth(purchaseCode, "58577440"),
+    ]);
+
+    if (!setting) {
+      return res.status(200).json({ status: false, message: "Settings document not found in database." });
+    }
+
+    if (!setting.privateKey || typeof setting.privateKey !== "object") {
+      return res.status(200).json({ status: false, message: "Settings document is invalid (missing privateKey)." });
+    }
+
+    if (anyAdminExists) {
+      return res.status(200).json({ status: false, message: "An admin already exists. Please log in." });
+    }
+
+    if (duplicateAdmin) {
+      return res.status(200).json({ status: false, message: "Admin with this UID or email already exists." });
+    }
+
+    if (!isValidPurchase) {
+      return res.status(200).json({ status: false, message: "Purchase code is not valid." });
+    }
+
+    const admin = new Admin({
+      uid,
+      email,
+      password: cryptr.encrypt(password),
+      purchaseCode,
+    });
+
+    await Promise.all([admin.save(), Login.updateOne({}, { $set: { login: true } }, { upsert: true })]);
+
+    res.status(200).json({
+      status: true,
+      message: "Admin created successfully!",
+      admin,
+    });
+
+    if (req.body.privateKey) {
+      try {
+        setting.privateKey = typeof req.body.privateKey === "string" ? JSON.parse(req.body.privateKey.trim()) : req.body.privateKey;
+        await setting.save();
+        updateSettingFile(setting);
+
+        setTimeout(() => {
+          console.log("🔐 Private key updated, restarting server...");
+          process.exit(0);
+        }, 500); // 0.5s delay
+        return;
+      } catch (err) {
+        console.error("Failed to update privateKey:", err);
+      }
+    }
+  } catch (err) {
+    console.error("registerAdmin error:", err);
+    return res.status(500).json({ status: false, message: err.message || "Internal Server Error" });
+  }
+};
+
 //admin login
 exports.validateAdminLogin = async (req, res) => {
   try {
@@ -54,6 +165,11 @@ exports.validateAdminLogin = async (req, res) => {
       userType = "subadmin";
     } else {
       console.log("Admin password check");
+
+      // const isValidCode = await Auth(user?.purchaseCode, "58577440");
+      // if (!isValidCode) {
+      //   return res.status(200).json({ status: false, message: "Purchase code is not valid." });
+      // }
 
       if (cryptr.decrypt(user.password) !== password) {
         return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });

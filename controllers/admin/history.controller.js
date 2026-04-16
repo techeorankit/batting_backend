@@ -70,6 +70,27 @@ exports.getCoinTransactionHistory = async (req, res) => {
               },
             ]
           : []),
+
+        {
+          $addFields: {
+            isIncome: {
+              $cond: {
+                if: { $in: ["$type", [1, 6, 7, 8, 14]] },
+                then: true,
+                else: {
+                  $cond: {
+                    if: {
+                      $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
+                    },
+                    then: false,
+                    else: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+
         {
           $facet: {
             totalCount: [{ $count: "count" }],
@@ -79,21 +100,6 @@ exports.getCoinTransactionHistory = async (req, res) => {
               { $limit: limit },
               {
                 $addFields: {
-                  isIncome: {
-                    $cond: {
-                      if: { $in: ["$type", [1, 6, 7, 8, 14]] },
-                      then: true,
-                      else: {
-                        $cond: {
-                          if: {
-                            $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
-                          },
-                          then: false,
-                          else: false,
-                        },
-                      },
-                    },
-                  },
                   typeDescription: {
                     $switch: {
                       branches: [
@@ -111,7 +117,7 @@ exports.getCoinTransactionHistory = async (req, res) => {
                         { case: { $eq: ["$type", 14] }, then: "Admin Add Coin" },
                         { case: { $eq: ["$type", 15] }, then: "Admin Deduct Coin" },
                       ],
-                      default: "❓ Unknown Type",
+                      default: "Unknown Type",
                     },
                   },
                 },
@@ -215,7 +221,6 @@ exports.fetchCallTransactionHistory = async (req, res) => {
             userCoin: { $ne: 0 },
           },
         },
-
         {
           $lookup: {
             from: "hosts",
@@ -246,7 +251,6 @@ exports.fetchCallTransactionHistory = async (req, res) => {
               },
             ]
           : []),
-        //(convert duration → seconds)
         {
           $addFields: {
             durationInSeconds: {
@@ -263,7 +267,7 @@ exports.fetchCallTransactionHistory = async (req, res) => {
               ],
             },
           },
-        },
+        }, //(convert duration → seconds)
         {
           $facet: {
             totalCount: [{ $count: "count" }],
@@ -280,7 +284,7 @@ exports.fetchCallTransactionHistory = async (req, res) => {
                         { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
                         { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                       ],
-                      default: "❓ Unknown Type",
+                      default: "Unknown Type",
                     },
                   },
                 },
@@ -328,8 +332,7 @@ exports.fetchCallTransactionHistory = async (req, res) => {
     const total = result[0].totalCount[0]?.count || 0;
     const transactionHistory = result[0].paginatedHistory;
 
-    //Convert total seconds → HH:MM:SS
-    const totalSeconds = result[0].durationSummary[0]?.totalSeconds || 0;
+    const totalSeconds = result[0].durationSummary[0]?.totalSeconds || 0; //Convert total seconds → HH:MM:SS
 
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -339,17 +342,14 @@ exports.fetchCallTransactionHistory = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: "✅ Transaction history fetched successfully.",
+      message: "Transaction history fetched successfully.",
       total,
       totalDuration,
       data: transactionHistory,
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
-      status: false,
-      message: "🚨 Something went wrong. Please try again later.",
-    });
+    return res.status(500).json({ status: false, message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -440,7 +440,7 @@ exports.retrieveGiftTransactionHistory = async (req, res) => {
                         { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
                         { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
                       ],
-                      default: "❓ Unknown Type",
+                      default: "Unknown Type",
                     },
                   },
                 },
@@ -476,16 +476,13 @@ exports.retrieveGiftTransactionHistory = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: "✅ Transaction history fetched successfully.",
+      message: "Transaction history fetched successfully.",
       total: total,
       data: transactionHistory,
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
-      status: false,
-      message: "🚨 Something went wrong. Please try again later.",
-    });
+    return res.status(500).json({ status: false, message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -663,7 +660,7 @@ exports.fetchCoinTransactionHistory = async (req, res) => {
                         { case: { $eq: ["$type", 14] }, then: "Admin Add Coin" },
                         { case: { $eq: ["$type", 15] }, then: "Admin Deduct Coin" },
                       ],
-                      default: "❓ Unknown Type",
+                      default: "Unknown Type",
                     },
                   },
                   senderName: { $ifNull: ["$sender.name", ""] },
@@ -823,7 +820,7 @@ exports.listCallTransactions = async (req, res) => {
                         { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
                         { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
                       ],
-                      default: "❓ Unknown Type",
+                      default: "Unknown Type",
                     },
                   },
                   senderName: { $ifNull: ["$sender.name", ""] },
@@ -883,17 +880,14 @@ exports.listCallTransactions = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: "✅ Transaction history fetched successfully.",
+      message: "Transaction history fetched successfully.",
       total: total,
       totalDuration,
       data,
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
-      status: false,
-      message: "🚨 Something went wrong. Please try again later.",
-    });
+    return res.status(500).json({ status: false, message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -976,7 +970,7 @@ exports.fetchGiftTransactionHistory = async (req, res) => {
                         { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
                         { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
                       ],
-                      default: "❓ Unknown Type",
+                      default: "Unknown Type",
                     },
                   },
                   senderName: { $ifNull: ["$sender.name", ""] },
@@ -1015,15 +1009,12 @@ exports.fetchGiftTransactionHistory = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: "✅ Transaction history fetched successfully.",
+      message: "Transaction history fetched successfully.",
       total: total,
       data: transactionHistory,
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
-      status: false,
-      message: "🚨 Something went wrong. Please try again later.",
-    });
+    return res.status(500).json({ status: false, message: "Something went wrong. Please try again later." });
   }
 };

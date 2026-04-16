@@ -181,11 +181,11 @@ exports.updateSetting = async (req, res) => {
     if (req.body.privateKey) {
       setting.privateKey = typeof req.body.privateKey === "string" ? JSON.parse(req.body.privateKey.trim()) : req.body.privateKey;
     }
-    
+
     const updatedHostfield = {};
 
-    if(req.body.generalRandomCallRate){
-      if(isNaN(req.body.generalRandomCallRate)){
+    if (req.body.generalRandomCallRate) {
+      if (isNaN(req.body.generalRandomCallRate)) {
         return res.status(200).json({
           status: false,
           message: "generalRandomCallRate must be a number",
@@ -195,8 +195,8 @@ exports.updateSetting = async (req, res) => {
       updatedHostfield.randomCallRate = Number(req.body.generalRandomCallRate);
     }
 
-    if(req.body.femaleRandomCallRate){
-      if(isNaN(req.body.femaleRandomCallRate)){
+    if (req.body.femaleRandomCallRate) {
+      if (isNaN(req.body.femaleRandomCallRate)) {
         return res.status(200).json({
           status: false,
           message: "femaleRandomCallRate must be a number",
@@ -206,8 +206,8 @@ exports.updateSetting = async (req, res) => {
       updatedHostfield.randomCallFemaleRate = Number(req.body.femaleRandomCallRate);
     }
 
-    if(req.body.maleRandomCallRate){
-      if(isNaN(req.body.maleRandomCallRate)){
+    if (req.body.maleRandomCallRate) {
+      if (isNaN(req.body.maleRandomCallRate)) {
         return res.status(200).json({
           status: false,
           message: "maleRandomCallRate must be a number",
@@ -217,8 +217,8 @@ exports.updateSetting = async (req, res) => {
       updatedHostfield.randomCallMaleRate = Number(req.body.maleRandomCallRate);
     }
 
-    if(req.body.videoPrivateCallRate){
-      if(isNaN(req.body.videoPrivateCallRate)){
+    if (req.body.videoPrivateCallRate) {
+      if (isNaN(req.body.videoPrivateCallRate)) {
         return res.status(200).json({
           status: false,
           message: "videoPrivateCallRate must be a number",
@@ -228,8 +228,8 @@ exports.updateSetting = async (req, res) => {
       updatedHostfield.privateCallRate = Number(req.body.videoPrivateCallRate);
     }
 
-    if(req.body.audioPrivateCallRate){
-      if(isNaN(req.body.audioPrivateCallRate)){
+    if (req.body.audioPrivateCallRate) {
+      if (isNaN(req.body.audioPrivateCallRate)) {
         return res.status(200).json({
           status: false,
           message: "audioPrivateCallRate must be a number",
@@ -239,8 +239,8 @@ exports.updateSetting = async (req, res) => {
       updatedHostfield.audioCallRate = Number(req.body.audioPrivateCallRate);
     }
 
-    if(req.body.chatInteractionRate){
-      if(isNaN(req.body.chatInteractionRate)){
+    if (req.body.chatInteractionRate) {
+      if (isNaN(req.body.chatInteractionRate)) {
         return res.status(200).json({
           status: false,
           message: "chatInteractionRate must be a number",
@@ -261,46 +261,32 @@ exports.updateSetting = async (req, res) => {
     if (Object.keys(updatedHostfield).length > 0) {
       const updatePromises = [];
 
-      if(updatedHostfield.randomCallRate !== undefined){
-        updatePromises.push(Host.updateMany({randomCallRate: {$lt: updatedHostfield.randomCallRate}}, {$set: {randomCallRate: updatedHostfield.randomCallRate}}));
+      if (updatedHostfield.randomCallRate !== undefined) {
+        updatePromises.push(Host.updateMany({ randomCallRate: { $lt: updatedHostfield.randomCallRate } }, { $set: { randomCallRate: updatedHostfield.randomCallRate } }));
       }
 
-      if(updatedHostfield.randomCallFemaleRate !== undefined){
-        updatePromises.push(Host.updateMany({randomCallFemaleRate: {$lt: updatedHostfield.randomCallFemaleRate}}, {$set: {randomCallFemaleRate: updatedHostfield.randomCallFemaleRate}}));
+      if (updatedHostfield.randomCallFemaleRate !== undefined) {
+        updatePromises.push(Host.updateMany({ randomCallFemaleRate: { $lt: updatedHostfield.randomCallFemaleRate } }, { $set: { randomCallFemaleRate: updatedHostfield.randomCallFemaleRate } }));
       }
 
-      if(updatedHostfield.randomCallMaleRate !== undefined){
-        updatePromises.push(Host.updateMany({randomCallMaleRate: {$lt: updatedHostfield.randomCallMaleRate}}, {$set: {randomCallMaleRate: updatedHostfield.randomCallMaleRate}}));
+      if (updatedHostfield.randomCallMaleRate !== undefined) {
+        updatePromises.push(Host.updateMany({ randomCallMaleRate: { $lt: updatedHostfield.randomCallMaleRate } }, { $set: { randomCallMaleRate: updatedHostfield.randomCallMaleRate } }));
       }
 
-      if(updatedHostfield.privateCallRate !== undefined){
-        updatePromises.push(Host.updateMany({privateCallRate: {$lt: updatedHostfield.privateCallRate}}, {$set: {privateCallRate: updatedHostfield.privateCallRate}}));
+      if (updatedHostfield.privateCallRate !== undefined) {
+        updatePromises.push(Host.updateMany({ privateCallRate: { $lt: updatedHostfield.privateCallRate } }, { $set: { privateCallRate: updatedHostfield.privateCallRate } }));
       }
 
-      if(updatedHostfield.audioCallRate !== undefined){
-        updatePromises.push(Host.updateMany({audioCallRate: {$lt: updatedHostfield.audioCallRate}}, {$set: {audioCallRate: updatedHostfield.audioCallRate}}));
+      if (updatedHostfield.audioCallRate !== undefined) {
+        updatePromises.push(Host.updateMany({ audioCallRate: { $lt: updatedHostfield.audioCallRate } }, { $set: { audioCallRate: updatedHostfield.audioCallRate } }));
       }
 
-      if(updatedHostfield.chatRate !== undefined){
-        updatePromises.push(Host.updateMany({chatRate: {$lt: updatedHostfield.chatRate}}, {$set: {chatRate: updatedHostfield.chatRate}}));
+      if (updatedHostfield.chatRate !== undefined) {
+        updatePromises.push(Host.updateMany({ chatRate: { $lt: updatedHostfield.chatRate } }, { $set: { chatRate: updatedHostfield.chatRate } }));
       }
 
       await Promise.all(updatePromises);
     }
-
-    // await Host.updateMany(
-    //   {},
-    //   {
-    //     $set: {
-    //       randomCallRate: setting.generalRandomCallRate,
-    //       randomCallFemaleRate: setting.femaleRandomCallRate,
-    //       randomCallMaleRate: setting.maleRandomCallRate,
-    //       privateCallRate: setting.videoPrivateCallRate,
-    //       audioCallRate: setting.audioPrivateCallRate,
-    //       chatRate: setting.chatInteractionRate,
-    //     },
-    //   }
-    // );
 
     global.settingJSON = setting;
     if (shouldRescheduleChatJob) {

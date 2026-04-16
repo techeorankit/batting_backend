@@ -10,6 +10,7 @@ const VipPlanPrivilege = require("../../models/vipPlanPrivilege.model");
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
 const mongoose = require("mongoose");
+const moment = require("moment");
 
 const Razorpay = require("razorpay");
 
@@ -41,97 +42,95 @@ exports.getCoinTransactionRecords = async (req, res) => {
       };
     }
 
-    const [transactionHistory] = await Promise.all([
-      History.aggregate([
-        {
-          $match: {
-            ...dateFilterQuery,
-            type: { $nin: [5] },
-            userId: userId,
-            userCoin: { $ne: 0 },
-          },
+    const transactionHistory = await History.aggregate([
+      {
+        $match: {
+          ...dateFilterQuery,
+          type: { $nin: [5] },
+          userId: userId,
+          userCoin: { $ne: 0 },
         },
-        {
-          $lookup: {
-            from: "hosts",
-            localField: "hostId",
-            foreignField: "_id",
-            as: "receiver",
-            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
-          },
+      },
+      {
+        $lookup: {
+          from: "hosts",
+          localField: "hostId",
+          foreignField: "_id",
+          as: "receiver",
+          pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
         },
-        {
-          $unwind: {
-            path: "$receiver",
-            preserveNullAndEmptyArrays: true,
-          },
+      },
+      {
+        $unwind: {
+          path: "$receiver",
+          preserveNullAndEmptyArrays: true,
         },
-        ...(search
-          ? [
-              {
-                $match: {
-                  $or: [{ "receiver.name": { $regex: search, $options: "i" } }, { "receiver.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
-                },
+      },
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [{ "receiver.name": { $regex: search, $options: "i" } }, { "receiver.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
               },
-            ]
-          : []),
-        {
-          $addFields: {
-            typeDescription: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ["$type", 1] }, then: "Login Bonus" },
-                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
-                  { case: { $eq: ["$type", 6] }, then: "Daily Check-in Reward" },
-                  { case: { $eq: ["$type", 7] }, then: "Purchased Coin Plan" },
-                  { case: { $eq: ["$type", 8] }, then: "VIP Plan Purchase" },
-                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
-                ],
-                default: "❓ Unknown Type",
-              },
+            },
+          ]
+        : []),
+      {
+        $addFields: {
+          typeDescription: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$type", 1] }, then: "Login Bonus" },
+                { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                { case: { $eq: ["$type", 6] }, then: "Daily Check-in Reward" },
+                { case: { $eq: ["$type", 7] }, then: "Purchased Coin Plan" },
+                { case: { $eq: ["$type", 8] }, then: "VIP Plan Purchase" },
+                { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
+              ],
+              default: "Unknown Type",
             },
           },
         },
-        {
-          $project: {
-            _id: 1,
-            uniqueId: 1,
-            type: 1,
-            typeDescription: 1,
-            giftCoin: 1,
-            giftCount: 1,
-            userCoin: 1,
-            payoutStatus: 1,
-            createdAt: 1,
-            receiverName: { $ifNull: ["$receiver.name", ""] },
-            receiverImage: { $ifNull: ["$receiver.image", ""] },
-            receiverUniqueId: { $ifNull: ["$receiver.uniqueId", ""] },
-            isIncome: {
-              $cond: {
-                if: { $in: ["$type", [1, 6, 7, 8, 14]] },
-                then: true,
-                else: {
-                  $cond: {
-                    if: {
-                      $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
-                    },
-                    then: false,
-                    else: false,
+      },
+      {
+        $project: {
+          _id: 1,
+          uniqueId: 1,
+          type: 1,
+          typeDescription: 1,
+          giftCoin: 1,
+          giftCount: 1,
+          userCoin: 1,
+          payoutStatus: 1,
+          createdAt: 1,
+          receiverName: { $ifNull: ["$receiver.name", ""] },
+          receiverImage: { $ifNull: ["$receiver.image", ""] },
+          receiverUniqueId: { $ifNull: ["$receiver.uniqueId", ""] },
+          isIncome: {
+            $cond: {
+              if: { $in: ["$type", [1, 6, 7, 8, 14]] },
+              then: true,
+              else: {
+                $cond: {
+                  if: {
+                    $in: ["$type", [2, 3, 10, 11, 12, 13, 15]],
                   },
+                  then: false,
+                  else: false,
                 },
               },
             },
           },
         },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-      ]),
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: (start - 1) * limit },
+      { $limit: limit },
     ]);
 
     return res.status(200).json({
@@ -178,79 +177,77 @@ exports.retrieveHostCoinHistory = async (req, res) => {
       };
     }
 
-    const [transactionHistory] = await Promise.all([
-      History.aggregate([
-        {
-          $match: {
-            ...dateFilterQuery,
-            type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
-            hostId: hostId,
-            hostCoin: { $ne: 0 },
-          },
+    const transactionHistory = await History.aggregate([
+      {
+        $match: {
+          ...dateFilterQuery,
+          type: { $in: [2, 3, 5, 9, 10, 11, 12, 13] },
+          hostId: hostId,
+          hostCoin: { $ne: 0 },
         },
-        {
-          $lookup: {
-            from: "users",
-            localField: "userId",
-            foreignField: "_id",
-            as: "sender",
-            pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
-          },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "sender",
+          pipeline: [{ $project: { name: 1, image: 1, uniqueId: 1 } }],
         },
-        {
-          $unwind: {
-            path: "$sender",
-            preserveNullAndEmptyArrays: true,
-          },
+      },
+      {
+        $unwind: {
+          path: "$sender",
+          preserveNullAndEmptyArrays: true,
         },
-        ...(search
-          ? [
-              {
-                $match: {
-                  $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
-                },
+      },
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [{ "sender.name": { $regex: search, $options: "i" } }, { "sender.uniqueId": { $regex: search, $options: "i" } }, { uniqueId: { $regex: search, $options: "i" } }],
               },
-            ]
-          : []),
-        {
-          $addFields: {
-            typeDescription: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ["$type", 2] }, then: "Live Gift" },
-                  { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
-                  { case: { $eq: ["$type", 5] }, then: "Withdrawal by Host" },
-                  { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
-                  { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
-                  { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
-                  { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
-                  { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
-                ],
-                default: "❓ Unknown Type",
-              },
+            },
+          ]
+        : []),
+      {
+        $addFields: {
+          typeDescription: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$type", 2] }, then: "Live Gift" },
+                { case: { $eq: ["$type", 3] }, then: "Video Call Gift" },
+                { case: { $eq: ["$type", 5] }, then: "Withdrawal by Host" },
+                { case: { $eq: ["$type", 9] }, then: "Chat with Host" },
+                { case: { $eq: ["$type", 10] }, then: "Chat Gift" },
+                { case: { $eq: ["$type", 11] }, then: "Private Audio Call" },
+                { case: { $eq: ["$type", 12] }, then: "Private Video Call" },
+                { case: { $eq: ["$type", 13] }, then: "Random Video Call" },
+              ],
+              default: "Unknown Type",
             },
           },
         },
-        {
-          $project: {
-            _id: 1,
-            uniqueId: 1,
-            type: 1,
-            typeDescription: 1,
-            giftCoin: 1,
-            giftCount: 1,
-            hostCoin: 1,
-            payoutStatus: 1,
-            createdAt: 1,
-            senderName: { $ifNull: ["$sender.name", ""] },
-            senderImage: { $ifNull: ["$sender.image", ""] },
-            senderUniqueId: { $ifNull: ["$sender.uniqueId", ""] },
-          },
+      },
+      {
+        $project: {
+          _id: 1,
+          uniqueId: 1,
+          type: 1,
+          typeDescription: 1,
+          giftCoin: 1,
+          giftCount: 1,
+          hostCoin: 1,
+          payoutStatus: 1,
+          createdAt: 1,
+          senderName: { $ifNull: ["$sender.name", ""] },
+          senderImage: { $ifNull: ["$sender.image", ""] },
+          senderUniqueId: { $ifNull: ["$sender.uniqueId", ""] },
         },
-        { $sort: { createdAt: -1 } },
-        { $skip: (start - 1) * limit },
-        { $limit: limit },
-      ]),
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: (start - 1) * limit },
+      { $limit: limit },
     ]);
 
     return res.status(200).json({
@@ -298,7 +295,9 @@ exports.handleCoinTransaction = async (req, res) => {
       const count = Number(giftCount);
       const totalCoin = gift.coin * count;
 
-      if (sender.coin < totalCoin) return res.status(200).json({ status: false, message: "Insufficient coins" });
+      if (sender.coin < totalCoin) {
+        return res.status(200).json({ status: false, message: "Insufficient coins" });
+      }
 
       await Promise.all([
         User.updateOne({ _id: sender._id }, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }),
@@ -338,12 +337,16 @@ exports.handleCoinTransaction = async (req, res) => {
         Gift.findById(giftId).lean().select("_id coin image type svgaImage"),
       ]);
 
-      if (!sender || !receiver || !gift) return res.status(404).json({ status: false, message: "Invalid sender/receiver/gift" });
+      if (!sender || !receiver || !gift) {
+        return res.status(404).json({ status: false, message: "Invalid sender/receiver/gift" });
+      }
 
       const count = Number(giftCount);
       const totalCoin = gift.coin * count;
 
-      if (sender.coin < totalCoin) return res.status(200).json({ status: false, message: "Insufficient coins" });
+      if (sender.coin < totalCoin) {
+        return res.status(200).json({ status: false, message: "Insufficient coins" });
+      }
 
       await Promise.all([
         User.updateOne({ _id: sender._id }, { $inc: { coin: -totalCoin, spentCoins: totalCoin } }),

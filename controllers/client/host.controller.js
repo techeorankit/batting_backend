@@ -223,7 +223,7 @@ exports.retrieveHosts = async (req, res) => {
     const start = parseInt(req.query.start || 1);
     const limit = parseInt(req.query.limit || 20);
     const skip = (start - 1) * limit;
-    const search = req.query.search?.trim();
+    const search = req.query.search?.trim() || "";
 
     // if (!req.user || !req.user.userId) {
     //   return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
@@ -1220,7 +1220,7 @@ exports.fetchHostsList = async (req, res) => {
     const start = parseInt(req.query.start || 1);
     const limit = parseInt(req.query.limit || 20);
     const skip = (start - 1) * limit;
-    const search = req.query.search?.trim();
+    const search = req.query.search?.trim() || "";
 
     if (!req.query.hostId) {
       return res.status(200).json({ status: false, message: "hostId is required." });

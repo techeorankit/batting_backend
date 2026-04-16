@@ -1280,13 +1280,13 @@ io.on("connection", async (socket) => {
       const parsedData = JSON.parse(data);
       console.log("[callCoinCharged] Parsed Data:", parsedData);
 
-      const { callerId, receiverId, callId, callMode, gender } = parsedData;
+      const { callerId, receiverId, callId, callMode, gender } = parsedData || {};
 
       const [caller, receiver, callHistory, vipPrivilege] = await Promise.all([
         User.findById(callerId).select("_id coin").lean(),
         Host.findById(receiverId).select("_id coin privateCallRate audioCallRate randomCallRate randomCallFemaleRate randomCallMaleRate agencyId").lean(),
         History.findById(callId).select("_id callType isPrivate isRandom").lean(),
-        VipPlanPrivilege.findOne().select("audioCallDiscount privateCallDiscount").lean(),
+        VipPlanPrivilege.findOne().select("audioCallDiscount privateCallDiscount randomMatchCallDiscount").lean(),
       ]);
 
       if (!caller || !receiver || !callHistory) {
@@ -1299,7 +1299,6 @@ io.on("connection", async (socket) => {
         let audioCallCharge = Math.abs(receiver.audioCallRate);
         let audioCallDiscount = 0;
 
-        // Check if user is VIP and apply discount
         if (caller.isVip && caller.vipPrivilege) {
           audioCallDiscount = Math.min(Math.max(vipPrivilege.audioCallDiscount || 0, 0), 100);
 
@@ -1390,7 +1389,6 @@ io.on("connection", async (socket) => {
         let privateCallCharge = Math.abs(receiver.privateCallRate);
         let privateCallDiscount = 0;
 
-        // Check if user is VIP and apply discount
         if (caller.isVip && vipPrivilege) {
           privateCallDiscount = Math.min(Math.max(vipPrivilege.privateCallDiscount || 0, 0), 100);
 
@@ -1488,7 +1486,6 @@ io.on("connection", async (socket) => {
           randomCallCharge = Math.abs(receiver.randomCallRate) || 100;
         }
 
-        // Check if user is VIP and apply discount
         let randomCallDiscount = 0;
         if (caller.isVip && vipPrivilege) {
           randomCallDiscount = Math.min(Math.max(vipPrivilege.randomMatchCallDiscount || 0, 0), 100);
@@ -1519,7 +1516,7 @@ io.on("connection", async (socket) => {
                 // Percentage commission
                 agencyShare = (hostEarnings * agency.commission) / 100;
               } else {
-                // Fixed salary, ignore earnings share
+                // Fixed salary
                 agencyShare = 0;
               }
 
@@ -1759,8 +1756,8 @@ io.on("connection", async (socket) => {
     const [callUniqueId, token, caller, receiver] = await Promise.all([
       generateHistoryUniqueId(),
       RtcTokenBuilder.buildTokenWithUid(settingJSON?.agoraAppId, settingJSON?.agoraAppCertificate, channel, uid, role, privilegeExpiredTs),
-      User.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
-      Host.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId fcmToken").lean(),
+      callerModel.findById(callerId).select("_id name image isBlock isBusy callId isOnline uniqueId").lean(),
+      receiverModel.findById(receiverId).select("_id name image isBlock isBusy callId isOnline uniqueId fcmToken").lean(),
     ]);
 
     if (!caller) {
@@ -1951,14 +1948,13 @@ io.on("connection", async (socket) => {
           isBusy: true,
         });
 
-        // Update isBusy only for the user who failed verification
         if (callerVerify.modifiedCount > 0) {
-          await User.updateOne({ _id: callerId, isBusy: true }, { $set: { isBusy: false, callId: null } });
+          await callerModel.updateOne({ _id: callerId, isBusy: true }, { $set: { isBusy: false, callId: null } });
           console.log(`🔹 Caller Status Updated: Caller verification failed, isBusy reset`);
         }
 
         if (receiverVerify.modifiedCount > 0) {
-          await User.updateOne({ _id: receiverId, isBusy: true }, { $set: { isBusy: false, callId: null } });
+          await receiverModel.updateOne({ _id: receiverId, isBusy: true }, { $set: { isBusy: false, callId: null } });
           console.log(`🔹 Receiver Status Updated: Receiver verification failed, isBusy reset`);
         }
         return;
@@ -1983,7 +1979,6 @@ io.on("connection", async (socket) => {
 
     if (sockets?.length) {
       sockets.forEach((socket) => {
-        // Leave all previous liveHistoryId rooms dynamically
         socket.rooms.forEach((room) => {
           if (room !== globalRoom) {
             console.log(`Leaving old room: ${room}`);
@@ -1991,7 +1986,6 @@ io.on("connection", async (socket) => {
           }
         });
 
-        // Join the new live room
         socket.join(parsedData.liveHistoryId);
         console.log(`Joined new room: ${parsedData.liveHistoryId}`);
       });
@@ -2234,7 +2228,7 @@ io.on("connection", async (socket) => {
             // Percentage commission
             agencyShare = (hostEarnings * agency.commission) / 100;
           } else {
-            // Fixed salary, ignore earnings share
+            // Fixed salary
             agencyShare = 0;
           }
 

@@ -16,6 +16,9 @@ const upload = multer({ storage });
 //validateAdmin
 const validateAdminToken = require("../../middleware/verifyAdminAuthToken.middleware");
 
+//admin signUp
+route.post("/registerAdmin", checkAccessWithSecretKey(), AdminController.registerAdmin);
+
 //admin login
 route.post("/validateAdminLogin", validateAdminToken, checkAccessWithSecretKey(), AdminController.validateAdminLogin);
 
