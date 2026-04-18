@@ -204,9 +204,6 @@ exports.listPayoutRequests = async (req, res) => {
                   foreignField: "_id",
                   pipeline: [
                     {
-                      $match: { agencyId: agencyObjectId },
-                    },
-                    {
                       $project: {
                         _id: 1,
                         name: 1,
@@ -215,21 +212,19 @@ exports.listPayoutRequests = async (req, res) => {
                       },
                     },
                   ],
-                  as: "hostData",
+                  as: "hostId",
                 },
               },
-              { $unwind: { path: "$hostData", preserveNullAndEmptyArrays: true } },
+              { $unwind: { path: "$hostId", preserveNullAndEmptyArrays: false } },
               {
                 $project: {
                   _id: 1,
                   coin: 1,
+                  uniqueId: 1,
                   amount: 1,
                   status: 1,
                   createdAt: 1,
-                  hostId: "$hostData._id",
-                  hostName: "$hostData.name",
-                  hostUniqueId: "$hostData.uniqueId",
-                  hostImage: "$hostData.image",
+                  hostId: 1,
                 },
               },
             ],
