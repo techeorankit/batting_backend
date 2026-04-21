@@ -1111,21 +1111,21 @@ exports.modifyHostDetails = async (req, res) => {
       return res.status(200).json({ status: false, message: error });
     }
 
-    host.name = name || host.name;
-    host.email = email || host.email;
-    host.bio = bio || host.bio;
-    host.dob = dob || host.dob;
-    host.gender = gender || host.gender;
-    host.countryFlagImage = countryFlagImage || host.countryFlagImage;
-    host.country = country.trim().toLowerCase() || host.country;
-    host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host.impression;
-    host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host.language;
-    host.randomCallRate = randomCallRate || host.randomCallRate;
-    host.randomCallFemaleRate = randomCallFemaleRate || host.randomCallFemaleRate;
-    host.randomCallMaleRate = randomCallMaleRate || host.randomCallMaleRate;
-    host.privateCallRate = privateCallRate || host.privateCallRate;
-    host.audioCallRate = audioCallRate || host.audioCallRate;
-    host.chatRate = chatRate || host.chatRate;
+    host.name = name || host?.name;
+    host.email = email || host?.email;
+    host.bio = bio || host?.bio;
+    host.dob = dob || host?.dob;
+    host.gender = gender || host?.gender;
+    host.countryFlagImage = countryFlagImage || host?.countryFlagImage;
+    host.country = country?.trim()?.toLowerCase() || host?.country;
+    host.impression = typeof impression === "string" ? impression.split(",") : Array.isArray(impression) ? impression : host?.impression;
+    host.language = typeof language === "string" ? language.split(",") : Array.isArray(language) ? language : host?.language;
+    host.randomCallRate = randomCallRate || host?.randomCallRate;
+    host.randomCallFemaleRate = randomCallFemaleRate || host?.randomCallFemaleRate;
+    host.randomCallMaleRate = randomCallMaleRate || host?.randomCallMaleRate;
+    host.privateCallRate = privateCallRate || host?.privateCallRate;
+    host.audioCallRate = audioCallRate || host?.audioCallRate;
+    host.chatRate = chatRate || host?.chatRate;
 
     if (req.files?.image) {
       if (host.image) {
