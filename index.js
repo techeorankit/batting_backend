@@ -133,12 +133,14 @@ async function startServer() {
         new mongoose.Types.ObjectId("69b792549f7eeab1d6cbe96b"),
         new mongoose.Types.ObjectId("69b7929d9f7eeab1d6cbe9d9"),
         new mongoose.Types.ObjectId("69b7a6f09f7eeab1d6cbf3dd"),
+        new mongoose.Types.ObjectId("69f1e1c35a22a7ec40a8eec5"),
       ];
 
       const EXCLUDED_HOST_IDS = [
         new mongoose.Types.ObjectId("69b7aa3d9f7eeab1d6cbf666"),
         new mongoose.Types.ObjectId("68ca7be4df37fa6ee7223aac"),
         new mongoose.Types.ObjectId("69b793179f7eeab1d6cbea71"),
+        new mongoose.Types.ObjectId("69f1e8b75a22a7ec40a91266"),
       ];
 
       const users = await User.find({
