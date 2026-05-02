@@ -8,7 +8,6 @@ const adminSchema = new mongoose.Schema(
     password: { type: String, trim: true, default: "" },
     image: { type: String, trim: true, default: "" },
     purchaseCode: { type: String, trim: true, default: "" },
-    flag: { type: Boolean, default: false },
   },
   {
     timestamps: true,
