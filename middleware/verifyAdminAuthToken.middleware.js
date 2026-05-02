@@ -33,7 +33,7 @@ const validateAdminFirebaseToken = async (req, res, next) => {
     const [decodedToken, adminUser, subadminUser] = await Promise.all([
       admin.auth().verifyIdToken(token),
       Admin.findOne({ uid: adminUid }).select("_id email"),
-      Subadmin.findOne({ authId: adminUid }).select("_id email"),
+      Subadmin.findOne({ authId: adminUid }).select("_id email").populate("role", "name permissions"),
     ]);
 
     if (!decodedToken || !decodedToken.email) {

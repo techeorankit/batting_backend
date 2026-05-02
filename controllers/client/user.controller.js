@@ -79,7 +79,7 @@ exports.quickUserVerification = async (req, res) => {
 //user login and sign up
 exports.signInOrSignUpUser = async (req, res) => {
   try {
-    const { identity, loginType, fcmToken, email, name, image, dob } = req.body;
+    const { identity, loginType, fcmToken, email, name, image, dob, countryCode, mobileNumber } = req.body || {};
 
     if (!identity || loginType === undefined || !fcmToken) {
       if (req.file) deleteFile(req.file);
@@ -112,6 +112,20 @@ exports.signInOrSignUpUser = async (req, res) => {
         }
         userQuery = { firebaseUid: uid, loginType: 3 };
         break;
+      case 4:
+        if (!mobileNumber) {
+          return res.status(200).json({ status: false, message: "mobileNumber is required." });
+        }
+
+        userQuery = { firebaseUid: uid, mobileNumber: mobileNumber.trim(), loginType: 4 };
+        break;
+      case 5:
+        if (!email) {
+          return res.status(200).json({ status: false, message: "email must be required." });
+        }
+
+        userQuery = { firebaseUid: uid, email: email.trim(), loginType: 5 };
+        break;
       default:
         if (req.file) deleteFile(req.file);
         return res.status(200).json({ status: false, message: "Invalid loginType." });
@@ -119,7 +133,7 @@ exports.signInOrSignUpUser = async (req, res) => {
 
     let user = null;
     if (Object.keys(userQuery).length > 0) {
-      user = await User.findOne(userQuery).select("_id loginType name image fcmToken lastlogin isBlock isHost hostId firebaseUid");
+      user = await User.findOne(userQuery).select("_id loginType name image email countryCode mobileNumber identity fcmToken lastlogin isBlock isHost hostId firebaseUid");
     }
 
     if (user) {
@@ -156,10 +170,14 @@ exports.signInOrSignUpUser = async (req, res) => {
         }
       }
 
-      user.name = name ? name?.trim() : user.name;
-      user.dob = dob ? dob?.trim() : user.dob;
-      user.image = req.file ? req.file.path : image ? image : user.image;
-      user.fcmToken = fcmToken ? fcmToken : user.fcmToken;
+      user.email = email ? email?.trim() : user?.email;
+      user.identity = identity ? identity?.trim() : user?.identity;
+      user.countryCode = countryCode ? countryCode?.trim() : user?.countryCode;
+      user.mobileNumber = mobileNumber ? mobileNumber?.trim() : user?.mobileNumber;
+      user.name = name ? name?.trim() : user?.name;
+      user.dob = dob ? dob?.trim() : user?.dob;
+      user.image = req.file ? req.file.path : image ? image : user?.image;
+      user.fcmToken = fcmToken ? fcmToken : user?.fcmToken;
       user.lastlogin = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
       await user.save();
 
@@ -167,7 +185,7 @@ exports.signInOrSignUpUser = async (req, res) => {
     } else {
       console.log("🆕 Registering new user...");
 
-      const bonusCoins = settingJSON.loginBonus ? settingJSON.loginBonus : 5000;
+      const bonusCoins = settingJSON?.loginBonus ? settingJSON?.loginBonus : 5000;
 
       const newUser = new User();
       newUser.firebaseUid = uid;
@@ -342,7 +360,10 @@ exports.modifyUserProfile = async (req, res) => {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
-    res.status(200).json({ status: true, message: "The user's profile has been modified." });
+    res.status(200).json({
+      status: true,
+      message: "The user's profile has been modified.",
+    });
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
@@ -360,14 +381,17 @@ exports.modifyUserProfile = async (req, res) => {
       user.image = req?.file?.path;
     }
 
-    user.name = req.body.name ? req.body.name : user.name;
-    user.selfIntro = req.body.selfIntro ? req.body.selfIntro : user.selfIntro;
-    user.gender = req.body.gender ? req.body.gender?.toLowerCase()?.trim() : user.gender;
-    user.bio = req.body.bio ? req.body.bio : user.bio;
-    user.dob = req.body.dob ? req.body.dob.trim() : user.dob;
-    user.age = req.body.age ? req.body.age : user.age;
-    user.countryFlagImage = req.body.countryFlagImage ? req.body.countryFlagImage : user.countryFlagImage;
-    user.country = req.body.country ? req.body.country.toLowerCase()?.trim() : user.country;
+    user.name = req.body.name ? req.body.name : user?.name;
+    user.email = req.body.email ? req.body.email : user?.email;
+    user.mobileNumber = req.body.mobileNumber ? req.body.mobileNumber : user?.mobileNumber;
+    user.countryCode = req.body.countryCode ? req.body.countryCode : user?.countryCode;
+    user.selfIntro = req.body.selfIntro ? req.body.selfIntro : user?.selfIntro;
+    user.gender = req.body.gender ? req.body.gender?.toLowerCase()?.trim() : user?.gender;
+    user.bio = req.body.bio ? req.body.bio : user?.bio;
+    user.dob = req.body.dob ? req.body.dob.trim() : user?.dob;
+    user.age = req.body.age ? req.body.age : user?.age;
+    user.countryFlagImage = req.body.countryFlagImage ? req.body.countryFlagImage : user?.countryFlagImage;
+    user.country = req.body.country ? req.body.country.toLowerCase()?.trim() : user?.country;
     await user.save();
   } catch (error) {
     if (req.file) deleteFile(req.file);
@@ -588,5 +612,96 @@ exports.createFirebaseCustomAuthToken = async (req, res) => {
       status: false,
       message: error.message || "Failed to create Firebase custom auth token.",
     });
+  }
+};
+
+//sync user loginType using firebaseUid
+exports.syncUserAuthTypeByUid = async (req, res) => {
+  try {
+    const { firebaseUid, loginType } = req.query;
+
+    if (!firebaseUid || loginType === undefined) {
+      return res.status(200).json({ status: false, message: "firebaseUid and loginType are required." });
+    }
+
+    const parsedLoginType = Number(loginType);
+
+    if (isNaN(parsedLoginType)) {
+      return res.status(200).json({ status: false, message: "Invalid loginType." });
+    }
+
+    const user = await User.findOneAndUpdate({ firebaseUid: firebaseUid.trim() }, { $addToSet: { loginType: parsedLoginType } }, { new: true });
+
+    if (!user) {
+      return res.status(200).json({ status: true, message: "User not found. Please sign up.", isLogin: false });
+    }
+
+    if (!Array.isArray(user.loginType)) {
+      user.loginType = user.loginType !== undefined ? [user.loginType] : [];
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "User exists.",
+      isLogin: true,
+      data: {
+        userId: user._id,
+        firebaseUid: user.firebaseUid,
+        loginType: user.loginType,
+      },
+    });
+  } catch (error) {
+    console.error("syncUserLoginTypeByFirebaseUid error:", error);
+    return res.status(500).json({ status: false, message: error.message || "Internal Server Error" });
+  }
+};
+
+//check if mobile or email exists or not
+exports.verifyMobileOrEmail = async (req, res) => {
+  try {
+    const { mobile, email } = req.body || {};
+
+    if (!mobile && !email) {
+      return res.status(200).json({ status: false, message: "Mobile or email is required" });
+    }
+
+    const user = await User.findOne({ $or: [mobile ? { mobileNumber: mobile } : null, email ? { email } : null].filter(Boolean) }).select("email mobileNumber loginType");
+
+    if (!user) {
+      return res.status(200).json({
+        status: true,
+        message: "Mobile or email does not exist",
+        isExists: false,
+      });
+    }
+
+    const loginType = user.loginType || null;
+
+    if (email && user.email === email) {
+      return res.status(200).json({
+        status: true,
+        message: "Email already exists",
+        isExists: true,
+        loginType,
+      });
+    }
+
+    if (mobile && user.mobileNumber === mobile) {
+      return res.status(200).json({
+        status: true,
+        message: "Mobile number already exists",
+        isExists: true,
+        loginType,
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Mobile or email does not exist",
+      isExists: false,
+    });
+  } catch (error) {
+    console.error("Check Mobile Or Email Exists Error:", error);
+    return res.status(500).json({ status: false, message: "Failed to check mobile or email", error: error.message });
   }
 };

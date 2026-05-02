@@ -3,7 +3,7 @@ const User = require("../../models/user.model");
 
 const admin = require("../../util/privateKey");
 
-// Get all user-host reports
+//Get all user-host reports
 exports.getUserHostReports = async (req, res) => {
   try {
     const { reporterId, targetId, status, targetRole, search, start = 1, limit = 20, startDate, endDate } = req.query;
@@ -143,7 +143,7 @@ exports.getUserHostReports = async (req, res) => {
   }
 };
 
-// Solve a report
+//Solve a report
 exports.solveUserHostReport = async (req, res) => {
   try {
     const { reportId } = req.query;
@@ -200,7 +200,7 @@ exports.solveUserHostReport = async (req, res) => {
   }
 };
 
-// Delete a report
+//Delete a report
 exports.deleteUserHostReport = async (req, res) => {
   try {
     const { reportId } = req.query || {};

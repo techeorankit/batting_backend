@@ -8,20 +8,22 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 //controller
 const CoinPlanController = require("../../controllers/admin/coinPlan.controller");
 
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
+
 //create a new coin plan
-route.post("/createCoinPlan", checkAccessWithSecretKey(), CoinPlanController.createCoinPlan);
+route.post("/createCoinPlan", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), CoinPlanController.createCoinPlan);
 
 //update an existing coin plan
-route.patch("/modifyCoinPlan", checkAccessWithSecretKey(), CoinPlanController.modifyCoinPlan);
+route.patch("/modifyCoinPlan", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), CoinPlanController.modifyCoinPlan);
 
 //toggle coin plan status (isActive or isFeatured)
-route.patch("/toggleCoinPlanStatus", checkAccessWithSecretKey(), CoinPlanController.toggleCoinPlanStatus);
+route.patch("/toggleCoinPlanStatus", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), CoinPlanController.toggleCoinPlanStatus);
 
 //delete a coin plan
-route.delete("/removeCoinPlan", checkAccessWithSecretKey(), CoinPlanController.removeCoinPlan);
+route.delete("/removeCoinPlan", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), CoinPlanController.removeCoinPlan);
 
 //retrieve all coin plans
-route.get("/fetchCoinPlans", checkAccessWithSecretKey(), CoinPlanController.fetchCoinPlans);
+route.get("/fetchCoinPlans", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), CoinPlanController.fetchCoinPlans);
 
 //get coinplan/vipPlan histories of users (admin earning)
 route.get("/retrieveCoinPlanPurchase", checkAccessWithSecretKey(), CoinPlanController.retrieveCoinPlanPurchase);

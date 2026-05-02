@@ -4,13 +4,15 @@ const route = express.Router();
 const checkAccessWithSecretKey = require("../../checkAccess");
 const reportController = require("../../controllers/admin/report.controller");
 
-// Solve a report
-route.patch("/solveUserHostReport", checkAccessWithSecretKey(), reportController.solveUserHostReport);
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
 
-// Get all user-host reports
-route.get("/getUserHostReports", checkAccessWithSecretKey(), reportController.getUserHostReports);
+//Solve a report
+route.patch("/solveUserHostReport", checkPermission(MODULES.REPORT), checkAccessWithSecretKey(), reportController.solveUserHostReport);
 
-// Delete a report
-route.delete("/deleteUserHostReport", checkAccessWithSecretKey(), reportController.deleteUserHostReport);
+//Get all user-host reports
+route.get("/getUserHostReports", checkPermission(MODULES.REPORT), checkAccessWithSecretKey(), reportController.getUserHostReports);
+
+//Delete a report
+route.delete("/deleteUserHostReport", checkPermission(MODULES.REPORT), checkAccessWithSecretKey(), reportController.deleteUserHostReport);
 
 module.exports = route;

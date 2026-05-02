@@ -13,10 +13,12 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 //controller
 const VipPlanPrivilegeController = require("../../controllers/admin/vipPlanPrivilege.controller");
 
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
+
 //update VIP Plan Privilege
-route.patch("/modifyVipPrivilege", checkAccessWithSecretKey(), upload.single("vipFrameBadge"), VipPlanPrivilegeController.modifyVipPrivilege);
+route.patch("/modifyVipPrivilege", checkPermission(MODULES.VIP_PLAN_BENEFITS), checkAccessWithSecretKey(), upload.single("vipFrameBadge"), VipPlanPrivilegeController.modifyVipPrivilege);
 
 //get VIP Plan Privilege
-route.get("/retrieveVipPrivilege", checkAccessWithSecretKey(), VipPlanPrivilegeController.retrieveVipPrivilege);
+route.get("/retrieveVipPrivilege", checkPermission(MODULES.VIP_PLAN_BENEFITS), checkAccessWithSecretKey(), VipPlanPrivilegeController.retrieveVipPrivilege);
 
 module.exports = route;

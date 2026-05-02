@@ -11,6 +11,8 @@ const userFunction = async (user, data_) => {
   user.age = data?.age || user.age;
   user.dob = data?.dob?.trim() || user.dob;
   user.email = data?.email?.trim() || user.email;
+  user.countryCode = data?.countryCode?.trim() || user?.countryCode;
+  user.mobileNumber = data?.mobileNumber || user?.mobileNumber;
   user.selfIntro = data?.selfIntro?.trim() || user.selfIntro;
   user.countryFlagImage = data?.countryFlagImage || user.countryFlagImage;
   user.country = data?.country?.toLowerCase()?.trim() || user.country;

@@ -8,19 +8,21 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 //controller
 const VIPPlanController = require("../../controllers/admin/vipPlan.controller");
 
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
+
 //create a new VIP plan
-route.post("/createVipPlan", checkAccessWithSecretKey(), VIPPlanController.createVipPlan);
+route.post("/createVipPlan", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), VIPPlanController.createVipPlan);
 
 //update an existing VIP plan
-route.patch("/updateVipPlan", checkAccessWithSecretKey(), VIPPlanController.updateVipPlan);
+route.patch("/updateVipPlan", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), VIPPlanController.updateVipPlan);
 
 //toggle VIP plan status (isActive)
-route.patch("/toggleVipPlanStatus", checkAccessWithSecretKey(), VIPPlanController.toggleVipPlanStatus);
+route.patch("/toggleVipPlanStatus", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), VIPPlanController.toggleVipPlanStatus);
 
 //delete a VIP plan
-route.delete("/deleteVipPlan", checkAccessWithSecretKey(), VIPPlanController.deleteVipPlan);
+route.delete("/deleteVipPlan", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), VIPPlanController.deleteVipPlan);
 
 //retrieve all VIP plans
-route.get("/getVipPlans", checkAccessWithSecretKey(), VIPPlanController.getVipPlans);
+route.get("/getVipPlans", checkPermission(MODULES.PLAN), checkAccessWithSecretKey(), VIPPlanController.getVipPlans);
 
 module.exports = route;

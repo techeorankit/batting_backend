@@ -15,7 +15,11 @@ const userSchema = new mongoose.Schema(
     countryFlagImage: { type: String, default: "" },
     country: { type: String, trim: true, lowercase: true, default: "" },
     ipAddress: { type: String, default: "" },
+    mobileNumber: { type: String, default: "" },
+    countryCode: { type: String, default: "" },
+
     loginType: { type: Number, enum: LOGIN_TYPE }, //1.apple 2.google 3.quick(identity)
+
     identity: { type: String, default: "" },
     fcmToken: { type: String, default: null },
     uniqueId: { type: String, unique: true, default: "" },
@@ -53,7 +57,7 @@ const userSchema = new mongoose.Schema(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 userSchema.index({ identity: 1, loginType: 1 });

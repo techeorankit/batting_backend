@@ -10,16 +10,18 @@ const upload = multer({ storage });
 
 router.use(checkAccessWithSecretKey());
 
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
+
 // create Translations for languages using CSV file
-router.post("/uploadMultipleTranslations", upload.single("file"), localizationController.uploadMultipleTranslations);
+router.post("/uploadMultipleTranslations", checkPermission(MODULES.APP_LANGUAGES), upload.single("file"), localizationController.uploadMultipleTranslations);
 
 // update specific key-value pairs for a language
-router.patch("/updateTranslationsOfSingleLanguage", localizationController.updateTranslationsOfSingleLanguage);
+router.patch("/updateTranslationsOfSingleLanguage", checkPermission(MODULES.APP_LANGUAGES), localizationController.updateTranslationsOfSingleLanguage);
 
 // download all translations as CSV file
-router.get("/downloadAllTranslationsCSV", localizationController.downloadAllTranslationsCSV);
+router.get("/downloadAllTranslationsCSV", checkPermission(MODULES.APP_LANGUAGES), localizationController.downloadAllTranslationsCSV);
 
 // get single Language's translations
-router.get("/getSingleLanguageTranslations", localizationController.getSingleLanguageTranslations);
+router.get("/getSingleLanguageTranslations", checkPermission(MODULES.APP_LANGUAGES), localizationController.getSingleLanguageTranslations);
 
 module.exports = router;

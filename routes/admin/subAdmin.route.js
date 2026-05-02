@@ -8,20 +8,33 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 
 router.use(checkAccessWithSecretKey());
 
+/**
+ * adminOnly — rejects any request from a staff (sub-admin) member.
+ * Staff management must be restricted to the super-admin only
+ * to prevent privilege escalation attacks.
+ */
+const adminOnly = (req, res, next) => {
+  if (req.admin) return next();
+  return res.status(403).json({
+    status: false,
+    message: "Access denied. Only the super-admin can manage staff members.",
+  });
+};
+
 // Create sub admin
-router.post("/enlistSubAdmin", validateAdminToken, subAdminCtrl.enlistSubAdmin);
+router.post("/enlistSubAdmin", adminOnly, validateAdminToken, subAdminCtrl.enlistSubAdmin);
 
 // Update Sub Admin
-router.patch("/polishSubAdmin", validateAdminToken, subAdminCtrl.polishSubAdmin);
+router.patch("/polishSubAdmin", adminOnly, validateAdminToken, subAdminCtrl.polishSubAdmin);
 
 // Toggle Sub Admin Active Status
-router.patch("/regulateSubAdminState", validateAdminToken, subAdminCtrl.regulateSubAdminState);
+router.patch("/regulateSubAdminState", adminOnly, validateAdminToken, subAdminCtrl.regulateSubAdminState);
 
 // Delete Sub Admin
-router.delete("/expungeSubAdmin", validateAdminToken, subAdminCtrl.expungeSubAdmin);
+router.delete("/expungeSubAdmin", adminOnly, validateAdminToken, subAdminCtrl.expungeSubAdmin);
 
 // Get All Sub Admin
-router.get("/trackSubAdmins", validateAdminToken, subAdminCtrl.trackSubAdmins);
+router.get("/trackSubAdmins", adminOnly, validateAdminToken, subAdminCtrl.trackSubAdmins);
 
 // Login Sub Admin
 router.post("/enterSubAdmin", subAdminCtrl.enterSubAdmin);

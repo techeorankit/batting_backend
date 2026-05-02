@@ -13,21 +13,24 @@ const upload = multer({ storage });
 //controller
 const HostController = require("../../controllers/admin/host.controller");
 
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
+
 //retrive host requests
-route.get("/fetchHostRequest", checkAccessWithSecretKey(), HostController.fetchHostRequest);
+route.get("/fetchHostRequest", checkPermission(MODULES.HOST_REQUEST), checkAccessWithSecretKey(), HostController.fetchHostRequest);
 
 //accept Or decline host request
-route.patch("/handleHostRequest", checkAccessWithSecretKey(), HostController.handleHostRequest);
+route.patch("/handleHostRequest", checkPermission(MODULES.HOST_REQUEST), checkAccessWithSecretKey(), HostController.handleHostRequest);
 
 //assign host under agency
-route.patch("/assignHostToAgency", checkAccessWithSecretKey(), HostController.assignHostToAgency);
+route.patch("/assignHostToAgency", checkPermission(MODULES.HOST_REQUEST), checkAccessWithSecretKey(), HostController.assignHostToAgency);
 
 //get agency's hosts
-route.get("/listAgencyHosts", checkAccessWithSecretKey(), HostController.listAgencyHosts);
+route.get("/listAgencyHosts", checkPermission(MODULES.HOST), checkAccessWithSecretKey(), HostController.listAgencyHosts);
 
 //create host
 route.post(
   "/createHost",
+  checkPermission(MODULES.HOST),
   checkAccessWithSecretKey(),
   upload.fields([
     { name: "image", maxCount: 1 },
@@ -36,12 +39,13 @@ route.post(
     { name: "liveVideo", maxCount: 20 },
     { name: "profileVideo", maxCount: 20 },
   ]),
-  HostController.createHost
+  HostController.createHost,
 );
 
 //update host
 route.patch(
   "/updateHost",
+  checkPermission(MODULES.HOST),
   checkAccessWithSecretKey(),
   upload.fields([
     { name: "image", maxCount: 1 },
@@ -50,19 +54,19 @@ route.patch(
     { name: "liveVideo", maxCount: 20 },
     { name: "profileVideo", maxCount: 20 },
   ]),
-  HostController.updateHost
+  HostController.updateHost,
 );
 
 //toggle host status
-route.patch("/toggleHostStatusByType", checkAccessWithSecretKey(), HostController.toggleHostStatusByType);
+route.patch("/toggleHostStatusByType", checkPermission(MODULES.HOST), checkAccessWithSecretKey(), HostController.toggleHostStatusByType);
 
 //get host's profile
-route.get("/fetchHostProfile", checkAccessWithSecretKey(), HostController.fetchHostProfile);
+route.get("/fetchHostProfile", checkPermission(MODULES.HOST), checkAccessWithSecretKey(), HostController.fetchHostProfile);
 
 //get hosts
-route.get("/fetchHostList", checkAccessWithSecretKey(), HostController.fetchHostList);
+route.get("/fetchHostList", checkPermission(MODULES.HOST), checkAccessWithSecretKey(), HostController.fetchHostList);
 
 //delete host
-route.delete("/deleteHost", checkAccessWithSecretKey(), HostController.deleteHost);
+route.delete("/deleteHost", checkPermission(MODULES.HOST), checkAccessWithSecretKey(), HostController.deleteHost);
 
 module.exports = route;

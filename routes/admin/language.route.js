@@ -14,25 +14,27 @@ const languageController = require("../../controllers/admin/language.controller"
 
 route.use(checkAccessWithSecretKey());
 
-// create language
-route.post("/createSingleLanguage", upload.single("languageIcon"), languageController.createSingleLanguage);
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
 
-// get all languages
-route.get("/getLanguages", languageController.getLanguages);
+//create language
+route.post("/createSingleLanguage", checkPermission(MODULES.APP_LANGUAGES), upload.single("languageIcon"), languageController.createSingleLanguage);
 
-// get single language
-route.get("/getALanguage", languageController.getALanguage);
+//get all languages
+route.get("/getLanguages", checkPermission(MODULES.APP_LANGUAGES), languageController.getLanguages);
 
-// update language
-route.patch("/updateSingleLanguage", upload.single("languageIcon"), languageController.updateSingleLanguage);
+//get single language
+route.get("/getALanguage", checkPermission(MODULES.APP_LANGUAGES), languageController.getALanguage);
 
-// toggle isActive and isDefault switch
-route.patch("/toggleTheSwitch", languageController.toggleTheSwitch);
+//update language
+route.patch("/updateSingleLanguage", checkPermission(MODULES.APP_LANGUAGES), upload.single("languageIcon"), languageController.updateSingleLanguage);
 
-// delete language and its translations
-route.delete("/deleteTheLanguage", languageController.deleteTheLanguage);
+//toggle isActive and isDefault switch
+route.patch("/toggleTheSwitch", checkPermission(MODULES.APP_LANGUAGES), languageController.toggleTheSwitch);
 
-// get all language names for dropdown
+//delete language and its translations
+route.delete("/deleteTheLanguage", checkPermission(MODULES.APP_LANGUAGES), languageController.deleteTheLanguage);
+
+//get all language names (dropdown)
 route.get("/getAllLanguageNames", languageController.getAllLanguageNames);
 
 module.exports = route;

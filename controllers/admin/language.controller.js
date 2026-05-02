@@ -4,7 +4,7 @@ const Translation = require("../../models/translation.model");
 const { createVersionIfNeeded } = require("../../util/versionUtils");
 const { deleteFile } = require("../../util/deletefile");
 
-// create language
+//create language
 exports.createSingleLanguage = async (req, res) => {
   try {
     const { languageTitle, languageCode, localLanguageTitle } = req.body;
@@ -65,7 +65,7 @@ exports.createSingleLanguage = async (req, res) => {
   }
 };
 
-// get all languages
+//get all languages
 exports.getLanguages = async (req, res) => {
   try {
     const start = Math.max(1, parseInt(req.query?.start) || 1);
@@ -109,7 +109,7 @@ exports.getLanguages = async (req, res) => {
   }
 };
 
-// get single Lnaguage
+//get single Lnaguage
 exports.getALanguage = async (req, res) => {
   try {
     const { languageCode } = req.query;
@@ -134,7 +134,7 @@ exports.getALanguage = async (req, res) => {
   }
 };
 
-// update Language
+//update Language
 exports.updateSingleLanguage = async (req, res) => {
   try {
     const { languageCode, languageTitle, localLanguageTitle } = req.body;
@@ -175,7 +175,7 @@ exports.updateSingleLanguage = async (req, res) => {
   }
 };
 
-// toggle isActive and isDefault switch
+//toggle isActive and isDefault switch
 exports.toggleTheSwitch = async (req, res) => {
   try {
     const { languageCode } = req.query;
@@ -253,7 +253,7 @@ exports.toggleTheSwitch = async (req, res) => {
   }
 };
 
-// delete language and its translations
+//delete language and its translations
 exports.deleteTheLanguage = async (req, res) => {
   try {
     const { languageCode } = req.query;
@@ -296,7 +296,7 @@ exports.deleteTheLanguage = async (req, res) => {
   }
 };
 
-// get all language names for dropdown
+//get all language names (dropdown)
 exports.getAllLanguageNames = async (req, res) => {
   try {
     const languages = await Language.find().select("languageTitle -_id").sort({ languageTitle: 1 });

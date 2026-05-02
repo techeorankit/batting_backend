@@ -2,6 +2,8 @@ exports.LOGIN_TYPE = {
   APPLE: 1,
   GOOGLE: 2,
   QUICK: 3,
+  MOBILENO: 4,
+  EMAIL_PASSWORD: 5,
 };
 
 exports.HOST_REQUEST_STATUS = {

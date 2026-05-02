@@ -8,16 +8,18 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 //controller
 const DailyRewardCoinController = require("../../controllers/admin/dailyRewardCoin.controller");
 
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
+
 //create daily reward
-route.post("/createDailyReward", checkAccessWithSecretKey(), DailyRewardCoinController.createDailyReward);
+route.post("/createDailyReward", checkPermission(MODULES.DAILY_CHECKIN), checkAccessWithSecretKey(), DailyRewardCoinController.createDailyReward);
 
 //update daily reward
-route.patch("/modifyDailyReward", checkAccessWithSecretKey(), DailyRewardCoinController.modifyDailyReward);
+route.patch("/modifyDailyReward", checkPermission(MODULES.DAILY_CHECKIN), checkAccessWithSecretKey(), DailyRewardCoinController.modifyDailyReward);
 
 //get daily reward
-route.get("/fetchDailyReward", checkAccessWithSecretKey(), DailyRewardCoinController.fetchDailyReward);
+route.get("/fetchDailyReward", checkPermission(MODULES.DAILY_CHECKIN), checkAccessWithSecretKey(), DailyRewardCoinController.fetchDailyReward);
 
 //delete daily reward
-route.delete("/removeDailyReward", checkAccessWithSecretKey(), DailyRewardCoinController.removeDailyReward);
+route.delete("/removeDailyReward", checkPermission(MODULES.DAILY_CHECKIN), checkAccessWithSecretKey(), DailyRewardCoinController.removeDailyReward);
 
 module.exports = route;

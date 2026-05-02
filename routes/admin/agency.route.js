@@ -8,25 +8,27 @@ const checkAccessWithSecretKey = require("../../checkAccess");
 //controller
 const AgencyController = require("../../controllers/admin/agency.controller");
 
+const { checkPermission, MODULES } = require("../../middleware/checkPermission.middleware");
+
 //multer
 const multer = require("multer");
 const storage = require("../../util/multer");
 const upload = multer({ storage });
 
 //create agency
-route.post("/createAgency", checkAccessWithSecretKey(), upload.single("image"), AgencyController.createAgency);
+route.post("/createAgency", checkPermission(MODULES.AGENCY), checkAccessWithSecretKey(), upload.single("image"), AgencyController.createAgency);
 
 //update agency
-route.patch("/updateAgency", checkAccessWithSecretKey(), upload.single("image"), AgencyController.updateAgency);
+route.patch("/updateAgency", checkPermission(MODULES.AGENCY), checkAccessWithSecretKey(), upload.single("image"), AgencyController.updateAgency);
 
 //toggle agency block status
-route.patch("/toggleAgencyBlockStatus", checkAccessWithSecretKey(), AgencyController.toggleAgencyBlockStatus);
+route.patch("/toggleAgencyBlockStatus", checkPermission(MODULES.AGENCY), checkAccessWithSecretKey(), AgencyController.toggleAgencyBlockStatus);
 
 //get agencies
-route.get("/getAgencies", checkAccessWithSecretKey(), AgencyController.getAgencies);
+route.get("/getAgencies", checkPermission(MODULES.AGENCY), checkAccessWithSecretKey(), AgencyController.getAgencies);
 
 //delete agency
-route.delete("/deleteAgency", checkAccessWithSecretKey(), AgencyController.deleteAgency);
+route.delete("/deleteAgency", checkPermission(MODULES.AGENCY), checkAccessWithSecretKey(), AgencyController.deleteAgency);
 
 //get agency list ( when assign host under agency )
 route.get("/getActiveAgenciesList", checkAccessWithSecretKey(), AgencyController.getActiveAgenciesList);

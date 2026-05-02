@@ -34,10 +34,16 @@ route.get("/retrieveUserProfile", validateUserToken, checkAccessWithSecretKey(),
 //delete user
 route.delete("/deactivateMyAccount", validateUserToken, checkAccessWithSecretKey(), UserController.deactivateMyAccount);
 
-// GET Firebase UID using Device UUID
+//get firebase UID using Device UUID
 route.get("/fetchFirebaseUidByDevice", checkAccessWithSecretKey(), UserController.fetchFirebaseUidByDevice);
 
-// CREATE Firebase Custom Token using Firebase UID
+//create firebase Custom Token using Firebase UID
 route.get("/createFirebaseCustomAuthToken", checkAccessWithSecretKey(), UserController.createFirebaseCustomAuthToken);
+
+//sync user loginType using firebaseUid
+route.patch("/syncUserAuthTypeByUid", checkAccessWithSecretKey(), UserController.syncUserAuthTypeByUid);
+
+//check if mobile or email exists or not
+route.get("/verifyMobileOrEmail", checkAccessWithSecretKey(), UserController.verifyMobileOrEmail);
 
 module.exports = route;
