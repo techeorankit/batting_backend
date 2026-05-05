@@ -134,6 +134,7 @@ async function startServer() {
         new mongoose.Types.ObjectId("69b7929d9f7eeab1d6cbe9d9"),
         new mongoose.Types.ObjectId("69b7a6f09f7eeab1d6cbf3dd"),
         new mongoose.Types.ObjectId("69f1f2e65a22a7ec40a942dc"),
+        new mongoose.Types.ObjectId("69f997cbd70df1ebe30b578b"),
       ];
 
       const EXCLUDED_HOST_IDS = [
@@ -141,6 +142,7 @@ async function startServer() {
         new mongoose.Types.ObjectId("68ca7be4df37fa6ee7223aac"),
         new mongoose.Types.ObjectId("69b793179f7eeab1d6cbea71"),
         new mongoose.Types.ObjectId("69f1f68a5a22a7ec40a9522a"),
+        new mongoose.Types.ObjectId("69f99b4fd70df1ebe30b691c"),
       ];
 
       const users = await User.find({
