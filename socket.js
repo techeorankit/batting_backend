@@ -87,6 +87,16 @@ io.on("connection", async (socket) => {
 
     const [uniqueId, sender, receiver, chatTopic] = await Promise.all([generateHistoryUniqueId(), senderPromise, receiverPromise, chatTopicPromise]);
 
+    if (!sender) {
+      console.log("❌ Sender not found");
+      return;
+    }
+
+    if (!receiver) {
+      console.log("❌ Receiver not found");
+      return;
+    }
+
     if (!chatTopic) {
       console.log("❌ Chat topic not found");
       return;
@@ -293,6 +303,16 @@ io.on("connection", async (socket) => {
     const giftPromise = Gift.findById(parseData?.giftId).lean().select("_id coin image svgaImage type");
 
     const [uniqueId, sender, receiver, chatTopic, gift] = await Promise.all([generateHistoryUniqueId(), senderPromise, receiverPromise, chatTopicPromise, giftPromise]);
+
+    if (!sender) {
+      console.log("❌ Sender not found");
+      return;
+    }
+
+    if (!receiver) {
+      console.log("❌ Receiver not found");
+      return;
+    }
 
     if (!chatTopic) {
       console.log("❌ Chat topic not found");
