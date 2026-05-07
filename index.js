@@ -205,7 +205,7 @@ async function startServer() {
                 Block.deleteMany({ hostId: host?._id }),
                 FollowerFollowing.deleteMany({ followingId: host?._id }),
                 History.deleteMany({ hostId: host?._id }),
-                HostMatchHistory.deleteMany({ $or: [{ lastHostId: host?._id }, { hostId: hostId }] }),
+                HostMatchHistory.deleteMany({ $or: [{ lastHostId: host?._id }, { hostId: host?._id }] }),
                 LiveBroadcaster.deleteMany({ hostId: host?._id }),
                 LiveBroadcastHistory.deleteMany({ hostId: host?._id }),
                 Report.deleteMany({
