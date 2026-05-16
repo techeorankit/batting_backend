@@ -118,8 +118,8 @@ exports.blockUser = async (req, res) => {
 
       await Promise.all([
         new Block({
-          userId: userObjectId,
-          hostId: hostObjectId,
+          userId: userId,
+          hostId: hostId,
           isUserBlocked: false,
           isHostBlocked: true,
         }).save(),
