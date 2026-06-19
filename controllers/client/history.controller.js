@@ -606,18 +606,16 @@ exports.createRazorpayOrder = async (req, res) => {
       });
     }
 
-    // if (!settingJSON?.razorPayId || !settingJSON?.razorSecretKey) {
-    //   return res.status(200).json({
-    //     status: false,
-    //     message: "Razorpay configuration not found.",
-    //   });
-    // }
+    if (!settingJSON?.razorPayId || !settingJSON?.razorSecretKey) {
+      return res.status(200).json({
+        status: false,
+        message: "Razorpay configuration not found.",
+      });
+    }
 
     const razorpay = new Razorpay({
-      // key_id: settingJSON.razorPayId,
-      // key_secret: settingJSON.razorSecretKey,
-      key_id: "rzp_test_shidVsmFs8xnJQ",
-      key_secret: "dhmD0mqiNoOHOVHu7UplXzP3",
+      key_id: settingJSON.razorPayId,
+      key_secret: settingJSON.razorSecretKey,
     });
 
     const options = {
