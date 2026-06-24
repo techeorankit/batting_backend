@@ -39,6 +39,13 @@ const settingSchema = new mongoose.Schema(
     paypalClientId: { type: String, default: "PAYPAL CLIENT ID" },
     paypalSecretKey: { type: String, default: "PAYPAL SECRET KEY" },
 
+    nowPaymentAndroidEnabled: { type: Boolean, default: false },
+    nowPaymentIosEnabled: { type: Boolean, default: false },
+    apiKey: { type: String, default: "API KEY" },
+    sandboxKey: { type: String, default: "SANDBOX KEY" },
+    isTest: { type: Boolean, default: false },
+    payCurrency: { type: String, default: "" },
+
     androidAppVersion: { type: String, default: "" },
     iosAppVersion: { type: String, default: "" },
     androidAppLink: { type: String, default: "" },

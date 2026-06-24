@@ -72,6 +72,11 @@ exports.updateSetting = async (req, res) => {
     setting.paypalClientId = req.body.paypalClientId?.trim() ?? setting.paypalClientId;
     setting.paypalSecretKey = req.body.paypalSecretKey?.trim() ?? setting.paypalSecretKey;
 
+    // ====== PAYMENT ======
+    setting.apiKey = req.body.apiKey?.trim() ?? setting.apiKey;
+    setting.sandboxKey = req.body.sandboxKey?.trim() ?? setting.sandboxKey;
+    setting.payCurrency = req.body.payCurrency?.trim() ?? setting.payCurrency;
+
     // ====== CASHFREE ======
     setting.cashfreeClientId = req.body.cashfreeClientId?.trim() ?? setting.cashfreeClientId;
     setting.cashfreeClientSecret = req.body.cashfreeClientSecret?.trim() ?? setting.cashfreeClientSecret;
@@ -475,6 +480,10 @@ exports.updateSettingToggle = async (req, res) => {
       setting.paypalAndroidEnabled = !setting.paypalAndroidEnabled;
     } else if (type === "paypalIosEnabled") {
       setting.paypalIosEnabled = !setting.paypalIosEnabled;
+    } else if (type === "nowPaymentAndroidEnabled") {
+      setting.nowPaymentAndroidEnabled = !setting.nowPaymentAndroidEnabled;
+    } else if (type === "nowPaymentIosEnabled") {
+      setting.nowPaymentIosEnabled = !setting.nowPaymentIosEnabled;
     } else if (type === "cashfreeAndroidEnabled") {
       setting.cashfreeAndroidEnabled = !setting.cashfreeAndroidEnabled;
     } else if (type === "cashfreeIosEnabled") {
@@ -491,6 +500,8 @@ exports.updateSettingToggle = async (req, res) => {
       setting.isAutoMessageEnabled = !setting.isAutoMessageEnabled;
     } else if (type === "isAutoCallEnabled") {
       setting.isAutoCallEnabled = !setting.isAutoCallEnabled;
+    } else if (type === "isTest") {
+      setting.isTest = !setting.isTest;
     } else {
       return res.status(200).json({ status: false, message: "type passed must be valid." });
     }
