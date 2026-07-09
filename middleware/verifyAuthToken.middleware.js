@@ -8,10 +8,7 @@ if (!privateKey) {
 }
 
 const validateAuthToken = async (req, res, next) => {
-  console.log("🟢 [AUTH] Incoming request received.");
-
   const authHeader = req.headers["authorization"] || req.headers["Authorization"];
-  console.log("🔹 [AUTH] Authorization Header:", authHeader);
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     console.warn("⚠️ [AUTH] Authorization token missing or malformed.");
@@ -22,7 +19,6 @@ const validateAuthToken = async (req, res, next) => {
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
-    console.log("✅ [AUTH] Token successfully verified.", decodedToken);
 
     if (!decodedToken) {
       console.warn("⚠️ [AUTH] Invalid token. Authorization failed.");

@@ -11,8 +11,6 @@ if (!privateKey) {
 const Agency = require("../models/agency.model");
 
 const validateAgencyFirebaseToken = async (req, res, next) => {
-  console.log("🔹 [AUTH] Validating Agency Firebase token...");
-
   const authHeader = req.headers["authorization"];
   const agencyUid = req.headers["x-agency-uid"];
 
@@ -36,15 +34,12 @@ const validateAgencyFirebaseToken = async (req, res, next) => {
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 
-    //console.log("✅ Decoded Token:", decodedToken);
-
     if (!agency) {
       console.warn("⚠️ [AUTH] Agency not found.");
       return res.status(401).json({ status: false, message: "Agency not found. Authorization failed." });
     }
 
     req.agency = agency;
-    console.log(`✅ [AUTH] Agency authentication successful. Agency ID: ${agency._id}`);
     next();
   } catch (error) {
     console.error("❌ [AUTH ERROR] Token verification failed:", error.message);

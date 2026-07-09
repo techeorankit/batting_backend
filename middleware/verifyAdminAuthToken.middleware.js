@@ -12,8 +12,6 @@ const Admin = require("../models/admin.model");
 const Subadmin = require("../models/subAdmin.model");
 
 const validateAdminFirebaseToken = async (req, res, next) => {
-  console.log("🔹 [AUTH] Validating Admin Firebase token...");
-
   const authHeader = req.headers["authorization"];
   const adminUid = req.headers["x-admin-uid"];
 
@@ -41,14 +39,10 @@ const validateAdminFirebaseToken = async (req, res, next) => {
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 
-    //console.log("✅ Decoded Token:", decodedToken);
-
     if (adminUser) {
       req.admin = adminUser;
-      console.log(`✅ [AUTH] Admin authentication successful. Admin ID: ${adminUser._id}`);
     } else if (subadminUser) {
       req.subadmin = subadminUser;
-      console.log(`✅ [AUTH] Subadmin authentication successful. Subadmin ID: ${subadminUser._id}`);
     } else {
       console.warn("⚠️ [AUTH] Admin/Subadmin not found.");
       return res.status(401).json({ status: false, message: "Admin or Subadmin not found. Authorization failed." });

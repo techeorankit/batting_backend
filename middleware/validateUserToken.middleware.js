@@ -11,8 +11,6 @@ if (!privateKey) {
 const User = require("../models/user.model");
 
 const validateUserAccessToken = async (req, res, next) => {
-  console.log("🔹 [AUTH] Received authentication request.");
-
   const authHeader = req.headers["authorization"] || req.headers["Authorization"];
   const userUid = req.headers["x-user-uid"];
 
@@ -29,8 +27,6 @@ const validateUserAccessToken = async (req, res, next) => {
   const token = authHeader.split("Bearer ")[1];
 
   try {
-    console.log("🔹 [AUTH] Verifying Firebase token...");
-
     const [decodedToken, mongoUser] = await Promise.all([admin.auth().verifyIdToken(token), User.findOne({ firebaseUid: userUid }).select("_id isBlock").lean()]);
 
     if (!decodedToken) {
@@ -53,7 +49,6 @@ const validateUserAccessToken = async (req, res, next) => {
       userId: mongoUser._id,
     };
 
-    console.log(`✅ [AUTH] User authentication successful. MongoID: ${mongoUser._id}`);
     next();
   } catch (error) {
     console.error("❌ [AUTH ERROR] Token verification failed:", error.message);

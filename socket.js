@@ -89,16 +89,19 @@ io.on("connection", async (socket) => {
 
     if (!sender) {
       console.log("❌ Sender not found");
+      socket.emit("chatMessageSent", "Sender not found.");
       return;
     }
 
     if (!receiver) {
       console.log("❌ Receiver not found");
+      socket.emit("chatMessageSent", "Receiver not found.");
       return;
     }
 
     if (!chatTopic) {
       console.log("❌ Chat topic not found");
+      socket.emit("chatMessageSent", "Chat topic not found.");
       return;
     }
 
@@ -106,7 +109,6 @@ io.on("connection", async (socket) => {
       if (parseData.senderRole === "user" && parseData.receiverRole === "host") {
         let maxFreeChatMessages = settingJSON.maxFreeChatMessages || 10;
 
-        //Check if sender is VIP
         if (sender?.isVip) {
           const vipPrivilege = await VipPlanPrivilege.findOne().select("freeMessages").lean();
           if (vipPrivilege?.freeMessages) {
@@ -119,7 +121,7 @@ io.on("connection", async (socket) => {
 
         if (!isWithinFreeLimit && sender?.coin < chatRate) {
           console.log("❌ Insufficient coins, message not sent.");
-          io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("insufficientCoins", "Insufficient coins to send message.");
+          socket.emit("insufficientCoins", "Insufficient coins to send message.");
           return;
         }
       }
@@ -306,21 +308,25 @@ io.on("connection", async (socket) => {
 
     if (!sender) {
       console.log("❌ Sender not found");
+      socket.emit("chatGiftSent", "Sender not found.");
       return;
     }
 
     if (!receiver) {
       console.log("❌ Receiver not found");
+      socket.emit("chatGiftSent", "Receiver not found.");
       return;
     }
 
     if (!chatTopic) {
       console.log("❌ Chat topic not found");
+      socket.emit("chatGiftSent", "Chat topic not found.");
       return;
     }
 
     if (!gift) {
       console.log("❌ Gift not found");
+      socket.emit("chatGiftSent", "Gift not found.");
       return;
     }
 
@@ -331,7 +337,7 @@ io.on("connection", async (socket) => {
 
     if (sender?.coin < totalGiftCost) {
       console.log("❌ Insufficient coins, gift not sent.");
-      io.in("globalRoom:" + chatTopic?.senderId?.toString()).emit("insufficientCoins", "Insufficient coins to send gift.");
+      socket.emit("insufficientCoins", "Insufficient coins to send gift.");
       return;
     }
 

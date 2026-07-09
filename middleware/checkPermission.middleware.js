@@ -75,7 +75,6 @@ const checkPermission = (module) => {
       }
 
       // c. All good
-      console.log(`✅ [RBAC] Staff ${req.subadmin._id} — access granted for [${req.method}] on module "${module}".`);
       return next();
     }
 
