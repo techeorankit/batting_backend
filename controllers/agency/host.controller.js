@@ -158,7 +158,11 @@ exports.manageHostRequest = async (req, res) => {
       host.chatRate = settingJSON.chatInteractionRate;
       await host.save();
 
-      res.status(200).json({ status: true, message: "Host request accepted successfully.", data: host });
+      res.status(200).json({
+        status: true,
+        message: "Host request accepted successfully.",
+        data: host,
+      });
 
       const user = await User.findOne({ _id: userObjectId }).select("isHost hostId");
       if (user) {
@@ -171,7 +175,7 @@ exports.manageHostRequest = async (req, res) => {
         const payload = {
           token: host.fcmToken,
           data: {
-            title: "🎉 Host Verification Successful!",
+            title: "✅ Host Verification Successful!",
             body: "Congratulations! Your host request has been approved. You’re now ready to go live! 🚀",
           },
         };
@@ -193,7 +197,11 @@ exports.manageHostRequest = async (req, res) => {
       host.reason = reason.trim();
       await host.save();
 
-      res.status(200).json({ status: true, message: "Host request rejected successfully.", data: host });
+      res.status(200).json({
+        status: true,
+        message: "Host request rejected successfully.",
+        data: host,
+      });
 
       if (host.fcmToken) {
         const payload = {
@@ -213,7 +221,10 @@ exports.manageHostRequest = async (req, res) => {
         }
       }
     } else {
-      return res.status(200).json({ status: false, message: "Invalid status value provided." });
+      return res.status(200).json({
+        status: false,
+        message: "Invalid status value provided.",
+      });
     }
   } catch (error) {
     console.error(error);

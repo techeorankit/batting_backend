@@ -14,6 +14,9 @@ const moment = require("moment");
 
 const Razorpay = require("razorpay");
 
+//private key
+const admin = require("../../util/privateKey");
+
 //get coin history ( user )
 exports.getCoinTransactionRecords = async (req, res) => {
   try {
@@ -290,7 +293,9 @@ exports.handleCoinTransaction = async (req, res) => {
         Gift.findById(giftId).lean().select("_id coin image svgaImage type"),
       ]);
 
-      if (!sender || !gift) return res.status(404).json({ status: false, message: "Invalid sender/receiver/gift" });
+      if (!sender || !gift) {
+        return res.status(404).json({ status: false, message: "Invalid sender/receiver/gift" });
+      }
 
       const count = Number(giftCount);
       const totalCoin = gift.coin * count;
@@ -320,11 +325,16 @@ exports.handleCoinTransaction = async (req, res) => {
         }),
       ]);
 
-      return res.status(200).json({ success: true, message: "Chat gift sent successfully" });
+      return res.status(200).json({
+        status: true,
+        message: "Chat gift sent successfully",
+      });
     } else if (type === "liveGift") {
       const { senderId, receiverId, giftId, giftCount } = req.body || {};
 
-      if (!senderId || !receiverId || !giftId || !giftCount) return res.status(200).json({ status: false, message: "Missing required fields for liveGift" });
+      if (!senderId || !receiverId || !giftId || !giftCount) {
+        return res.status(200).json({ status: false, message: "Missing required fields for liveGift" });
+      }
 
       if (giftId && !mongoose.Types.ObjectId.isValid(giftId)) {
         return res.status(200).json({ status: false, message: "Invalid giftId. Please provide a valid ObjectId." });
@@ -369,9 +379,15 @@ exports.handleCoinTransaction = async (req, res) => {
         }),
       ]);
 
-      return res.status(200).json({ success: true, message: "Live gift sent successfully" });
+      return res.status(200).json({
+        status: true,
+        message: "Live gift sent successfully",
+      });
     } else {
-      return res.status(200).json({ status: false, message: "Invalid transaction type" });
+      return res.status(200).json({
+        status: false,
+        message: "Invalid transaction type",
+      });
     }
   } catch (error) {
     console.error("[handleCoinTransaction]status:false, message:", error);
@@ -404,7 +420,7 @@ exports.purchasePlan = async (req, res) => {
 
     const stripe = require("stripe")(settingJSON?.stripeSecretKey);
 
-    const [uniqueId, user] = await Promise.all([generateHistoryUniqueId(), User.findById(userId).select("_id isVip isBlock").lean()]);
+    const [uniqueId, user] = await Promise.all([generateHistoryUniqueId(), User.findById(userId).select("_id isVip isBlock fcmToken").lean()]);
 
     if (!user) {
       return res.status(200).json({ status: false, message: "User not found." });
@@ -419,7 +435,9 @@ exports.purchasePlan = async (req, res) => {
 
     if (planType === "coinPlan") {
       plan = await CoinPlan.findById(planId).lean();
-      if (!plan) return res.status(200).json({ status: false, message: "Coin plan not found." });
+      if (!plan) {
+        return res.status(200).json({ status: false, message: "Coin plan not found." });
+      }
 
       finalPrice = plan.price;
     }
@@ -428,7 +446,9 @@ exports.purchasePlan = async (req, res) => {
       [plan, vipPrivilege] = await Promise.all([VipPlan.findById(planId).lean(), VipPlanPrivilege.findOne().select("topUpCoinBonus").lean()]);
 
       plan = await VipPlan.findById(planId).lean();
-      if (!plan) return res.status(200).json({ status: false, message: "VIP plan not found." });
+      if (!plan) {
+        return res.status(200).json({ status: false, message: "VIP plan not found." });
+      }
 
       finalPrice = plan.price;
     }
@@ -490,6 +510,24 @@ exports.purchasePlan = async (req, res) => {
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
       ]);
+
+      if (user.fcmToken) {
+        const payload = {
+          token: user.fcmToken,
+          data: {
+            title: "🪙 Coins Added Successfully!",
+            body: `💰 Awesome! ${totalCoins} coins have been credited to your wallet. Enjoy the fun! ✨`,
+            type: "COIN_PURCHASE",
+          },
+        };
+
+        const adminPromise = await admin;
+        adminPromise
+          .messaging()
+          .send(payload)
+          .then((response) => console.log("Notification sent:", response))
+          .catch((error) => console.log("Error sending notification:", error));
+      }
 
       return res.status(200).json({
         status: true,
@@ -554,6 +592,24 @@ exports.purchasePlan = async (req, res) => {
           date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         }),
       ]);
+
+      if (user.fcmToken) {
+        const payload = {
+          token: user.fcmToken,
+          data: {
+            title: "🪙 Coins Added Successfully!",
+            body: `💰 Awesome! ${totalCoins} coins have been credited to your wallet. Enjoy the fun! ✨`,
+            type: "COIN_PURCHASE",
+          },
+        };
+
+        const adminPromise = await admin;
+        adminPromise
+          .messaging()
+          .send(payload)
+          .then((response) => console.log("Notification sent:", response))
+          .catch((error) => console.log("Error sending notification:", error));
+      }
 
       return res.status(200).json({
         status: true,

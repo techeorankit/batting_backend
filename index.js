@@ -108,20 +108,7 @@ async function startServer() {
   const admin = require("./util/privateKey");
 
   //Schedule a task to run at 12 AM every day
-  function deleteFileIfExists(filePath) {
-    if (filePath) {
-      const fullPath = path.resolve(__dirname, filePath);
-
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath);
-        console.log(`File deleted: ${fullPath}`);
-      } else {
-        console.log(`File not found: ${fullPath}`);
-      }
-    } else {
-      console.log("No file path provided to delete.");
-    }
-  }
+  const { deleteFile } = require("./util/deletefile");
 
   cron.schedule("0 0 * * 0", async () => {
     try {
@@ -155,14 +142,7 @@ async function startServer() {
         await Promise.all(
           users.map(async (user) => {
             if (user?.image) {
-              const image = user?.image?.split("storage");
-              if (image) {
-                const imagePath = "storage" + image[1];
-                if (fs.existsSync(imagePath)) {
-                  fs.unlinkSync(imagePath);
-                  console.log(`Deleted user image: ${imagePath}`);
-                }
-              }
+              deleteFile(user?.image);
             }
 
             const [chats, hosts] = await Promise.all([
@@ -174,28 +154,28 @@ async function startServer() {
             ]);
 
             for (const chat of chats) {
-              deleteFileIfExists(chat?.image);
-              deleteFileIfExists(chat?.audio);
+              deleteFile(chat?.image);
+              deleteFile(chat?.audio);
             }
 
             for (const host of hosts) {
-              deleteFileIfExists(host?.image);
+              deleteFile(host?.image);
 
               if (Array.isArray(host.photoGallery)) {
                 for (const imgPath of host.photoGallery) {
-                  deleteFileIfExists(imgPath);
+                  deleteFile(imgPath);
                 }
               }
 
               if (Array.isArray(host.video)) {
                 for (const imgPath of host.video) {
-                  deleteFileIfExists(imgPath);
+                  deleteFile(imgPath);
                 }
               }
 
               if (Array.isArray(host.liveVideo)) {
                 for (const imgPath of host.liveVideo) {
-                  deleteFileIfExists(imgPath);
+                  deleteFile(imgPath);
                 }
               }
 

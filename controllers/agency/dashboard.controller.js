@@ -221,7 +221,7 @@ exports.retrieveRecentHosts = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: "Recent hosts retrieved successfully ✅",
+      message: "Recent hosts retrieved successfully",
       data: recentHosts,
     });
   } catch (error) {
@@ -289,7 +289,7 @@ exports.listTopEarningHosts = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: "Top performing hosts retrieved successfully ✅",
+      message: "Top performing hosts retrieved successfully",
       data: topHosts,
     });
   } catch (error) {

@@ -15,12 +15,10 @@ const validateUserAccessToken = async (req, res, next) => {
   const userUid = req.headers["x-user-uid"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.warn("⚠️ [AUTH] Missing or invalid authorization header.");
     return res.status(401).json({ status: false, message: "Authorization token required" });
   }
 
   if (!userUid) {
-    console.warn("⚠️ [AUTH] Missing API key or User UID.");
     return res.status(401).json({ status: false, message: "User UID required for authentication." });
   }
 
@@ -30,17 +28,14 @@ const validateUserAccessToken = async (req, res, next) => {
     const [decodedToken, mongoUser] = await Promise.all([admin.auth().verifyIdToken(token), User.findOne({ firebaseUid: userUid }).select("_id isBlock").lean()]);
 
     if (!decodedToken) {
-      console.warn("⚠️ [AUTH] Token verification failed.");
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 
     if (!mongoUser) {
-      console.warn(`⚠️ [AUTH] No user found in MongoDB for Firebase UID: ${decodedToken.uid}`);
       return res.status(200).json({ status: false, message: "User not found in the database." });
     }
 
     if (mongoUser.isBlock) {
-      console.warn(`⚠️ [AUTH] User is blocked by admin: ${decodedToken.uid}`);
       return res.status(403).json({ status: false, message: "🚷 User are blocked by the admin." });
     }
 

@@ -26,13 +26,10 @@ const admin = require("../../util/privateKey");
 //mongoose
 const mongoose = require("mongoose");
 
-//fs
-const fs = require("fs");
-
 //get impression list
 exports.getPersonalityImpressions = async (req, res) => {
   try {
-    const personalityImpressions = await Impression.find({}).select("name").sort({ createdAt: -1 }).lean();
+    const personalityImpressions = await Impression.find({}).select("name createdAt").sort({ createdAt: -1 }).lean();
 
     return res.status(200).json({
       status: true,
@@ -200,7 +197,8 @@ exports.verifyHostRequestStatus = async (req, res) => {
 
     const userId = new mongoose.Types.ObjectId(req.user.userId);
 
-    const host = await Host.findOne({ userId: userId }).select("status date photoGallery image name dob gender country countryFlagImage bio").lean();
+    const host = await Host.findOne({ userId: userId }).select("status date photoGallery image name dob gender country countryFlagImage bio createdAt").sort({ createdAt: -1 }).lean();
+
     if (!host) {
       return res.status(200).json({ status: false, message: "Request not found for that user!" });
     }
@@ -1014,8 +1012,8 @@ exports.retrieveAvailableHost = async (req, res) => {
 //update host's info  ( host )
 exports.modifyHostDetails = async (req, res) => {
   try {
-    console.log("📥 req.body modifyHostDetails:", req.body);
-    console.log("📁 req.files modifyHostDetails:", req.files);
+    // console.log("📥 req.body modifyHostDetails:", req.body);
+    // console.log("📁 req.files modifyHostDetails:", req.files);
 
     const {
       hostId,
@@ -1137,11 +1135,8 @@ exports.modifyHostDetails = async (req, res) => {
 
     if (req.files?.image) {
       if (host.image) {
-        const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
-        if (imagePath && fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-          console.log(`🗑️ Deleted existing profile image: ${imagePath}`);
-        }
+        deleteFile(host.image);
+        console.log(`🗑️ Deleted existing profile image: ${host.image}`);
       }
       host.image = req.files.image[0].path;
       console.log(`🆕 Set new profile image: ${host.image}`);
@@ -1154,13 +1149,9 @@ exports.modifyHostDetails = async (req, res) => {
         .sort((a, b) => b - a);
       for (const i of sorted) {
         const filePath = host.photoGallery?.[i];
-        if (filePath && fs.existsSync(filePath)) {
-          try {
-            fs.unlinkSync(filePath);
-            console.log(`🗑️ Deleted photoGallery[${i}]: ${filePath}`);
-          } catch (err) {
-            console.error(`❌ Error deleting photoGallery[${i}]:`, err);
-          }
+        if (filePath) {
+          deleteFile(filePath);
+          console.log(`🗑️ Deleted photoGallery[${i}]: ${filePath}`);
         }
         host.photoGallery.splice(i, 1);
       }
@@ -1181,13 +1172,9 @@ exports.modifyHostDetails = async (req, res) => {
         .sort((a, b) => b - a);
       for (const i of sorted) {
         const filePath = host.profileVideo?.[i];
-        if (filePath && fs.existsSync(filePath)) {
-          try {
-            fs.unlinkSync(filePath);
-            console.log(`🗑️ Deleted profileVideo[${i}]: ${filePath}`);
-          } catch (err) {
-            console.error(`❌ Error deleting profileVideo[${i}]:`, err);
-          }
+        if (filePath) {
+          deleteFile(filePath);
+          console.log(`🗑️ Deleted profileVideo[${i}]: ${filePath}`);
         }
         host.profileVideo.splice(i, 1);
       }
@@ -1203,9 +1190,9 @@ exports.modifyHostDetails = async (req, res) => {
 
     await host.save();
 
-    console.log("✅ Final image:", host.image);
-    console.log("✅ Final photoGallery:", host.photoGallery);
-    console.log("✅ Final profileVideo:", host.profileVideo);
+    // console.log("✅ Final image:", host.image);
+    // console.log("✅ Final photoGallery:", host.photoGallery);
+    // console.log("✅ Final profileVideo:", host.profileVideo);
 
     return res.status(200).json({
       status: true,

@@ -10,6 +10,9 @@ const mongoose = require("mongoose");
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
+//private key
+const admin = require("../../util/privateKey");
+
 //get coinPlan
 exports.getCoinPackage = async (req, res) => {
   try {
@@ -45,7 +48,7 @@ exports.recordCoinPlanPurchase = async (req, res) => {
 
     const [uniqueId, user, coinPlan] = await Promise.all([
       generateHistoryUniqueId(),
-      User.findById(userObjectId).select("_id isVip").lean(),
+      User.findById(userObjectId).select("_id isVip fcmToken").lean(),
       CoinPlan.findById(coinPlanObjectId).select("_id coins bonusCoins price").lean(),
     ]);
 
@@ -78,6 +81,24 @@ exports.recordCoinPlanPurchase = async (req, res) => {
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),
     ]);
+
+    if (user.fcmToken) {
+      const payload = {
+        token: user.fcmToken,
+        data: {
+          title: "🪙 Coins Added Successfully!",
+          body: `💰 Awesome! ${totalCoins} coins have been credited to your wallet. Enjoy the fun! ✨`,
+          type: "COIN_PURCHASE",
+        },
+      };
+
+      const adminPromise = await admin;
+      adminPromise
+        .messaging()
+        .send(payload)
+        .then((response) => console.log("Notification sent:", response))
+        .catch((error) => console.log("Error sending notification:", error));
+    }
   } catch (error) {
     console.log(error);
     return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });

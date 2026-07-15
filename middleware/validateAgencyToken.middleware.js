@@ -15,12 +15,10 @@ const validateAgencyFirebaseToken = async (req, res, next) => {
   const agencyUid = req.headers["x-agency-uid"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.warn("⚠️ [AUTH] Missing or invalid authorization header.");
     return res.status(401).json({ status: false, message: "Authorization token required" });
   }
 
   if (!agencyUid) {
-    console.warn("⚠️ [AUTH] Missing API key or Agency UID.");
     return res.status(401).json({ status: false, message: "Agency UID required for authentication." });
   }
 
@@ -30,12 +28,10 @@ const validateAgencyFirebaseToken = async (req, res, next) => {
     const [decodedToken, agency] = await Promise.all([admin.auth().verifyIdToken(token), Agency.findOne({ uid: agencyUid }).select("_id email password")]);
 
     if (!decodedToken || !decodedToken.email) {
-      console.warn("⚠️ [AUTH] Invalid token. Email not found.");
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 
     if (!agency) {
-      console.warn("⚠️ [AUTH] Agency not found.");
       return res.status(401).json({ status: false, message: "Agency not found. Authorization failed." });
     }
 

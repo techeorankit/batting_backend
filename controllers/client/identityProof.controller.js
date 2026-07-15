@@ -3,7 +3,7 @@ const IdentityProof = require("../../models/identityProof.model");
 //retrieve all identity proof types
 exports.fetchIdentityDocuments = async (req, res) => {
   try {
-    const identityProofs = await IdentityProof.find().select("_id title createdAt").lean();
+    const identityProofs = await (await IdentityProof.find().select("_id title createdAt")).toSorted({ createdAt: -1 }).lean();
 
     return res.status(200).json({
       status: true,

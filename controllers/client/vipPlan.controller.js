@@ -14,10 +14,13 @@ const moment = require("moment");
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
 
+//private key
+const admin = require("../../util/privateKey");
+
 //get vipPlan
 exports.fetchVipPlans = async (req, res) => {
   try {
-    const vipPlans = await VipPlan.find({ isActive: true }).select("validity validityType coin price productId").sort({ createdAt: -1 }).lean();
+    const vipPlans = await VipPlan.find({ isActive: true }).select("validity validityType coin price productId createdAt").sort({ createdAt: -1 }).lean();
 
     return res.status(200).json({
       status: true,
@@ -47,7 +50,7 @@ exports.purchaseVipPlan = async (req, res) => {
 
     const [uniqueId, user, vipPlan, vipPrivilege] = await Promise.all([
       generateHistoryUniqueId(),
-      User.findById(userId).select("_id isVip vipPlanStartDate vipPlanEndDate vipPlan").lean(),
+      User.findById(userId).select("_id isVip vipPlanStartDate vipPlanEndDate vipPlan fcmToken").lean(),
       VipPlan.findById(vipPlanId).select("_id validity validityType price coin").lean(),
       VipPlanPrivilege.findOne().select("topUpCoinBonus").lean(),
     ]);
@@ -116,6 +119,24 @@ exports.purchaseVipPlan = async (req, res) => {
         date: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
       }),
     ]);
+
+    if (user.fcmToken) {
+      const payload = {
+        token: user.fcmToken,
+        data: {
+          title: "👑 VIP Plan Activated!",
+          body: `✨ Welcome to VIP! Your plan is active and ${totalCoins} coins have been credited to your wallet. Enjoy exclusive perks! 🪙`,
+          type: "VIP_PURCHASE",
+        },
+      };
+
+      const adminPromise = await admin;
+      adminPromise
+        .messaging()
+        .send(payload)
+        .then((response) => console.log("Notification sent:", response))
+        .catch((error) => console.log("Error sending notification:", error));
+    }
   } catch (error) {
     console.log(error);
     return res.json({ status: false, error: error.message || "Internal Server Error" });

@@ -11,7 +11,6 @@ const validateAuthToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"] || req.headers["Authorization"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.warn("⚠️ [AUTH] Authorization token missing or malformed.");
     return res.status(401).json({ status: false, message: "Authorization token required" });
   }
 
@@ -21,7 +20,6 @@ const validateAuthToken = async (req, res, next) => {
     const decodedToken = await admin.auth().verifyIdToken(token);
 
     if (!decodedToken) {
-      console.warn("⚠️ [AUTH] Invalid token. Authorization failed.");
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 

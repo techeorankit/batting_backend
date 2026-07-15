@@ -145,12 +145,25 @@ exports.updateAgencyWithdrawalStatus = async (req, res) => {
       Agency.findById(agencyId).lean().select("_id isBlock fcmToken netAvailableEarnings"),
     ]);
 
-    if (!request) return res.status(200).json({ status: false, message: "Withdrawal request not found." });
-    if (!agency) return res.status(200).json({ status: false, message: "Agency not found." });
-    if (agency.isBlock) return res.status(403).json({ status: false, message: "Agency is blocked by admin." });
+    if (!request) {
+      return res.status(200).json({ status: false, message: "Withdrawal request not found." });
+    }
 
-    if (request.status === 2) return res.status(200).json({ status: false, message: "Request already approved." });
-    if (request.status === 3) return res.status(200).json({ status: false, message: "Request already declined." });
+    if (!agency) {
+      return res.status(200).json({ status: false, message: "Agency not found." });
+    }
+
+    if (agency.isBlock) {
+      return res.status(403).json({ status: false, message: "Agency is blocked by admin." });
+    }
+
+    if (request.status === 2) {
+      return res.status(200).json({ status: false, message: "Request already approved." });
+    }
+
+    if (request.status === 3) {
+      return res.status(200).json({ status: false, message: "Request already declined." });
+    }
 
     if (actionType === "approve") {
       const agencyBalance = agency.netAvailableEarnings;

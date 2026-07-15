@@ -83,8 +83,8 @@ exports.submitWithdrawalRequest = async (req, res) => {
       requestDate: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     };
 
-    console.log("paymentDetails type:", typeof paymentDetails);
-    console.log("paymentDetails value:", paymentDetails);
+    // console.log("paymentDetails type:", typeof paymentDetails);
+    // console.log("paymentDetails value:", paymentDetails);
 
     const historyData = {
       uniqueId,
@@ -179,8 +179,12 @@ exports.listPayoutRequests = async (req, res) => {
 
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [host, withdrawalData] = await Promise.all([
-      Host.findOne({ _id: hostId }).select("_id").lean(),
+    const host = await Host.findOne({ _id: hostId }).select("_id").lean();
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host account not found." });
+    }
+    
+    const [withdrawalData] = await Promise.all([
       WithdrawalRequest.aggregate([
         {
           $match: {
@@ -243,10 +247,6 @@ exports.listPayoutRequests = async (req, res) => {
 
     const totalRecords = withdrawalData[0]?.totalRecords[0]?.count || 0;
     const records = withdrawalData[0]?.records || [];
-
-    if (!host) {
-      return res.status(200).json({ status: false, message: "Host account not found." });
-    }
 
     return res.status(200).json({
       status: true,

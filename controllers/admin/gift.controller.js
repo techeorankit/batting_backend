@@ -1,11 +1,8 @@
 const Gift = require("../../models/gift.model");
 const GiftCategory = require("../../models/giftCategory.model");
 
-//fs
-const fs = require("fs");
-
 //deletefile
-const { deleteFiles } = require("../../util/deletefile");
+const { deleteFile, deleteFiles } = require("../../util/deletefile");
 
 //create gift
 exports.addGift = async (req, res, next) => {
@@ -76,12 +73,7 @@ exports.modifyGift = async (req, res, next) => {
 
     if (req.files.image) {
       if (gift.image) {
-        const image = gift?.image?.split("storage");
-        if (image) {
-          if (fs.existsSync("storage" + image[1])) {
-            fs.unlinkSync("storage" + image[1]);
-          }
-        }
+        deleteFile(gift?.image);
       }
 
       gift.image = req.files.image ? req.files.image[0].path : gift.image;
@@ -89,12 +81,7 @@ exports.modifyGift = async (req, res, next) => {
 
     if (req.body.type == 3 && req.files.svgaImage) {
       if (gift.svgaImage) {
-        const svgaImage = gift?.svgaImage?.split("storage");
-        if (svgaImage) {
-          if (fs.existsSync("storage" + svgaImage[1])) {
-            fs.unlinkSync("storage" + svgaImage[1]);
-          }
-        }
+        deleteFile(gift?.svgaImage);
       }
 
       gift.svgaImage = req.files.svgaImage ? req.files.svgaImage[0].path : gift.svgaImage;

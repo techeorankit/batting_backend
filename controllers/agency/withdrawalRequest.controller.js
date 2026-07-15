@@ -157,17 +157,29 @@ exports.updateWithdrawalStatus = async (req, res) => {
       Host.findById(hostId).lean().select("_id isBlock fcmToken coin"),
     ]);
 
-    if (!request) return res.status(200).json({ status: false, message: "Withdrawal request not found." });
-    if (!host) return res.status(200).json({ status: false, message: "Host not found." });
-    if (host.isBlock) return res.status(403).json({ status: false, message: "Host is blocked by admin." });
+    if (!request) {
+      return res.status(200).json({ status: false, message: "Withdrawal request not found." });
+    }
 
-    if (request.status === 2) return res.status(200).json({ status: false, message: "Request already approved." });
-    if (request.status === 3) return res.status(200).json({ status: false, message: "Request already declined." });
+    if (!host) {
+      return res.status(200).json({ status: false, message: "Host not found." });
+    }
+
+    if (host.isBlock) {
+      return res.status(403).json({ status: false, message: "Host is blocked by admin." });
+    }
+
+    if (request.status === 2) {
+      return res.status(200).json({ status: false, message: "Request already approved." });
+    }
+
+    if (request.status === 3) {
+      return res.status(200).json({ status: false, message: "Request already declined." });
+    }
 
     if (actionType === "approve") {
       const hostBalance = host.coin;
 
-      // Check sufficient balance
       if (!hostBalance || hostBalance.coin < request.coin) {
         return res.status(200).json({
           status: false,
@@ -371,8 +383,8 @@ exports.initiateWithdrawal = async (req, res) => {
       requestDate: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
     };
 
-    console.log("paymentDetails type:", typeof paymentDetails);
-    console.log("paymentDetails value:", paymentDetails);
+    // console.log("paymentDetails type:", typeof paymentDetails);
+    // console.log("paymentDetails value:", paymentDetails);
 
     if (declinedRequest) {
       res.status(200).json({

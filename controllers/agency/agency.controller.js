@@ -10,8 +10,8 @@ const cryptr = new Cryptr("myTotallySecretKey");
 //mongoose
 const mongoose = require("mongoose");
 
-//fs
-const fs = require("fs");
+//deletefile
+const { deleteFile } = require("../../util/deletefile");
 
 //agency login
 exports.loginAgency = async (req, res) => {
@@ -100,10 +100,7 @@ exports.modifyAgency = async (req, res) => {
 
     if (req.file) {
       if (agency.image) {
-        const imagePath = agency.image.includes("storage") ? "storage" + agency.image.split("storage")[1] : "";
-        if (imagePath && fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-        }
+        deleteFile(agency.image);
       }
       agency.image = req.file.path;
     }

@@ -16,11 +16,8 @@ const admin = require("../../util/privateKey");
 //mongoose
 const mongoose = require("mongoose");
 
-//fs
-const fs = require("fs");
-
 //deletefile
-const { deleteFiles } = require("../../util/deletefile");
+const { deleteFile, deleteFiles } = require("../../util/deletefile");
 
 //generateUniqueId
 const generateUniqueId = require("../../util/generateUniqueId");
@@ -184,7 +181,7 @@ exports.handleHostRequest = async (req, res) => {
         const payload = {
           token: host.fcmToken,
           data: {
-            title: "🎉 Host Verification Successful!",
+            title: "✅ Host Verification Successful!",
             body: "Congratulations! Your host request has been approved. You’re now ready to go live! 🚀",
           },
         };
@@ -329,7 +326,7 @@ exports.assignHostToAgency = async (req, res) => {
       const payload = {
         token: hostRequest.fcmToken,
         data: {
-          title: "🎉 Host Verification Successful!",
+          title: "✅ Host Verification Successful!",
           body: "Congratulations! Your host request has been approved. You’re now ready to go live! 🚀",
         },
       };
@@ -595,8 +592,8 @@ exports.createHost = async (req, res) => {
 //update host
 exports.updateHost = async (req, res) => {
   try {
-    console.log("📥 req.body updateHost:", req.body);
-    console.log("📁 req.files updateHost:", req.files);
+    // console.log("📥 req.body updateHost:", req.body);
+    // console.log("📁 req.files updateHost:", req.files);
 
     const {
       hostId,
@@ -715,8 +712,8 @@ exports.updateHost = async (req, res) => {
     host.chatRate = chatRate || host?.chatRate;
 
     if (req.files?.image?.[0]) {
-      if (host.image && fs.existsSync(host.image)) {
-        fs.unlinkSync(host.image);
+      if (host.image) {
+        deleteFile(host.image);
         console.log("🗑️ Deleted previous image:", host.image);
       }
       host.image = req.files.image[0].path;
@@ -730,8 +727,8 @@ exports.updateHost = async (req, res) => {
         .sort((a, b) => b - a);
       for (const i of sorted) {
         const filePath = host.photoGallery?.[i];
-        if (filePath && fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
+        if (filePath) {
+          deleteFile(filePath);
           console.log(`🗑️ Deleted photoGallery[${i}]: ${filePath}`);
         }
         host.photoGallery.splice(i, 1);
@@ -751,8 +748,8 @@ exports.updateHost = async (req, res) => {
         .sort((a, b) => b - a);
       for (const i of sorted) {
         const videoPath = host.video?.[i];
-        if (videoPath && fs.existsSync(videoPath)) {
-          fs.unlinkSync(videoPath);
+        if (videoPath) {
+          deleteFile(videoPath);
           console.log(`🗑️ Deleted video[${i}]: ${videoPath}`);
         }
         host.video.splice(i, 1);
@@ -772,8 +769,8 @@ exports.updateHost = async (req, res) => {
         .sort((a, b) => b - a);
       for (const i of sorted) {
         const filePath = host.liveVideo?.[i];
-        if (filePath && fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
+        if (filePath) {
+          deleteFile(filePath);
           console.log(`🗑️ Deleted liveVideo[${i}]: ${filePath}`);
         }
         host.liveVideo.splice(i, 1);
@@ -793,8 +790,8 @@ exports.updateHost = async (req, res) => {
         .sort((a, b) => b - a);
       for (const i of sorted) {
         const filePath = host.profileVideo?.[i];
-        if (filePath && fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
+        if (filePath) {
+          deleteFile(filePath);
           console.log(`🗑️ Deleted profileVideo[${i}]: ${filePath}`);
         }
         host.profileVideo.splice(i, 1);
@@ -809,11 +806,11 @@ exports.updateHost = async (req, res) => {
 
     await host.save();
 
-    console.log("✅ Final image:", host.image);
-    console.log("✅ Final photoGallery:", host.photoGallery);
-    console.log("✅ Final video:", host.video);
-    console.log("✅ Final liveVideo:", host.liveVideo);
-    console.log("✅ Final profileVideo:", host.profileVideo);
+    // console.log("✅ Final image:", host.image);
+    // console.log("✅ Final photoGallery:", host.photoGallery);
+    // console.log("✅ Final video:", host.video);
+    // console.log("✅ Final liveVideo:", host.liveVideo);
+    // console.log("✅ Final profileVideo:", host.profileVideo);
 
     return res.status(200).json({
       status: true,
@@ -859,6 +856,25 @@ exports.toggleHostStatusByType = async (req, res) => {
     host[type] = !host[type];
     await host.save();
 
+    if (type === "isBlock" && host.isBlock && host.fcmToken) {
+      const payload = {
+        token: host.fcmToken,
+        data: {
+          title: "🚫 Account Blocked!",
+          body: "⚠️ Your host account has been blocked by admin. You can no longer access host features. Contact support if this is a mistake.",
+          type: "HOST_BLOCK",
+        },
+      };
+
+      try {
+        const adminInstance = await admin;
+        await adminInstance.messaging().send(payload);
+        console.log("Notification sent successfully.");
+      } catch (error) {
+        console.error("Error sending notification:", error);
+      }
+    }
+
     return res.status(200).json({
       status: true,
       message: `Host ${type} status has been ${host[type] ? "enabled" : "disabled"} successfully.`,
@@ -887,7 +903,7 @@ exports.fetchHostProfile = async (req, res) => {
       return res.status(200).json({ status: false, message: "Invalid hostId format." });
     }
 
-    const [host] = await Promise.all([Host.findOne({ _id: hostId }).populate("agencyId", "name image agencyCode")]);
+    const host = await Host.findOne({ _id: hostId }).populate("agencyId", "name image agencyCode");
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host not found." });
@@ -1114,78 +1130,37 @@ exports.deleteHost = async (req, res) => {
     });
 
     if (host.image) {
-      const imagePath = host.image.includes("storage") ? "storage" + host.image.split("storage")[1] : "";
-      if (imagePath && fs.existsSync(imagePath)) {
-        try {
-          fs.unlinkSync(imagePath);
-        } catch (error) {
-          console.error(`Error deleting profile image: ${imagePath}`, error);
-        }
-      }
+      deleteFile(host.image);
     }
 
     if (Array.isArray(host.photoGallery) && host.photoGallery.length > 0) {
       for (const photoUrl of host.photoGallery) {
         if (photoUrl) {
-          const photoGalleryPath = photoUrl?.split("storage");
-          if (photoGalleryPath?.[1]) {
-            const filePath = "storage" + photoGalleryPath[1];
-            if (fs.existsSync(filePath)) {
-              try {
-                fs.unlinkSync(filePath);
-              } catch (error) {
-                console.error(`Error deleting gallery image: ${filePath}`, error);
-              }
-            }
-          }
+          deleteFile(photoUrl);
         }
       }
     }
 
     if (Array.isArray(host.video) && host.video.length > 0) {
       for (const videoUrl of host.video) {
-        const videoPath = videoUrl?.split("storage");
-        if (videoPath?.[1]) {
-          const filePath = "storage" + videoPath[1];
-          if (fs.existsSync(filePath)) {
-            try {
-              fs.unlinkSync(filePath);
-            } catch (error) {
-              console.error(`Error deleting gallery image: ${filePath}`, error);
-            }
-          }
+        if (videoUrl) {
+          deleteFile(videoUrl);
         }
       }
     }
 
     if (Array.isArray(host.liveVideo) && host.liveVideo.length > 0) {
       for (const liveVideo of host.liveVideo) {
-        const liveVideoPath = liveVideo?.split("storage");
-        if (liveVideoPath?.[1]) {
-          const filePath = "storage" + liveVideoPath[1];
-          if (fs.existsSync(filePath)) {
-            try {
-              fs.unlinkSync(filePath);
-            } catch (error) {
-              console.error(`Error deleting gallery image: ${filePath}`, error);
-            }
-          }
+        if (liveVideo) {
+          deleteFile(liveVideo);
         }
       }
     }
 
     if (Array.isArray(host.profileVideo) && host.profileVideo.length > 0) {
       for (const profileVideo of host.profileVideo) {
-        const profileVideoPath = profileVideo?.split("storage");
-        if (profileVideoPath?.[1]) {
-          const filePath = "storage" + profileVideoPath[1];
-          if (fs.existsSync(filePath)) {
-            try {
-              fs.unlinkSync(filePath);
-            } catch (error) {
-              console.error(`Error deleting gallery image: ${filePath}`, error);
-            }
-          }
+        if (profileVideo) {
+          deleteFile(profileVideo);
         }
       }
     }

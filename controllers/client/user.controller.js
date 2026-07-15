@@ -1,8 +1,5 @@
 const User = require("../../models/user.model");
 
-//fs
-const fs = require("fs");
-
 //mongoose
 const mongoose = require("mongoose");
 
@@ -27,23 +24,6 @@ const { deleteFile } = require("../../util/deletefile");
 
 //userFunction
 const userFunction = require("../../util/userFunction");
-
-const path = require("path");
-
-function deleteFileIfExists(filePath) {
-  if (filePath) {
-    const fullPath = path.resolve(__dirname, filePath);
-
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      console.log(`File deleted: ${fullPath}`);
-    } else {
-      console.log(`File not found: ${fullPath}`);
-    }
-  } else {
-    console.log("No file path provided to delete.");
-  }
-}
 
 //generateHistoryUniqueId
 const generateHistoryUniqueId = require("../../util/generateHistoryUniqueId");
@@ -360,22 +340,36 @@ exports.modifyUserProfile = async (req, res) => {
       return res.status(401).json({ status: false, message: "Unauthorized access. Invalid token." });
     }
 
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
+    const mobileNumber = req.body.mobileNumber ? req.body.mobileNumber.trim() : null;
+
+    const [user, existingMobile] = await Promise.all([
+      User.findOne({ _id: userId }),
+      mobileNumber
+        ? User.findOne({ mobileNumber, _id: { $ne: userId } })
+            .select("_id")
+            .lean()
+        : null,
+    ]);
+
+    if (!user) {
+      if (req.file) deleteFile(req.file);
+      return res.status(200).json({ status: false, message: "User not found." });
+    }
+
+    if (existingMobile) {
+      if (req.file) deleteFile(req.file);
+      return res.status(200).json({ status: false, message: "Mobile number already exists" });
+    }
+
     res.status(200).json({
       status: true,
       message: "The user's profile has been modified.",
     });
 
-    const userId = new mongoose.Types.ObjectId(req.user.userId);
-
-    const [user] = await Promise.all([User.findOne({ _id: userId })]);
-
     if (req?.file) {
-      const image = user?.image?.split("storage");
-      if (image) {
-        const imagePath = "storage" + image[1];
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-        }
+      if (user?.image) {
+        deleteFile(user?.image);
       }
 
       user.image = req?.file?.path;
@@ -383,7 +377,7 @@ exports.modifyUserProfile = async (req, res) => {
 
     user.name = req.body.name ? req.body.name : user?.name;
     user.email = req.body.email ? req.body.email : user?.email;
-    user.mobileNumber = req.body.mobileNumber ? req.body.mobileNumber : user?.mobileNumber;
+    user.mobileNumber = mobileNumber ? mobileNumber : user?.mobileNumber;
     user.countryCode = req.body.countryCode ? req.body.countryCode : user?.countryCode;
     user.selfIntro = req.body.selfIntro ? req.body.selfIntro : user?.selfIntro;
     user.gender = req.body.gender ? req.body.gender?.toLowerCase()?.trim() : user?.gender;
@@ -453,23 +447,23 @@ exports.deactivateMyAccount = async (req, res) => {
     const host = await Host.findOne({ userId: user?._id }).select("_id image photoGallery video liveVideo profileVideo identityProof").lean();
 
     if (host) {
-      deleteFileIfExists(host?.image);
+      deleteFile(host?.image);
 
       if (Array.isArray(host.photoGallery)) {
         for (const imgPath of host.photoGallery) {
-          deleteFileIfExists(imgPath);
+          deleteFile(imgPath);
         }
       }
 
       if (Array.isArray(host.video)) {
         for (const imgPath of host.video) {
-          deleteFileIfExists(imgPath);
+          deleteFile(imgPath);
         }
       }
 
       if (Array.isArray(host.liveVideo)) {
         for (const imgPath of host.liveVideo) {
-          deleteFileIfExists(imgPath);
+          deleteFile(imgPath);
         }
       }
       await Promise.all([
@@ -492,21 +486,14 @@ exports.deactivateMyAccount = async (req, res) => {
     }
 
     if (user?.image) {
-      const image = user?.image?.split("storage");
-      if (image) {
-        const imagePath = "storage" + image[1];
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-          console.log(`Deleted user image: ${imagePath}`);
-        }
-      }
+      deleteFile(user?.image);
     }
 
     const [chats] = await Promise.all([Chat.find({ senderId: user?._id })]);
 
     for (const chat of chats) {
-      deleteFileIfExists(chat?.image);
-      deleteFileIfExists(chat?.audio);
+      deleteFile(chat?.image);
+      deleteFile(chat?.audio);
     }
 
     await Promise.all([

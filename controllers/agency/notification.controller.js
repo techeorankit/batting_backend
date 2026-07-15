@@ -39,7 +39,10 @@ exports.notifyHost = async (req, res) => {
     }
 
     try {
-      res.status(200).json({ status: true, message: "Notification sent successfully." });
+      res.status(200).json({
+        status: true,
+        message: "Notification sent successfully.",
+      });
 
       const notificationPayload = {
         token: host.fcmToken,

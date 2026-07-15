@@ -1,8 +1,5 @@
 const Admin = require("../../models/admin.model");
 
-//fs
-const fs = require("fs");
-
 //Cryptr
 const Cryptr = require("cryptr");
 const cryptr = new Cryptr("myTotallySecretKey");
@@ -213,10 +210,7 @@ exports.modifyAdminProfile = async (req, res) => {
 
     if (req.file) {
       if (admin.image) {
-        const imagePath = admin.image.includes("storage") ? "storage" + admin.image.split("storage")[1] : "";
-        if (imagePath && fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-        }
+        deleteFile(admin.image);
       }
       updateFields.image = req.file.path;
     }

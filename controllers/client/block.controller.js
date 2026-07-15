@@ -8,6 +8,9 @@ const FollowerFollowing = require("../../models/followerFollowing.model");
 //mongoose
 const mongoose = require("mongoose");
 
+//private key
+const admin = require("../../util/privateKey");
+
 //handle user blocking a host
 exports.blockHost = async (req, res) => {
   try {
@@ -22,7 +25,7 @@ exports.blockHost = async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.user.userId);
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
 
-    const [user, host, existingBlock] = await Promise.all([User.findById(userId).select("_id").lean(), Host.findById(hostId).select("_id").lean(), Block.findOne({ userId, hostId })]);
+    const [user, host, existingBlock] = await Promise.all([User.findById(userId).select("_id name").lean(), Host.findById(hostId).select("_id fcmToken").lean(), Block.findOne({ userId, hostId })]);
 
     if (!user) {
       return res.status(200).json({ status: false, message: "User not found." });
@@ -43,11 +46,32 @@ exports.blockHost = async (req, res) => {
         await FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId });
       }
 
-      return res.status(200).json({
+      res.status(200).json({
         status: true,
         message: newStatus ? "Host blocked successfully." : "Host unblocked successfully.",
         isBlocked: newStatus,
       });
+
+      if (host.fcmToken) {
+        const payload = {
+          token: host.fcmToken,
+          data: {
+            title: newStatus ? "🚫 You’ve Been Blocked!" : "🔓 You’re Unblocked!",
+            body: newStatus
+              ? `👋 ${user.name || "Someone"} just blocked you. You won’t be able to interact with them anymore.`
+              : `✨ Good news! ${user.name || "Someone"} has unblocked you. You’re free to connect again!`,
+            type: newStatus ? "BLOCK" : "UNBLOCK",
+          },
+        };
+
+        const adminPromise = await admin;
+        adminPromise
+          .messaging()
+          .send(payload)
+          .then((response) => console.log("Notification sent:", response))
+          .catch((error) => console.log("Error sending notification:", error));
+      }
+      return;
     } else {
       console.log("Creating new block entry for user blocking host");
 
@@ -61,11 +85,30 @@ exports.blockHost = async (req, res) => {
         FollowerFollowing.deleteOne({ followerId: userId, followingId: hostId }),
       ]);
 
-      return res.status(200).json({
+      res.status(200).json({
         status: true,
         message: "Host blocked successfully.",
         isBlocked: true,
       });
+
+      if (host.fcmToken) {
+        const payload = {
+          token: host.fcmToken,
+          data: {
+            title: "🚫 You’ve Been Blocked!",
+            body: `👋 ${user.name || "Someone"} just blocked you. You won’t be able to interact with them anymore.`,
+            type: "BLOCK",
+          },
+        };
+
+        const adminPromise = await admin;
+        adminPromise
+          .messaging()
+          .send(payload)
+          .then((response) => console.log("Notification sent:", response))
+          .catch((error) => console.log("Error sending notification:", error));
+      }
+      return;
     }
   } catch (error) {
     console.error(error);
@@ -87,7 +130,7 @@ exports.blockUser = async (req, res) => {
     const hostId = new mongoose.Types.ObjectId(req.query.hostId);
     const userId = new mongoose.Types.ObjectId(req.query.userId);
 
-    const [host, user, existingBlock] = await Promise.all([Host.findById(hostId).select("_id").lean(), User.findById(userId).select("_id").lean(), Block.findOne({ userId, hostId })]);
+    const [host, user, existingBlock] = await Promise.all([Host.findById(hostId).select("_id name").lean(), User.findById(userId).select("_id fcmToken").lean(), Block.findOne({ userId, hostId })]);
 
     if (!host) {
       return res.status(200).json({ status: false, message: "Host not found." });
@@ -108,11 +151,32 @@ exports.blockUser = async (req, res) => {
         await FollowerFollowing.deleteMany({ followerId: userId, followingId: hostId });
       }
 
-      return res.status(200).json({
+      res.status(200).json({
         status: true,
         message: newStatus ? "User blocked successfully." : "User unblocked successfully.",
         isBlocked: newStatus,
       });
+
+      if (user.fcmToken) {
+        const payload = {
+          token: user.fcmToken,
+          data: {
+            title: newStatus ? "🚫 You’ve Been Blocked!" : "🔓 You’re Unblocked!",
+            body: newStatus
+              ? `👋 ${host.name || "Someone"} just blocked you. You won’t be able to interact with them anymore.`
+              : `✨ Good news! ${host.name || "Someone"} has unblocked you. You’re free to connect again!`,
+            type: newStatus ? "BLOCK" : "UNBLOCK",
+          },
+        };
+
+        const adminPromise = await admin;
+        adminPromise
+          .messaging()
+          .send(payload)
+          .then((response) => console.log("Notification sent:", response))
+          .catch((error) => console.log("Error sending notification:", error));
+      }
+      return;
     } else {
       console.log("Creating new block entry for host blocking user");
 
@@ -126,11 +190,30 @@ exports.blockUser = async (req, res) => {
         FollowerFollowing.deleteMany({ followerId: userId, followingId: hostId }),
       ]);
 
-      return res.status(200).json({
+      res.status(200).json({
         status: true,
         message: "User blocked successfully.",
         isBlocked: true,
       });
+
+      if (user.fcmToken) {
+        const payload = {
+          token: user.fcmToken,
+          data: {
+            title: "🚫 You’ve Been Blocked!",
+            body: `👋 ${host.name || "Someone"} just blocked you. You won’t be able to interact with them anymore.`,
+            type: "BLOCK",
+          },
+        };
+
+        const adminPromise = await admin;
+        adminPromise
+          .messaging()
+          .send(payload)
+          .then((response) => console.log("Notification sent:", response))
+          .catch((error) => console.log("Error sending notification:", error));
+      }
+      return;
     }
   } catch (error) {
     console.error(error);

@@ -17,7 +17,4 @@ route.patch("/updateSettingToggle", checkAccessWithSecretKey(), SettingControlle
 //get setting
 route.get("/fetchSettings", checkAccessWithSecretKey(), SettingController.fetchSettings);
 
-//authorize purchase code
-route.get("/authorizePurchaseCode", checkAccessWithSecretKey(), SettingController.authorizePurchaseCode);
-
 module.exports = route;

@@ -10,9 +10,6 @@ const generateAgencyCode = require("../../util/generateAgencyCode");
 const Cryptr = require("cryptr");
 const cryptr = new Cryptr("myTotallySecretKey");
 
-//fs
-const fs = require("fs");
-
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
@@ -123,8 +120,7 @@ exports.updateAgency = async (req, res) => {
 
     if (req.file) {
       if (agency.image) {
-        const imagePath = agency.image.includes("storage") ? "storage" + agency.image.split("storage")[1] : "";
-        if (imagePath && fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+        deleteFile(agency.image);
       }
       agency.image = req.file.path;
     }
@@ -349,7 +345,15 @@ exports.deleteAgency = async (req, res) => {
 //get agency list ( when assign host under agency )
 exports.getActiveAgenciesList = async (req, res) => {
   try {
-    const agencies = await Agency.find({ isBlock: false }).select("_id name agencyCode").lean();
+    const search = req?.query.search?.trim();
+
+    const filter = { isBlock: false };
+
+    if (search) {
+      filter.$or = [{ name: { $regex: search, $options: "i" } }, { agencyCode: { $regex: search, $options: "i" } }];
+    }
+
+    const agencies = await Agency.find(filter).select("_id name agencyCode").limit(50).lean();
 
     return res.status(200).json({
       status: true,

@@ -83,7 +83,15 @@ exports.getAllGiftCategories = async (req, res) => {
 //retrieve all giftCategories ( drop-down )
 exports.listGiftCategories = async (req, res) => {
   try {
-    const [categories] = await Promise.all([GiftCategory.find({ isDelete: false }).select("_id name createdAt").lean()]);
+    const search = req.query.search?.trim();
+
+    const filter = { isDelete: false };
+
+    if (search) {
+      filter.name = { $regex: search, $options: "i" };
+    }
+
+    const categories = await GiftCategory.find(filter).select("_id name createdAt").sort({ createdAt: -1 }).lean();
 
     return res.status(200).json({
       status: true,

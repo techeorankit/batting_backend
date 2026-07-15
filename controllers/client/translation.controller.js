@@ -41,13 +41,7 @@ exports.getAllLanguagesTranslations = async (req, res) => {
     }
 
     const skip = (start - 1) * limit;
-    const [
-      docs,
-      // total
-    ] = await Promise.all([
-      Translation.find({ module }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      // Translation.countDocuments({ module })
-    ]);
+    const [docs] = await Promise.all([Translation.find({ module }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean()]);
 
     if (!docs) {
       return res.status(200).json({ status: false, message: "No languages found" });
@@ -56,7 +50,6 @@ exports.getAllLanguagesTranslations = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Languages fetched",
-      // total,
       docs,
     });
   } catch (error) {
@@ -68,6 +61,7 @@ exports.getAllLanguagesTranslations = async (req, res) => {
 exports.getLatestVersionOfTranslations = async (req, res) => {
   try {
     const version = await getLatestVersion();
+
     return res.status(200).json({ status: true, message: "Version fetched", data: version });
   } catch (error) {
     return res.status(500).json({ status: false, message: error.message });

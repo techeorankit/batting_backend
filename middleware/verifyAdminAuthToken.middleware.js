@@ -16,12 +16,10 @@ const validateAdminFirebaseToken = async (req, res, next) => {
   const adminUid = req.headers["x-admin-uid"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.warn("⚠️ [AUTH] Missing or invalid authorization header.");
     return res.status(401).json({ status: false, message: "Authorization token required" });
   }
 
   if (!adminUid) {
-    console.warn("⚠️ [AUTH] Missing API key or Admin UID.");
     return res.status(401).json({ status: false, message: "Admin UID required for authentication." });
   }
 
@@ -35,7 +33,6 @@ const validateAdminFirebaseToken = async (req, res, next) => {
     ]);
 
     if (!decodedToken || !decodedToken.email) {
-      console.warn("⚠️ [AUTH] Invalid token. Email not found.");
       return res.status(401).json({ status: false, message: "Invalid token. Authorization failed." });
     }
 
@@ -44,7 +41,6 @@ const validateAdminFirebaseToken = async (req, res, next) => {
     } else if (subadminUser) {
       req.subadmin = subadminUser;
     } else {
-      console.warn("⚠️ [AUTH] Admin/Subadmin not found.");
       return res.status(401).json({ status: false, message: "Admin or Subadmin not found. Authorization failed." });
     }
     next();

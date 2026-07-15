@@ -3,9 +3,6 @@ const VipPlanPrivilege = require("../../models/vipPlanPrivilege.model");
 //deletefile
 const { deleteFile } = require("../../util/deletefile");
 
-//fs
-const fs = require("fs");
-
 //update VIP Plan Privilege
 exports.modifyVipPrivilege = async (req, res) => {
   try {
@@ -18,10 +15,7 @@ exports.modifyVipPrivilege = async (req, res) => {
 
     if (req.file) {
       if (privilege.vipFrameBadge) {
-        const oldBadgePath = privilege.vipFrameBadge.split("storage");
-        if (oldBadgePath.length > 1 && fs.existsSync("storage" + oldBadgePath[1])) {
-          fs.unlinkSync("storage" + oldBadgePath[1]);
-        }
+        deleteFile(privilege.vipFrameBadge);
       }
       privilege.vipFrameBadge = req.file.path;
     }

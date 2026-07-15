@@ -1,7 +1,7 @@
 const PaymentMethod = require("../../models/paymentMethod.model");
 
-//fs
-const fs = require("fs");
+//deletefile
+const { deleteFile } = require("../../util/deletefile");
 
 //Create Payment Method
 exports.addPaymentMethod = async (req, res, next) => {
@@ -51,10 +51,7 @@ exports.modifyPaymentMethod = async (req, res, next) => {
 
     if (req.file) {
       if (method.image) {
-        const imagePath = method.image.includes("storage") ? "storage" + method.image.split("storage")[1] : "";
-        if (imagePath && fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-        }
+        deleteFile(method.image);
       }
       method.image = req.file.path;
     }
@@ -135,10 +132,7 @@ exports.discardPaymentMethod = async (req, res, next) => {
     res.status(200).json({ status: true, message: "Payment method has been disabled by the admin." });
 
     if (method.image) {
-      const imagePath = method.image.includes("storage") ? "storage" + method.image.split("storage")[1] : "";
-      if (imagePath && fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
+      deleteFile(method.image);
     }
 
     await PaymentMethod.findByIdAndDelete(paymentMethodId);
