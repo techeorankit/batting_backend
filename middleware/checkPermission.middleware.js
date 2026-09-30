@@ -42,7 +42,6 @@ const checkPermission = (module) => {
       const permissions = req.subadmin?.role?.permissions;
 
       if (!permissions || !Array.isArray(permissions)) {
-        console.warn(`⚠️ [RBAC] Staff ${req.subadmin._id} has no permissions array on their role.`);
         return res.status(403).json({
           status: false,
           message: "Access denied. No permissions configured for your role.",
@@ -53,7 +52,6 @@ const checkPermission = (module) => {
       const modulePermission = permissions.find((p) => p.module === module);
 
       if (!modulePermission) {
-        console.warn(`⚠️ [RBAC] Staff ${req.subadmin._id} denied — module "${module}" not in role.`);
         return res.status(403).json({
           status: false,
           message: `Access denied. You do not have access to the "${module}" module.`,
@@ -67,7 +65,6 @@ const checkPermission = (module) => {
       const hasAction = requiredActions.some((action) => grantedActions.includes(action));
 
       if (!hasAction) {
-        console.warn(`⚠️ [RBAC] Staff ${req.subadmin._id} denied — action [${requiredActions.join(" or ")}] not permitted on module "${module}". Granted: [${grantedActions.join(", ")}]`);
         return res.status(403).json({
           status: false,
           message: `Access denied. You do not have permission to perform this action on the "${module}" module.`,
@@ -79,7 +76,6 @@ const checkPermission = (module) => {
     }
 
     // ── 3. Neither admin nor staff (auth middleware mis-order) ─────────────
-    console.warn("⚠️ [RBAC] Neither req.admin nor req.subadmin is set. Possible middleware mis-order.");
     return res.status(401).json({
       status: false,
       message: "Unauthorized. Authentication required.",

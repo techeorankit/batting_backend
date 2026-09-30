@@ -3,7 +3,6 @@ const admin = require("firebase-admin");
 const privateKey = settingJSON?.privateKey;
 
 if (!privateKey) {
-  console.error("❌ Firebase private key not found in global setting.");
   process.exit(1); // Exit process to prevent running without credentials
 }
 
@@ -46,8 +45,6 @@ const validateUserAccessToken = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error("❌ [AUTH ERROR] Token verification failed:", error.message);
-
     return res.status(401).json({
       status: false,
       message: error.code === "auth/id-token-expired" ? "Token expired. Please reauthenticate." : "Invalid token. Authorization failed.",

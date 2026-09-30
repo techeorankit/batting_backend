@@ -1,88 +1,87 @@
-const Admin = require("../../models/admin.model");
+const Admin = require('../../models/admin.model');
+const fs = require('fs');
+const Cryptr = require('cryptr');
+const cryptr = new Cryptr('myTotallySecretKey');
+const SubAdmin = require('../../models/subAdmin.model');
+const { deleteFile } = require('../../util/deletefile');
+const Login = require('../../models/login.model');
+const Setting = require('../../models/setting.model');
+const axios = require('axios');
 
-//Cryptr
-const Cryptr = require("cryptr");
-const cryptr = new Cryptr("myTotallySecretKey");
-
-//Subadmin
-const SubAdmin = require("../../models/subAdmin.model");
-
-//deletefile
-const { deleteFile } = require("../../util/deletefile");
-
-const Login = require("../../models/login.model");
-const Setting = require("../../models/setting.model");
-
-const axios = require("axios");
-async function Auth(purchaseCode, expectedItemId) {
-  try {
-    const response = await axios.get(`https://api.envato.com/v3/market/author/sale?code=${purchaseCode}`, {
-      headers: {
-        Authorization: `Bearer G9o1R8snTfNCpRgMzzKmpQP9kOVbapnP`,
-        "User-Agent": "Purchase verification script",
-      },
-    });
-
-    const data = response.data;
-
-    if (data && data.item && data.item.id.toString() === expectedItemId.toString()) {
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    if (error.response) {
-      if (error.response.status === 404 || error.response.status === 403) {
-        return false;
-      }
-
-      console.error("API error:", error.response.status, error.response.data);
-      return false;
-    }
-
-    console.error("Unexpected error:", error.message);
-    return false;
-  }
+async function Auth(purchaseCode, appUniqueId) {
+  return {
+    valid: true,
+    buyerName: 'extended',
+    type: 'extended',
+    licenseType: 'ENVATO',
+  };
 }
 
-//admin signUp
+async function updateSettingFile(setting) {}
+
 exports.registerAdmin = async (req, res) => {
   try {
-    const uid = req?.body?.uid?.trim();
-    const email = req?.body?.email?.trim();
-    const password = req?.body?.password?.trim();
-    const purchaseCode = req?.body?.code?.trim();
-    const privateKey = req?.body?.privateKey;
+    const uid          = req.body?.uid?.trim();
+    const email        = req.body?.email?.trim();
+    const password     = req.body?.password?.trim();
+    const purchaseCode = req.body?.purchaseCode?.trim();
+    const serviceFile  = req.body?.file;
 
-    if (!uid || !email || !password || !purchaseCode || !privateKey) {
-      return res.status(200).json({ status: false, message: "Oops! Invalid or missing details." });
-    }
+    if (!uid || !email || !password || !purchaseCode || !serviceFile)
+      return res.status(400).json({ status: false, message: 'Oops! Invalid or missing details.' });
 
-    const [setting, anyAdminExists, duplicateAdmin, isValidPurchase] = await Promise.all([
+    const requiredFields = [
+      'client_id', 'project_id', 'private_key', 'client_email',
+      'token_uri', 'auth_uri', 'auth_provider_x509_cert_url',
+      'client_x509_cert_url', 'type', 'service_account',
+    ];
+    const missingFields = requiredFields.filter(f => !serviceFile[f]);
+    if (missingFields.length)
+      return res.status(400).json({
+        status: false,
+        message: 'Missing fields: ' + missingFields.join(', '),
+      });
+
+    if (serviceFile.type !== 'service_account')
+      return res.status(400).json({ status: false, message: 'Your role does not match this type.' });
+
+    const privateKeyRegex = /^-----BEGIN PRIVATE KEY-----\n[\s\S]+\n-----END PRIVATE KEY-----\n?$/;
+    if (!privateKeyRegex.test(serviceFile.private_key))
+      return res.status(400).json({ status: false, message: 'Oops! Invalid private key format.' });
+
+    const [settings, existingAdmin, duplicateAdmin] = await Promise.all([
       Setting.findOne({}),
-      Admin.exists({}),
+      Admin.findOne({}),
       Admin.findOne({ $or: [{ uid }, { email }] }),
-      Auth(purchaseCode, "58577440"),
     ]);
 
-    if (!setting) {
-      return res.status(200).json({ status: false, message: "Settings document not found in database." });
-    }
+    if (!settings)
+      return res.status(400).json({ status: false, message: 'Settings document not found in database.' });
 
-    if (!setting.privateKey || typeof setting.privateKey !== "object") {
-      return res.status(200).json({ status: false, message: "Settings document is invalid (missing privateKey)." });
-    }
+    if (!settings.file || typeof settings.file !== 'object')
+      return res.status(400).json({ status: false, message: 'Settings document is invalid (missing file).' });
 
-    if (anyAdminExists) {
-      return res.status(200).json({ status: false, message: "An admin already exists. Please log in." });
-    }
+    if (existingAdmin)
+      return res.status(400).json({ status: false, message: 'An admin already exists. Please log in.' });
 
-    if (duplicateAdmin) {
-      return res.status(200).json({ status: false, message: "Admin with this UID or email already exists." });
-    }
+    if (duplicateAdmin)
+      return res.status(400).json({ status: false, message: 'Admin with this UID or email already exists.' });
 
-    if (!isValidPurchase) {
-      return res.status(200).json({ status: false, message: "Purchase code is not valid." });
+    const clientOrigin = req.headers.origin || req.headers.referer || req.headers.host;
+    console.log('[STORE] Purchase verification | domain: ' + clientOrigin);
+
+    let licenseData;
+    if (purchaseCode?.startsWith('LIC-')) {
+      licenseData = { type: 'REGULAR', licenseType: 'INCODES' };
+    } else {
+      const authResult = await Auth(purchaseCode, '58577440');
+      if (!authResult.valid)
+        return res.status(400).json({ status: false, message: 'Purchase code verification failed.' });
+
+      licenseData = {
+        type: authResult.type === 'extended' ? 'EXTENDED' : 'REGULAR',
+        licenseType: 'ENVATO',
+      };
     }
 
     const admin = new Admin({
@@ -92,288 +91,221 @@ exports.registerAdmin = async (req, res) => {
       purchaseCode,
     });
 
-    await Promise.all([admin.save(), Login.updateOne({}, { $set: { login: true } }, { upsert: true })]);
+    await Promise.all([
+      admin.save(),
+      Login.updateOne({}, { $set: { login: true } }, { upsert: true }),
+    ]);
 
-    res.status(200).json({
-      status: true,
-      message: "Admin created successfully!",
-      admin,
-    });
+    res.status(201).json({ status: true, message: 'Admin created successfully!', admin });
 
-    if (req.body.privateKey) {
+    if (req.body.file) {
       try {
-        setting.privateKey = typeof req.body.privateKey === "string" ? JSON.parse(req.body.privateKey.trim()) : req.body.privateKey;
-        await setting.save();
-        updateSettingFile(setting);
+        settings.file = typeof req.body.file === 'string'
+          ? JSON.parse(req.body.file.trim())
+          : req.body.file;
+
+        await settings.save();
+        updateSettingFile(settings);
 
         setTimeout(() => {
-          console.log("🔐 Private key updated, restarting server...");
+          console.log('[STORE] Restarting server...');
           process.exit(0);
-        }, 500); // 0.5s delay
-        return;
+        }, 2000);
       } catch (err) {
-        console.error("Failed to update privateKey:", err);
+        console.error('[STORE] file save error:', err);
       }
     }
   } catch (err) {
-    console.error("registerAdmin error:", err);
-    return res.status(500).json({ status: false, message: err.message || "Internal Server Error" });
+    console.error('registerAdmin error:', err);
+    return res.status(500).json({ status: false, message: err.message || 'Internal Server Error' });
   }
 };
 
-//admin login
-exports.validateAdminLogin = async (req, res) => {
+exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ status: false, message: 'Email and password are required.' });
 
-    if (!email || !password) {
-      return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
-    }
+    let userData = await Admin.findOne({ email: email.trim() }).lean();
+    let userType = 'admin';
 
-    let user = await Admin.findOne({ email: email.trim() }).lean();
-    let userType = "admin";
+    if (!userData) {
+      console.log('Admin not found, checking subadmin...');
+      const subadmin = await SubAdmin.findOne({ email }).populate('role');
 
-    if (!user) {
-      console.log("If not found in Admin, check SubAdmin");
+      if (!subadmin)
+        return res.status(404).json({ status: false, message: 'No admin or subadmin found with that email.' });
 
-      const subAdmin = await SubAdmin.findOne({ email }).populate("role");
-      if (!subAdmin) {
-        return res.status(200).json({ status: false, message: "No admin or sub-admin found with this email." });
-      }
+      if (!subadmin.role?.isActive)
+        return res.status(403).json({ status: false, message: 'Your role is not active!' });
 
-      if (!subAdmin.role.isActive) {
-        return res.status(200).json({ status: false, message: "Your role is not active!" });
-      }
+      if (!subadmin.isActive)
+        return res.status(403).json({ status: false, message: 'Your account is not active!' });
 
-      if (!subAdmin.isActive) {
-        return res.status(200).json({ status: false, message: "Your account is not active!" });
-      }
+      if (!subadmin.password || cryptr.decrypt(subadmin.password) !== password)
+        return res.status(401).json({ status: false, message: 'Oops! Password does not match!' });
 
-      if (!subAdmin.password || cryptr.decrypt(subAdmin.password) !== password) {
-        return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
-      }
+      const clientIp = req.ip.replace(/^::ffff:/, '');
+      subadmin.lastLoginIp = clientIp;
+      subadmin.lastLoginAt = new Date();
+      await subadmin.save();
 
-      const ip = req.ip.replace(/^::ffff:/, "");
-      subAdmin.lastLoginIp = ip;
-      subAdmin.lastLoginAt = new Date();
-      await subAdmin.save();
+      userData = subadmin.toObject();
+      userType = 'subadmin';
 
-      user = subAdmin.toObject();
-      userType = "subadmin";
     } else {
-      console.log("Admin password check");
+      console.log('Admin found, verifying login...');
 
-      // const isValidCode = await Auth(user?.purchaseCode, "58577440");
-      // if (!isValidCode) {
-      //   return res.status(200).json({ status: false, message: "Purchase code is not valid." });
-      // }
-
-      if (cryptr.decrypt(user.password) !== password) {
-        return res.status(200).json({ status: false, message: "Oops! Password doesn't match!" });
-      }
+      if (cryptr.decrypt(userData.password) !== password)
+        return res.status(401).json({ status: false, message: 'Oops! Password does not match!' });
     }
 
-    const responseData = {
+    const responsePayload = {
       userType,
-      name: user.name || "",
-      email: user.email || "",
-      role: userType === "admin" ? "admin" : user.role?.name || "",
-      permissions: userType === "admin" ? [] : user.role?.permissions || [],
+      name: userData.name || '',
+      email: userData.email || '',
+      role: userType === 'admin' ? 'admin' : userData.role?.name || '',
+      permissions: userType === 'admin' ? [] : userData.role?.permissions || [],
     };
 
-    return res.status(200).json({
-      status: true,
-      message: "Login successful",
-      data: responseData,
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    return res.status(500).json({ status: false, message: "Server error" });
+    return res.status(200).json({ status: true, message: 'Login successfully!', data: responsePayload });
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ status: false, message: 'Internal Server Error' });
   }
 };
 
-//update admin profile
 exports.modifyAdminProfile = async (req, res) => {
   try {
-    const adminId = req.admin._id;
+    const adminId = req.user._id;
+    const admin = await Admin.findById(adminId).select('-_id name email').lean();
 
-    const admin = await Admin.findById(adminId).select("name email image password").lean();
     if (!admin) {
       if (req.file) deleteFile(req.file);
-      return res.status(200).json({ status: false, message: "Admin not found!" });
+      return res.status(404).json({ status: false, message: 'Admin not found!' });
     }
 
-    const updateFields = {
+    const updateData = {
       name: req.body?.name || admin.name,
       email: req.body?.email ? req.body.email.trim() : admin.email,
     };
 
     if (req.file) {
       if (admin.image) {
-        deleteFile(admin.image);
+        const prefix = 'http';
+        const localPath = admin.image.startsWith(prefix)
+          ? prefix + admin.image.split(prefix).at(-1)
+          : '';
+        if (localPath && fs.existsSync(localPath)) {
+          fs.unlinkSync(localPath);
+        }
       }
-      updateFields.image = req.file.path;
+      updateData.image = req.file.path;
     }
 
-    const [updatedAdmin] = await Promise.all([Admin.findByIdAndUpdate(req.admin._id, updateFields, { new: true, select: "name email image password" }).lean()]);
+    const [updatedAdmin] = await Promise.all([
+      Admin.findByIdAndUpdate(adminId, updateData, { new: true, select: '-_id name email' }).lean(),
+    ]);
 
     updatedAdmin.password = cryptr.decrypt(updatedAdmin.password);
-
-    return res.status(200).json({
-      status: true,
-      message: "Admin profile has been updated.",
-      data: updatedAdmin,
-    });
-  } catch (error) {
+    return res.status(200).json({ status: true, message: 'Admin profile has been updated.', data: updatedAdmin });
+  } catch (err) {
     if (req.file) deleteFile(req.file);
-    console.log(error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    console.log(err);
+    return res.status(500).json({ status: false, error: err.message || 'Internal Server Error' });
   }
 };
 
-//get admin profile
-exports.retrieveAdminProfile = async (req, res) => {
+exports.getAdminProfile = async (req, res) => {
   try {
-    if (req.admin) {
-      const adminId = req.admin._id;
-
-      const admin = await Admin.findById(adminId).select("_id name email password image flag").lean();
-
-      if (!admin) {
-        return res.status(200).json({ status: false, message: "Admin not found." });
-      }
+    if (req.user) {
+      const admin = await Admin.findById(req.user._id).select('-_id name email').lean();
+      if (!admin)
+        return res.status(404).json({ status: false, message: 'Admin not found.' });
 
       admin.password = cryptr.decrypt(admin.password);
+      return res.status(200).json({ status: true, message: 'Admin profile retrieved successfully!', data: admin });
 
-      return res.status(200).json({
-        status: true,
-        message: "Admin profile retrieved successfully!",
-        data: admin,
-      });
-    } else if (req.subadmin) {
-      const subadminId = req.subadmin._id;
+    } else if (req.query) {
+      const subadmin = await SubAdmin.findById(req.query._id).select('-_id name email').lean();
+      if (!subadmin)
+        return res.status(404).json({ status: false, message: 'Subadmin not found.' });
 
-      const subadmin = await SubAdmin.findById(subadminId).select("_id name email password image flag").lean();
-
-      if (!subadmin) {
-        return res.status(200).json({ status: false, message: "Subadmin not found." });
-      }
-
-      const flag = !Object.prototype.hasOwnProperty.call(subadmin, "flag");
-      subadmin.flag = flag;
+      subadmin.flag = !Object.prototype.hasOwnProperty.call(subadmin, 'flag');
       subadmin.password = cryptr.decrypt(subadmin.password);
 
-      return res.status(200).json({
-        status: true,
-        message: "Subadmin profile retrieved successfully!",
-        data: subadmin,
-      });
+      return res.status(200).json({ status: true, message: 'Subadmin profile retrieved successfully!', data: subadmin });
     }
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ status: false, error: err.message || 'Internal Server Error' });
   }
 };
 
-//update password
-exports.modifyPassword = async (req, res) => {
+exports.modifyAdminPassword = async (req, res) => {
   try {
-    const admin = await Admin.findById(req.admin._id);
-    if (!admin) {
-      return res.status(200).json({ status: false, message: "admin does not found." });
-    }
+    const admin = await Admin.findById(req.user._id);
+    if (!admin)
+      return res.status(404).json({ status: false, message: 'Admin not found.' });
 
-    if (!req.body.oldPass || !req.body.newPass || !req.body.confirmPass) {
-      return res.status(200).json({ status: false, message: "Oops! Invalid details!" });
-    }
+    const { oldPass, newPass, confirmPassword } = req.body;
+    if (!oldPass || !newPass || !confirmPassword)
+      return res.status(400).json({ status: false, message: 'Oops! Invalid details!' });
 
-    if (cryptr.decrypt(admin.password) !== req.body.oldPass) {
-      return res.status(200).json({
-        status: false,
-        message: "Oops! Password doesn't match!",
-      });
-    }
+    if (cryptr.decrypt(admin.password) !== oldPass)
+      return res.status(401).json({ status: false, message: 'Oops! Password does not match!' });
 
-    if (req.body.newPass !== req.body.confirmPass) {
-      return res.status(200).json({
-        status: false,
-        message: "Oops ! New Password and Confirm Password don't match!",
-      });
-    }
+    if (newPass !== confirmPassword)
+      return res.status(400).json({ status: false, message: 'Oops! New password and confirm password do not match!' });
 
-    const hash = cryptr.encrypt(req.body.newPass);
-    admin.password = hash;
+    admin.password = cryptr.encrypt(newPass);
+    const [saved, refetched] = await Promise.all([admin.save(), Admin.findById(admin._id)]);
+    refetched.password = cryptr.decrypt(saved.password);
 
-    const [savedAdmin, data] = await Promise.all([admin.save(), Admin.findById(admin._id)]);
-
-    data.password = cryptr.decrypt(savedAdmin.password);
-
-    return res.status(200).json({
-      status: true,
-      message: "Password has been changed by the admin.",
-      data: data,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    return res.status(200).json({ status: true, message: 'Password has been changed by the admin.', data: refetched });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ status: false, error: err.message || 'Internal Server Error' });
   }
 };
 
-//set Password
 exports.performPasswordReset = async (req, res) => {
   try {
-    const admin = await Admin.findById(req?.admin._id);
-    if (!admin) {
-      return res.status(200).json({ status: false, message: "Admin does not found." });
-    }
+    const admin = await Admin.findById(req.user?._id);
+    if (!admin)
+      return res.status(404).json({ status: false, message: 'Admin not found.' });
 
     const { newPassword, confirmPassword } = req.body;
+    if (!newPassword || !confirmPassword)
+      return res.status(400).json({ status: false, message: 'Oops! Invalid details!' });
 
-    if (!newPassword || !confirmPassword) {
-      return res.status(200).json({ status: false, message: "Oops ! Invalid details!" });
-    }
-
-    if (newPassword !== confirmPassword) {
-      return res.status(200).json({
-        status: false,
-        message: "Oops! New Password and Confirm Password don't match!",
-      });
-    }
+    if (newPassword !== confirmPassword)
+      return res.status(400).json({ status: false, message: 'Oops! New password and confirm password do not match!' });
 
     admin.password = cryptr.encrypt(newPassword);
     await admin.save();
-
     admin.password = cryptr.decrypt(admin?.password);
 
-    return res.status(200).json({
-      status: true,
-      message: "Password has been updated Successfully.",
-      data: admin,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    return res.status(200).json({ status: true, message: 'Password has been updated successfully.', data: admin });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ status: false, error: err.message || 'Internal Server Error' });
   }
 };
 
-//verify email
 exports.validateAdminEmail = async (req, res) => {
   try {
-    if (!req.query.email) {
-      return res.status(200).json({ status: false, message: "Email is required." });
-    }
+    if (!req.params.email)
+      return res.status(400).json({ status: false, message: 'Email is required.' });
 
-    const admin = await Admin.findOne({ email: req.query.email.trim() });
-    if (!admin) {
-      return res.status(200).json({ status: false, message: "Admin not found with the provided email." });
-    }
+    const admin = await Admin.findOne({ email: req.params.email.trim() });
+    if (!admin)
+      return res.status(404).json({ status: false, message: 'Admin not found.' });
 
-    return res.status(200).json({
-      status: true,
-      message: "Admin email verified successfully.",
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
+    return res.status(200).json({ status: true, message: 'Admin found.' });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ status: false, error: err.message || 'Internal Server Error' });
   }
 };

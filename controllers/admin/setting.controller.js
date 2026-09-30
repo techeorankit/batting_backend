@@ -4,8 +4,16 @@ const Setting = require("../../models/setting.model");
 const Admin = require("../../models/admin.model");
 const Host = require("../../models/host.model");
 
-//scheduleChatJob
-const scheduleChatJob = require("../../worker/bullRandomChatJob");
+const isRedisAvailable = require("../../util/isRedisAvailable");
+
+async function scheduleChatJob() {
+  if (!(await isRedisAvailable())) {
+    console.warn("Redis unavailable; background chat queue is not being rescheduled.");
+    return;
+  }
+
+  return require("../../worker/bullRandomChatJob")();
+}
 
 const Joi = require("joi");
 const axios = require("axios");
