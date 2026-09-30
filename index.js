@@ -87,6 +87,11 @@ async function startServer() {
     console.warn(`Redis unavailable at ${redisHost}:${redisPort}; background chat queue is disabled.`);
   }
 
+  app.get("/health", (req, res) => {
+    const connected = db.readyState === 1;
+    res.status(connected ? 200 : 503).json({ status: connected ? "ok" : "unavailable", database: connected ? "connected" : "disconnected" });
+  });
+
   //Step 3: Start Server after all setup is done
   server.listen(process?.env?.PORT, () => {
     console.log("Hello World ! listening on " + process?.env?.PORT);
