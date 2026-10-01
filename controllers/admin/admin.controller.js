@@ -178,8 +178,8 @@ exports.adminLogin = async (req, res) => {
 
 exports.modifyAdminProfile = async (req, res) => {
   try {
-    const adminId = req.user._id;
-    const admin = await Admin.findById(adminId).select('-_id name email').lean();
+    const adminId = req.admin?._id;
+    const admin = await Admin.findById(adminId).select('-_id name email image').lean();
 
     if (!admin) {
       if (req.file) deleteFile(req.file);
@@ -205,7 +205,7 @@ exports.modifyAdminProfile = async (req, res) => {
     }
 
     const [updatedAdmin] = await Promise.all([
-      Admin.findByIdAndUpdate(adminId, updateData, { new: true, select: '-_id name email' }).lean(),
+      Admin.findByIdAndUpdate(adminId, updateData, { new: true, select: '-_id name email image password' }).lean(),
     ]);
 
     updatedAdmin.password = cryptr.decrypt(updatedAdmin.password);
@@ -219,8 +219,9 @@ exports.modifyAdminProfile = async (req, res) => {
 
 exports.getAdminProfile = async (req, res) => {
   try {
-    if (req.user) {
-      const admin = await Admin.findById(req.user._id).select('-_id name email').lean();
+    // validateAdminToken sets req.admin for the admin and req.subadmin for staff
+    if (req.admin) {
+      const admin = await Admin.findById(req.admin._id).select('-_id name email image password').lean();
       if (!admin)
         return res.status(404).json({ status: false, message: 'Admin not found.' });
 
@@ -228,7 +229,7 @@ exports.getAdminProfile = async (req, res) => {
       return res.status(200).json({ status: true, message: 'Admin profile retrieved successfully!', data: admin });
 
     } else if (req.query) {
-      const subadmin = await SubAdmin.findById(req.query._id).select('-_id name email').lean();
+      const subadmin = await SubAdmin.findById(req.subadmin?._id || req.query._id).select('-_id name email password').lean();
       if (!subadmin)
         return res.status(404).json({ status: false, message: 'Subadmin not found.' });
 
@@ -245,7 +246,7 @@ exports.getAdminProfile = async (req, res) => {
 
 exports.modifyAdminPassword = async (req, res) => {
   try {
-    const admin = await Admin.findById(req.user._id);
+    const admin = await Admin.findById(req.admin?._id);
     if (!admin)
       return res.status(404).json({ status: false, message: 'Admin not found.' });
 
@@ -272,7 +273,7 @@ exports.modifyAdminPassword = async (req, res) => {
 
 exports.performPasswordReset = async (req, res) => {
   try {
-    const admin = await Admin.findById(req.user?._id);
+    const admin = await Admin.findById(req.admin?._id);
     if (!admin)
       return res.status(404).json({ status: false, message: 'Admin not found.' });
 
