@@ -2,6 +2,7 @@
  * Creates (or resets the password of) the panel's admin account without going through the sign-up page.
  *
  *   ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=secret node scripts/createAdmin.js
+ *   ADMIN_REPLACE=1 ...   also allow changing the existing admin's email (the old login is removed)
  *
  * Does what /api/admin/admin/registerAdmin does: a Firebase email/password user, an Admin document holding
  * that user's uid, and the "login" flag that makes the panel open on the login page instead of sign-up.
@@ -28,8 +29,9 @@ const Login = require("../models/login.model");
     await mongoose.connect(process.env.MongoDb_Connection_String, { serverSelectionTimeoutMS: 10000 });
 
     const existing = await Admin.findOne({}).lean();
-    if (existing && existing.email !== email) {
-      console.error(`An admin already exists with a different email (${existing.email}). Nothing changed.`);
+    const replacing = existing && existing.email !== email;
+    if (replacing && process.env.ADMIN_REPLACE !== "1") {
+      console.error(`An admin already exists with a different email (${existing.email}). Set ADMIN_REPLACE=1 to move the admin to ${email}.`);
       process.exitCode = 1;
       return;
     }
@@ -48,12 +50,20 @@ const Login = require("../models/login.model");
 
     await Promise.all([
       Admin.updateOne(
-        { email },
+        existing ? { _id: existing._id } : { email },
         { $set: { uid: user.uid, email, password: cryptr.encrypt(password) }, $setOnInsert: { name: "Admin", purchaseCode: "SEEDED" } },
         { upsert: true },
       ),
       Login.updateOne({}, { $set: { login: true } }, { upsert: true }),
     ]);
+
+    //the previous login must stop working once the admin has moved to another email
+    if (replacing && existing.uid && existing.uid !== user.uid) {
+      await firebase.auth().deleteUser(existing.uid).then(
+        () => console.log(`Old Firebase user removed (${existing.email}).`),
+        (error) => console.warn(`Could not remove old Firebase user: ${error.message}`),
+      );
+    }
 
     console.log(`Admin ready: ${email} (uid ${user.uid})`);
   } catch (error) {
