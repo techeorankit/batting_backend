@@ -1,4 +1,12 @@
 node_modules
 .git
 .env
+.env.*
+env
+env.*
 firebase-service-account*.json
+storage
+svga
+npm-debug.log*
+Dockerfile*
+README.md

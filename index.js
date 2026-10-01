@@ -19,8 +19,9 @@ const path = require("path");
 //fs
 const fs = require("fs");
 
-//dotenv
-require("dotenv").config({ path: require("path").join(__dirname, ".env") });
+//environment
+const { validateEnv, getPort } = require("./config/env");
+validateEnv();
 
 //socket io
 const http = require("http");
@@ -37,7 +38,7 @@ global.settingJSON = {};
 //Declare the function as a global variable to update the setting.js file
 global.updateSettingFile = (settingData) => {
   const settingJSON = JSON.stringify(settingData, null, 2);
-  fs.writeFileSync("setting.js", `module.exports = ${settingJSON};`, "utf8");
+  fs.writeFileSync(path.join(__dirname, "setting.js"), `module.exports = ${settingJSON};`, "utf8");
 
   global.settingJSON = settingData; // Update global variable
   console.log("Settings file updated.");
@@ -93,10 +94,19 @@ async function startServer() {
   });
 
   //Step 3: Start Server after all setup is done
-  server.listen(process?.env?.PORT, () => {
-    console.log("Hello World ! listening on " + process?.env?.PORT);
+  const port = getPort();
+  server.listen(port, () => {
+    console.log("Server listening on port " + port);
   });
 }
 
 //Run server startup
-startServer();
+startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});
+
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received. Closing HTTP server.");
+  server.close(() => process.exit(0));
+});
